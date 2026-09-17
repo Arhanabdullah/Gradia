@@ -7,4 +7,4 @@ function setTokenCookie(res, token) {
     });
 }
 
-module.exports = setTokenCookie;
+module.exports = { setTokenCookie };
