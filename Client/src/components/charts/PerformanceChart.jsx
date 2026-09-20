@@ -8,6 +8,8 @@ import {
     ResponsiveContainer,
 } from "recharts";
 
+import { chartAxis, chartTooltip } from "./ChartsConfig";
+
 const data = [
     { month: "Jan", score: 68 },
     { month: "Feb", score: 72 },
@@ -37,23 +39,13 @@ const PerformanceChart = () => {
                     />
                     <XAxis
                         dataKey="month"
-                        tick={{
-                            fill: "var(--muted-foreground)",
-                            fontSize: 9,
-                        }}
-                        axisLine={false}
-                        tickLine={false}
+                        {...chartAxis}
                         dy={8}
                     />
                     <YAxis
+                        {...chartAxis}
                         domain={[50, 100]}
                         ticks={[50, 60, 70, 80, 90, 100]}
-                        tick={{
-                            fill: "var(--muted-foreground)",
-                            fontSize: 9,
-                        }}
-                        axisLine={false}
-                        tickLine={false}
                         width={35}
                     />
                     <Tooltip
@@ -61,17 +53,7 @@ const PerformanceChart = () => {
                             stroke: "var(--border)",
                             strokeDasharray: "3 3",
                         }}
-                        contentStyle={{
-                            background: "var(--surface)",
-                            border: "1px solid var(--border)",
-                            borderRadius: "10px",
-                            boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
-                            fontSize: "11px",
-                        }}
-                        labelStyle={{
-                            color: "var(--muted)",
-                            marginBottom: "4px",
-                        }}
+                        {...chartTooltip}
                     />
                     <Line
                         type="monotone"

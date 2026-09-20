@@ -1,63 +1,54 @@
 import { motion } from "framer-motion";
+import {
+    revealVariant,
+    buttonHover,
+    buttonTap,
+    microTransition,
+} from "../../animations/variants";
 
 const HeroActions = () => {
     return (
         <div className="flex flex-col items-center">
             <motion.div
                 className="mt-9 flex flex-col items-center gap-3 sm:flex-row"
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                    duration: 0.6,
-                    delay: 0.3,
-                    ease: [0.22, 1, 0.36, 1],
-                }}
+                variants={revealVariant}
+                initial="hidden"
+                animate="visible"
+                custom={0.3}
             >
-                <motion.button
-                    className="rounded-lg bg-(--primary) px-5 py-3 text-sm font-semibold text-(--background)"
+                <motion.a
+                    href="#request-demo"
+                    className="inline-flex items-center justify-center rounded-lg bg-(--primary-deep) px-5 py-2.5 text-sm font-medium text-white shadow-[0_8px_30px_rgba(79,70,229,0.22)]"
                     whileHover={{
                         scale: 1.04,
-                        backgroundColor: "var(--primary-deep)",
+                        backgroundColor: "var(--primary)",
+                        boxShadow: "0 10px 35px rgba(79,70,229,0.28)",
                     }}
-                    whileTap={{
-                        scale: 0.96,
-                    }}
-                    transition={{
-                        duration: 0.2,
-                        ease: "easeOut",
-                    }}
+                    whileTap={buttonTap}
+                    transition={microTransition}
                 >
                     Get started
-                </motion.button>
-
+                </motion.a>
                 <motion.a
                     href="#how-it-works"
-                    className="rounded-lg border border-(--border) bg-(--surface)/70 px-5 py-3 text-sm font-medium text-(--foreground) backdrop-blur-sm"
+                    className="inline-flex items-center justify-center rounded-lg border border-(--border) bg-(--surface)/20 px-5 py-2.5 text-sm font-medium text-(--foreground) backdrop-blur-md"
                     whileHover={{
                         scale: 1.04,
                         borderColor: "var(--primary)",
+                        backgroundColor: "rgba(255,255,255,0.04)",
                     }}
-                    whileTap={{
-                        scale: 0.96,
-                    }}
-                    transition={{
-                        duration: 0.2,
-                        ease: "easeOut",
-                    }}
+                    whileTap={buttonTap}
+                    transition={microTransition}
                 >
                     See how it works
                 </motion.a>
             </motion.div>
-
             <motion.p
                 className="mt-5 text-[10px] tracking-wide text-(--muted-foreground)"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{
-                    duration: 0.5,
-                    delay: 0.45,
-                    ease: "easeOut",
-                }}
+                variants={revealVariant}
+                initial="hidden"
+                animate="visible"
+                custom={0.45}
             >
                 Built for students, faculty, and academic administrators.
             </motion.p>

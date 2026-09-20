@@ -1,85 +1,81 @@
+import Reveal from "./Reveal";
+import { motion } from "framer-motion";
 const features = [
     {
         number: "01",
-        title: "Centralized results",
+        title: "Centralized academic data",
         description:
-            "Manage student records, marks, grades, and academic results from one organized workspace.",
+            "Keep students, subjects, classes, and academic results organized in one structured platform.",
     },
     {
         number: "02",
-        title: "Role-based access",
+        title: "Streamlined result management",
         description:
-            "Give administrators, teachers, and students the right level of access to academic information.",
+            "Manage, review, and publish results through a workflow designed to reduce administrative complexity.",
     },
     {
         number: "03",
-        title: "Simple publishing",
+        title: "Clear academic insights",
         description:
-            "Review results before publishing them and make academic information available when it is ready.",
+            "Turn academic records into clear performance insights that are easy to review and understand.",
     },
     {
         number: "04",
-        title: "Performance insights",
+        title: "Built for every role",
         description:
-            "Understand student and subject performance through clear analytics and visual reports.",
-    },
-    {
-        number: "05",
-        title: "Secure by design",
-        description:
-            "Keep academic data protected with authentication and controlled access across the platform.",
-    },
-    {
-        number: "06",
-        title: "Built for institutions",
-        description:
-            "Designed to support the everyday workflow of students, faculty, and academic administrators.",
+            "Give students, faculty, and administrators the tools and information relevant to their role.",
     },
 ];
-
 const Features = () => {
     return (
         <section
             id="features"
-            className="mx-auto w-full max-w-7xl px-6 py-24"
+            className="mx-auto w-full max-w-7xl px-6 py-20 md:py-24"
         >
-            {/* Section heading */}
             <div className="max-w-2xl">
-                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-(--tertiary)">
-                    Everything in one place
-                </p>
-                <h2 className="mt-3 font-editorial text-4xl leading-tight text-(--foreground) md:text-5xl">
-                    Less administration.
-                    <br />
-                    <span className="italic text-(--primary)">
-                        More clarity.
-                    </span>
-                </h2>
-                <p className="mt-5 text-base leading-7 text-(--muted)">
-                    Gradia simplifies the entire academic results workflow,
-                    giving every role the tools they need without unnecessary
-                    complexity.
-                </p>
-            </div>
-            {/* Feature grid */}
-            <div className="mt-14 grid border-t border-(--border) sm:grid-cols-2 lg:grid-cols-3">
-                {features.map((feature) => (
-                    <div
-                        key={feature.number}
-                        className="border-b border-(--border) p-6 sm:odd:border-r lg:nth-[3n+1]:border-r lg:nth-[3n+2]:border-r"
-                    >
-                        <span className="text-[10px] tabular text-(--muted-foreground)">
-                            {feature.number}
+                <Reveal>
+                    <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-(--muted-foreground)">
+                        Platform
+                    </p>
+                </Reveal>
+                <Reveal delay={0.1}>
+                    <h2 className="mt-3 font-editorial text-4xl leading-tight tracking-tight text-(--foreground) sm:text-5xl">
+                        Everything you need
+                        <br />
+                        <span className="italic text-(--primary)">
+                            to manage results.
                         </span>
-
-                        <h3 className="mt-8 text-base font-semibold text-(--foreground)">
-                            {feature.title}
-                        </h3>
-
-                        <p className="mt-3 max-w-sm text-sm leading-6 text-(--muted)">
-                            {feature.description}
-                        </p>
-                    </div>
+                    </h2>
+                </Reveal>
+                <Reveal delay={0.2}>
+                    <p className="mt-5 max-w-xl text-sm leading-7 text-(--muted)">
+                        A focused academic management experience built around
+                        the workflows that matter most.
+                    </p>
+                </Reveal>
+            </div>
+            <div className="glass-panel mt-14 grid overflow-hidden rounded-2xl sm:grid-cols-2">
+                {features.map((feature, index) => (
+                    <Reveal
+                        key={feature.number}
+                        delay={0.15 + index * 0.08}
+                    >
+                        <motion.div
+                            className="group h-full p-7"
+                            whileHover={{ backgroundColor: "rgba(255,255,255,0.04)" }}
+                            transition={{ duration: 0.25, ease: "easeOut" }}
+                        >
+                            <span className="text-[10px] font-medium tracking-[0.12em] text-(--primary)">
+                                {feature.number}
+                            </span>
+                            <h3 className="mt-8 text-base font-semibold text-(--foreground)">
+                                {feature.title}
+                            </h3>
+                            <p className="mt-3 max-w-md text-sm leading-6 text-(--muted)">
+                                {feature.description}
+                            </p>
+                        </motion.div>
+                    </Reveal>
                 ))}
             </div>
         </section>

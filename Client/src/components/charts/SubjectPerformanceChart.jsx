@@ -7,7 +7,7 @@ import {
     Tooltip,
     ResponsiveContainer,
 } from "recharts";
-
+import { chartAxis, chartTooltip } from "./ChartsConfig";
 const subjectData = [
     { subject: "DSA", score: 86 },
     { subject: "DBMS", score: 78 },
@@ -16,7 +16,7 @@ const subjectData = [
     { subject: "Maths", score: 69 },
 ];
 
-const StudentPerformanceChart = () => {
+const SubjectPerformanceChart = () => {
     return (
         <div className="h-55 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -36,23 +36,13 @@ const StudentPerformanceChart = () => {
                     />
                     <XAxis
                         dataKey="subject"
-                        tick={{
-                            fill: "var(--muted-foreground)",
-                            fontSize: 9,
-                        }}
-                        axisLine={false}
-                        tickLine={false}
+                        {...chartAxis}
                         dy={8}
                     />
                     <YAxis
+                        {...chartAxis}
                         domain={[0, 100]}
                         ticks={[0, 25, 50, 75, 100]}
-                        tick={{
-                            fill: "var(--muted-foreground)",
-                            fontSize: 9,
-                        }}
-                        axisLine={false}
-                        tickLine={false}
                         width={35}
                     />
                     <Tooltip
@@ -60,17 +50,7 @@ const StudentPerformanceChart = () => {
                             fill: "var(--primary)",
                             opacity: 0.04,
                         }}
-                        contentStyle={{
-                            background: "var(--surface)",
-                            border: "1px solid var(--border)",
-                            borderRadius: "10px",
-                            boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
-                            fontSize: "11px",
-                        }}
-                        labelStyle={{
-                            color: "var(--muted)",
-                            marginBottom: "4px",
-                        }}
+                        {...chartTooltip}
                     />
                     <Bar
                         dataKey="score"
@@ -84,4 +64,4 @@ const StudentPerformanceChart = () => {
     );
 };
 
-export default StudentPerformanceChart;
+export default SubjectPerformanceChart;

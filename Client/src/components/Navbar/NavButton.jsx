@@ -9,7 +9,7 @@ const NavButton = ({ children, variant = "primary", onClick }) => {
             className={
                 isPrimary
                     ? "rounded-lg bg-(--primary) px-3.5 py-2 text-xs font-semibold"
-                    : "rounded-lg border border-(--border) bg-(--surface) px-3 py-2 text-xs"
+                    : "rounded-lg border glass-panel px-3 py-2 text-xs"
             }
             style={{
                 color: isPrimary
