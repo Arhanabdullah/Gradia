@@ -8,19 +8,14 @@ const NavButton = ({ children, variant = "primary", onClick }) => {
             onClick={onClick}
             className={
                 isPrimary
-                    ? "rounded-lg bg-(--primary) px-3.5 py-2 text-xs font-semibold"
-                    : "rounded-lg border glass-panel px-3 py-2 text-xs"
+                    ? "rounded-lg bg-(--primary-deep) px-3.5 py-2 text-xs font-semibold text-white"
+                    : "rounded-lg border glass-panel px-3 py-2 text-xs text-(--foreground)"
             }
-            style={{
-                color: isPrimary
-                    ? "var(--background)"
-                    : "var(--foreground)",
-            }}
             whileHover={{
                 scale: 1.05,
                 ...(isPrimary
                     ? {
-                        backgroundColor: "var(--primary-deep)",
+                        backgroundColor: "var(--primary)",
                     }
                     : {
                         borderColor: "var(--primary)",

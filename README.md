@@ -1,10 +1,39 @@
 # Gradia
 
-### Student Result Management System
+### Student Result Management System (Supabase-backed)
 
 Gradia is a full-stack Student Result Management System designed to simplify and digitize the process of managing, reviewing, approving, and publishing student academic results.
 
 The system provides different interfaces and permissions for students, teachers, administrators, HODs, and principals, creating a structured result management and approval workflow.
+
+**Stack:** React 19 + Vite + Tailwind 4 (client) · Supabase (Postgres + Auth + Row Level Security + Edge Functions).
+
+## 🚀 Running the app
+
+```bash
+cd Client
+npm install
+npm run dev
+```
+
+Environment (`.env`, see `.env.example`):
+
+```
+VITE_SUPABASE_URL=https://<your-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon public key>
+```
+
+## 🗄️ Start a new Supabase project
+
+1. Run `supabase/schema.sql` once in the Supabase SQL Editor (tables, RLS, workflow RPCs, auto-profile trigger).
+2. In **Authentication → Users → Add user**, create your admin account.
+3. At the bottom of `schema.sql`, uncomment the `update public.profiles set role = 'admin' ...` block and run it with your email.
+4. Deploy the account-creation Edge Function:
+   ```bash
+   npx supabase functions deploy create-user --project-ref <your-ref>
+   ```
+   `SUPABASE_SERVICE_ROLE_KEY` is injected automatically; it must never live in the client.
+
 
 ---
 

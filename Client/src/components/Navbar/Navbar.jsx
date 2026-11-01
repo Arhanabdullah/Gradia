@@ -1,13 +1,10 @@
-import { motion } from "framer-motion";
-import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import NavLink from "./NavLink";
 import ThemeToggle from "./ThemeToggle";
 import NavButton from "./NavButton";
 
 const Navbar = ({ theme, setTheme }) => {
-    const toggleTheme = () => {
-        setTheme(theme === "dark" ? "light" : "dark");
-    };
+    const navigate = useNavigate();
 
     return (
         <nav className="fixed left-1/2 top-4 z-50 w-[calc(100%-2rem)] max-w-7xl -translate-x-1/2">
@@ -35,11 +32,11 @@ const Navbar = ({ theme, setTheme }) => {
                     {/* Theme */}
                     <ThemeToggle theme={theme} setTheme={setTheme} />
                     {/* Sign in */}
-                    <NavButton variant="secondary" >
+                    <NavButton variant="secondary" onClick={() => navigate("/login")}>
                         Sign in
                     </NavButton>
 
-                    <NavButton>
+                    <NavButton onClick={() => navigate("/login")}>
                         Request Demo
                     </NavButton>
                 </div>

@@ -30,8 +30,8 @@ const ProductPreview = () => {
                         <div className="w-11.5" />
                     </div>
                     {/* Dashboard */}
-                    <div className="grid md:grid-cols-[180px_1fr]">
-                        <DashboardSidebar />
+                    <div className="grid md:grid-cols-[224px_1fr]">
+                        <DashboardSidebar fluid />
                         <div className="min-w-0 p-4 sm:p-5 md:p-7">
                             <DashboardHeader />
                             <DashboardStats />

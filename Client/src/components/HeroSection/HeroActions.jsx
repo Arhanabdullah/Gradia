@@ -1,12 +1,13 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
     revealVariant,
-    buttonHover,
     buttonTap,
     microTransition,
 } from "../../animations/variants";
 
 const HeroActions = () => {
+    const navigate = useNavigate();
     return (
         <div className="flex flex-col items-center">
             <motion.div
@@ -17,6 +18,10 @@ const HeroActions = () => {
                 custom={0.3}
             >
                 <motion.a
+                    onClick={(e) => {
+                        e.preventDefault();
+                        navigate("/login");
+                    }}
                     href="#request-demo"
                     className="inline-flex items-center justify-center rounded-lg bg-(--primary-deep) px-5 py-2.5 text-sm font-medium text-white shadow-[0_8px_30px_rgba(79,70,229,0.22)]"
                     whileHover={{

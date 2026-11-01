@@ -13,7 +13,6 @@ const Reveal = ({ children, delay = 0, className = "" }) => {
                 once: true,
                 amount: 0.2,
             }}
-            custom={delay}
         >
             {children}
         </motion.div>

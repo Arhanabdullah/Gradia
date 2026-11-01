@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import Reveal from "./Reveal";
 import {
     buttonHover,
@@ -6,6 +7,7 @@ import {
     microTransition,
 } from "../animations/variants";
 const CTA = () => {
+    const navigate = useNavigate();
     return (
         <section
             id="request-demo"
@@ -34,6 +36,7 @@ const CTA = () => {
                         </p>
                         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                             <motion.button
+                                onClick={() => navigate("/login")}
                                 className="rounded-lg bg-(--primary) px-5 py-3 text-sm font-semibold text-(--background)"
                                 whileHover={{
                                     ...buttonHover,
