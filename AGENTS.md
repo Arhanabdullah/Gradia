@@ -2,6 +2,8 @@
 
 Single npm package (`Client/`) + Supabase backend. All app code is plain JavaScript (JSX); no TypeScript anywhere.
 
+> **Design system is locked.** The Hallmark redesign (see `DESIGN.md` at the repo root) keeps the glass token system in `Client/src/index.css` (light + `.dark`), Newsreader (display) + Geist (UI) faces, and sentences-case untracked labels. All interactive elements rely on the global `:focus-visible` ring and `prefers-reduced-motion` fallback in `index.css` — never add `outline-none` without a replacement ring, never use `transition-all`, never tracked-caps `uppercase` labels, no em-dash/middle-dot/glued-arrow copy, min text size 11px. Shared primitives live in `Client/src/components/ui.jsx` (all 8 control states).
+
 ## Architecture
 - `Client/` — React 19 + Vite 7 + Tailwind 4. Talks **directly** to Supabase (no Express/API layer of our own).
   - `src/lib/supabase.js` (client), `src/context/AuthContext.jsx` (session + profile; fetches `*, classes ( name )`), `src/components/ui.jsx` (shared form/card/chip primitives; non-component constants live in `src/lib/status.js`), `src/lib/db.js` (fetch/insert/RPC helpers).

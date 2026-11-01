@@ -20,16 +20,16 @@ const RecentResults = () => {
                 <table className="w-full min-w-150 text-left">
                     <thead>
                         <tr className="border-b border-(--border)">
-                            <th className="pb-3 text-[10px] font-medium uppercase tracking-[0.12em] text-(--muted-foreground)">
+                            <th className="pb-3 text-xs text-(--muted)">
                                 Student
                             </th>
-                            <th className="pb-3 text-[10px] font-medium uppercase tracking-[0.12em] text-(--muted-foreground)">
+                            <th className="pb-3 text-xs text-(--muted)">
                                 Course
                             </th>
-                            <th className="pb-3 text-[10px] font-medium uppercase tracking-[0.12em] text-(--muted-foreground)">
+                            <th className="pb-3 text-xs text-(--muted)">
                                 Score
                             </th>
-                            <th className="pb-3 text-[10px] font-medium uppercase tracking-[0.12em] text-(--muted-foreground)">
+                            <th className="pb-3 text-xs text-(--muted)">
                                 Status
                             </th>
                         </tr>
@@ -46,7 +46,7 @@ const RecentResults = () => {
                                 92%
                             </td>
                             <td className="py-4">
-                                <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-[10px] font-medium text-emerald-400">
+                                <span className="rounded-full bg-(--success-subtle) px-2.5 py-1 text-xs font-medium text-(--success)">
                                     Published
                                 </span>
                             </td>
@@ -62,7 +62,7 @@ const RecentResults = () => {
                                 87%
                             </td>
                             <td className="py-4">
-                                <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-[10px] font-medium text-emerald-400">
+                                <span className="rounded-full bg-(--success-subtle) px-2.5 py-1 text-xs font-medium text-(--success)">
                                     Published
                                 </span>
                             </td>
@@ -78,7 +78,7 @@ const RecentResults = () => {
                                 81%
                             </td>
                             <td className="pt-4">
-                                <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-[10px] font-medium text-amber-400">
+                                <span className="rounded-full bg-(--primary-deep)/10 px-2.5 py-1 text-xs font-medium text-(--primary-deep)">
                                     Pending
                                 </span>
                             </td>

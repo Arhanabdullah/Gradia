@@ -89,7 +89,7 @@ const loadCounts = async (role, profile) => {
     ];
   // student
   return [
-    { label: "Class", value: profile.classes?.name ?? "—" },
+    { label: "Class", value: profile.classes?.name ?? "Not assigned yet" },
     ...(profile.class_id
       ? [{ label: "Subjects in class", value: await countQuery("subjects", { class_id: profile.class_id }) }]
       : []),
@@ -119,12 +119,13 @@ const Overview = () => {
   const [recent, setRecent] = useState([]);
   const [chart, setChart] = useState(null);
   const [dept, setDept] = useState(null);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     if (!profile) return;
-    loadCounts(profile.role, profile).then(setStats);
-    loadChart(profile).then(setChart);
-    loadDept(profile).then(setDept);
+    loadCounts(profile.role, profile).then(setStats).catch(() => setLoadError(true));
+    loadChart(profile).then(setChart).catch(() => setLoadError(true));
+    loadDept(profile).then(setDept).catch(() => setLoadError(true));
 
     if (["admin", "hod", "principal"].includes(profile.role)) {
       supabase
@@ -132,7 +133,8 @@ const Overview = () => {
         .select("id, status, exams ( name ), classes ( name )")
         .order("updated_at", { ascending: false })
         .limit(5)
-        .then(({ data }) => setRecent(data ?? []));
+        .then(({ data }) => setRecent(data ?? []))
+        .catch(() => setLoadError(true));
     }
   }, [profile]);
 
@@ -147,6 +149,11 @@ const Overview = () => {
           stat ? <StatCard key={i} label={stat.label} value={stat.value} /> : <StatCard key={i} label="…" value="" />,
         )}
       </div>
+      {loadError ? (
+        <p className="mt-3 text-xs text-(--danger)">
+          Couldn’t load some dashboard data. Check your connection and refresh the page.
+        </p>
+      ) : null}
 
       {profile.role === "student" ? (
         <Card className="mt-4">
@@ -154,14 +161,14 @@ const Overview = () => {
             <div>
               <p className="text-sm font-semibold text-(--foreground)">{profile.name}</p>
               <p className="mt-0.5 text-xs text-(--muted)">
-                {profile.email} · {profile.username}
+                {profile.email}, {profile.username}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-(--muted-foreground)">Class</p>
-              <p className="mt-0.5 text-sm text-(--foreground)">{profile.classes?.name ?? "—"}</p>
+              <p className="text-xs font-medium text-(--muted-foreground)">Class</p>
+              <p className="mt-0.5 text-sm text-(--foreground)">{profile.classes?.name ?? "Not assigned yet"}</p>
               {profile.department ? (
-                <p className="text-[10px] text-(--muted-foreground)">{profile.department}</p>
+                <p className="text-xs text-(--muted-foreground)">{profile.department}</p>
               ) : null}
             </div>
           </div>
@@ -170,20 +177,18 @@ const Overview = () => {
 
       {dept && dept.length > 0 ? (
         <section className="mt-6">
-          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-(--muted-foreground)">
-            My department
-          </p>
+          <p className="text-xs font-medium text-(--muted-foreground)">My department</p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {dept.map((c) => (
               <Card key={c.id}>
                 <p className="text-sm font-semibold text-(--foreground)">{c.name}</p>
-                <p className="mt-0.5 text-[10px] text-(--muted-foreground)">{c.department}</p>
+                <p className="mt-0.5 text-xs text-(--muted-foreground)">{c.department}</p>
                 <div className="mt-3 flex gap-5 text-xs text-(--muted)">
                   <span>
-                    <span className="font-semibold text-(--foreground)">{c.students}</span> students
+                    <span className="font-semibold text-(--foreground) tabular-nums">{c.students}</span> students
                   </span>
                   <span>
-                    <span className="font-semibold text-(--foreground)">{c.subjects}</span> subjects
+                    <span className="font-semibold text-(--foreground) tabular-nums">{c.subjects}</span> subjects
                   </span>
                 </div>
               </Card>
@@ -196,15 +201,15 @@ const Overview = () => {
         <Card>
           <div className="mb-4">
             <p className="text-xs font-medium text-(--foreground)">{chart.title}</p>
-            <p className="mt-0.5 text-[9px] text-(--muted-foreground)">{chart.subtitle}</p>
+            <p className="mt-0.5 text-xs text-(--muted-foreground)">{chart.subtitle}</p>
           </div>
           <div className="h-55 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chart.data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
                 <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="2 4" vertical={false} />
-                <XAxis dataKey="label" {...chartAxis} dy={8} />
-                <YAxis {...chartAxis} allowDecimals={false} width={30} />
-                <Tooltip cursor={{ fill: "rgba(129,140,248,0.06)" }} {...chartTooltip} />
+                <XAxis dataKey="label" {...chartAxis} tick={{ ...chartAxis.tick, fontSize: 11 }} dy={8} />
+                <YAxis {...chartAxis} tick={{ ...chartAxis.tick, fontSize: 11 }} allowDecimals={false} width={30} />
+                <Tooltip cursor={{ fill: "var(--primary)", fillOpacity: 0.06 }} {...chartTooltip} />
                 <Bar dataKey="value" fill="var(--primary)" radius={[6, 6, 0, 0]} barSize={26} />
               </BarChart>
             </ResponsiveContainer>
@@ -214,13 +219,11 @@ const Overview = () => {
 
       {!stats ? null : ["admin", "hod", "principal"].includes(profile.role) ? (
         <section className="mt-8">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-(--muted-foreground)">
-              Recently updated result sheets
-            </p>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-xs font-medium text-(--muted-foreground)">Recently updated result sheets</p>
             {profile.role === "admin" && (
-              <Link to="/app/sheets" className="text-[10px] text-(--primary) hover:underline">
-                manage →
+              <Link to="/app/sheets" className="text-xs text-(--primary) hover:underline">
+                Manage results
               </Link>
             )}
           </div>
@@ -229,10 +232,10 @@ const Overview = () => {
             {recent.map((s) => (
               <div
                 key={s.id}
-                className="glass-inner flex items-center justify-between rounded-lg px-4 py-2.5 text-sm"
+                className="glass-inner flex items-center justify-between gap-3 rounded-lg px-4 py-2.5 text-sm"
               >
                 <span className="text-(--foreground)">
-                  {s.exams?.name} <span className="text-(--muted-foreground)">· {s.classes?.name}</span>
+                  {s.exams?.name}, {s.classes?.name}
                 </span>
                 <StatusChip status={s.status} />
               </div>
@@ -240,7 +243,9 @@ const Overview = () => {
           </div>
         </section>
       ) : (
-        <Empty className="mt-8">Use the sidebar to navigate your workspace.</Empty>
+        <div className="mt-8">
+          <Empty>Use the sidebar to navigate your workspace.</Empty>
+        </div>
       )}
     </>
   );

@@ -8,7 +8,7 @@ const Navbar = ({ theme, setTheme }) => {
 
     return (
         <nav className="fixed left-1/2 top-4 z-50 w-[calc(100%-2rem)] max-w-7xl -translate-x-1/2">
-            <div className="nav-glass flex h-14 items-center justify-between px-4 md:px-5">
+            <div className="nav-glass flex min-h-14 flex-wrap items-center justify-between gap-y-1.5 px-3 py-2 md:h-14 md:py-0 md:px-5">
                 {/* Brand */}
                 <div className="flex flex-row justify-center items-center gap-4.5">
                     <a href="#" className="flex items-center gap-2.5 cursor-pointer">
@@ -16,8 +16,8 @@ const Navbar = ({ theme, setTheme }) => {
                             Gradia
                         </p>
                     </a>
-                    <p className="text-[7px] uppercase tracking-[0.18em] text-(--muted-foreground)">
-                        Academic Suite
+                    <p className="text-[11px] text-(--muted)">
+                        Academic suite
                     </p>
                 </div>
                 {/* Navigation */}
@@ -37,7 +37,7 @@ const Navbar = ({ theme, setTheme }) => {
                     </NavButton>
 
                     <NavButton onClick={() => navigate("/login")}>
-                        Request Demo
+                        Request demo
                     </NavButton>
                 </div>
             </div>

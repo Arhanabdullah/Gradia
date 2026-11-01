@@ -42,9 +42,6 @@ const Login = () => {
         className="glass-panel w-full max-w-sm rounded-2xl p-8"
       >
         <p className="text-sm font-semibold">Gradia</p>
-        <p className="mt-0.5 text-[9px] uppercase tracking-[0.14em] text-(--muted-foreground)">
-          Academic Suite
-        </p>
         <h1 className="mt-6 font-editorial text-3xl tracking-tight">Sign in</h1>
         <p className="mt-1.5 text-xs text-(--muted)">
           Accounts are created by your administrator.
@@ -58,7 +55,7 @@ const Login = () => {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={inputClass}
+              className={`${inputClass} h-11`}
               placeholder="you@college.edu"
             />
           </Field>
@@ -69,19 +66,19 @@ const Login = () => {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={inputClass}
+              className={`${inputClass} h-11`}
               placeholder="••••••••"
             />
           </Field>
-          {error ? <p className="text-xs text-red-500">{error}</p> : null}
-          <Button type="submit" disabled={busy} className="w-full">
+          {error ? <p className="text-xs text-(--danger)">{error}</p> : null}
+          <Button type="submit" disabled={busy} className="w-full h-11">
             {busy ? "Signing in…" : "Sign in"}
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-(--muted-foreground)">
+        <p className="mt-6 text-center text-xs text-(--muted)">
           <Link to="/" className="hover:text-(--foreground)">
-            ← Back to home
+            Back to home
           </Link>
         </p>
       </motion.div>

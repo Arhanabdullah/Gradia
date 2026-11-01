@@ -6,18 +6,23 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { chartAxis, chartTooltip } from "../../components/charts/ChartsConfig";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
 
+// chartAxis config reused, with the tick size raised to the 11px text floor
+const axis = { ...chartAxis, tick: { ...chartAxis.tick, fontSize: 11 } };
+
 const PublishSheets = () => {
   const [toSign, setToSign] = useState([]); // hod_approved
   const [toPublish, setToPublish] = useState([]); // principal_signed
   const [history, setHistory] = useState([]);
-  const [perf, setPerf] = useState(null);
+  const [perf, setPerf] = useState(null); // null = still loading, [] = nothing published
+  const [loadError, setLoadError] = useState(null);
   const [remarks, setRemarks] = useState({});
   const [message, setMessage] = useState("");
   const [busyId, setBusyId] = useState(null);
 
   const load = async () => {
+    setLoadError(null);
     const select = "id, status, updated_at, principal_remarks, exams ( name, academic_year ), classes ( name )";
-    const [{ data: sign }, { data: publish }, { data: past }, { data: published }] = await Promise.all([
+    const [{ data: sign, error: signError }, { data: publish, error: publishError }, { data: past, error: pastError }, { data: published, error: publishedError }] = await Promise.all([
       supabase.from("result_sheets").select(select).eq("status", "hod_approved"),
       supabase.from("result_sheets").select(select).eq("status", "principal_signed"),
       supabase
@@ -32,13 +37,25 @@ const PublishSheets = () => {
     setToPublish(publish ?? []);
     setHistory(past ?? []);
 
+    const failed = signError?.message ?? publishError?.message ?? pastError?.message ?? publishedError?.message;
+    if (failed) {
+      setLoadError(`Could not load result sheets: ${failed}. Refresh the page and try again.`);
+      setPerf([]);
+      return;
+    }
+
     // institution performance: average % per class across all published sheets
     const ids = (published ?? []).map((s) => s.id);
     if (ids.length > 0) {
-      const { data: items } = await supabase
+      const { data: items, error: itemsError } = await supabase
         .from("result_items")
         .select("sheet_id, marks_obtained, max_marks")
         .in("sheet_id", ids);
+      if (itemsError) {
+        setLoadError(`Could not load result data: ${itemsError.message}. Refresh the page and try again.`);
+        setPerf([]);
+        return;
+      }
       const byClass = {};
       (published ?? []).forEach((s) => {
         if (!byClass[s.classes?.name ?? "—"]) byClass[s.classes?.name ?? "—"] = { got: 0, max: 0 };
@@ -97,9 +114,9 @@ const PublishSheets = () => {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-medium text-(--foreground)">
-            {s.exams?.name} <span className="text-(--muted-foreground)">· {s.classes?.name}{s.exams?.academic_year ? ` · ${s.exams.academic_year}` : ""}</span>
+            {s.exams?.name} <span className="text-(--muted-foreground)">{s.classes?.name}{s.exams?.academic_year ? `, ${s.exams.academic_year}` : ""}</span>
           </p>
-          <p className="text-[10px] text-(--muted-foreground)">
+          <p className="text-xs text-(--muted-foreground)">
             Updated {new Date(s.updated_at).toLocaleString()}
           </p>
         </div>
@@ -115,31 +132,37 @@ const PublishSheets = () => {
     <>
       <DashboardHeader title="Sign Off & Publish" subtitle="Final sign-off before students see their results." />
 
-      {perf && perf.length > 0 ? (
+      {loadError ? (
+        <p className="mt-6 rounded-lg border border-(--danger)/40 bg-(--danger-subtle) px-4 py-3 text-xs text-(--danger)">
+          {loadError}
+        </p>
+      ) : perf === null ? (
+        <div className="glass-inner mt-6 h-44 motion-safe:animate-pulse rounded-xl" aria-hidden="true" />
+      ) : perf.length > 0 ? (
         <Card className="mt-6">
           <div className="mb-4">
             <p className="text-xs font-medium text-(--foreground)">Institution performance</p>
-            <p className="mt-0.5 text-[9px] text-(--muted-foreground)">Average score (%) by class · all published results</p>
+            <p className="mt-0.5 text-xs text-(--muted-foreground)">Average score (%) by class, all published results</p>
           </div>
           <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={perf} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
                 <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="2 4" vertical={false} />
-                <XAxis dataKey="label" {...chartAxis} dy={8} />
-                <YAxis {...chartAxis} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} width={35} />
-                <Tooltip cursor={{ fill: "rgba(129,140,248,0.06)" }} {...chartTooltip} />
+                <XAxis dataKey="label" {...axis} dy={8} />
+                <YAxis {...axis} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} width={35} />
+                <Tooltip cursor={{ fill: "color-mix(in srgb, var(--primary) 6%, transparent)" }} {...chartTooltip} />
                 <Bar dataKey="value" fill="var(--primary)" radius={[6, 6, 0, 0]} barSize={26} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
       ) : (
-        <Empty>You have no published results to review yet.</Empty>
+        <Empty>You have no published results to review yet. Once a principal publishes sheets, class averages appear here.</Empty>
       )}
 
       <section className="mt-6">
-        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-(--muted-foreground)">
-          Approved by HOD — awaiting my sign-off
+        <p className="text-xs font-medium text-(--muted-foreground)">
+          Approved by HOD, awaiting my sign-off
         </p>
         <div className="mt-3 space-y-3">
           {toSign.length === 0 && <Empty>Nothing awaiting sign-off.</Empty>}
@@ -148,7 +171,7 @@ const PublishSheets = () => {
               s,
               <>
                 <input
-                  className="w-40 rounded-lg border border-(--border) bg-(--surface) px-2.5 py-1.5 text-xs text-(--foreground) outline-none focus:border-(--primary)"
+                  className="w-40 rounded-lg border border-(--border) bg-(--surface) px-2.5 py-1.5 text-xs text-(--foreground) transition-colors focus:border-(--primary) focus-visible:outline-2 focus-visible:outline-(--primary) focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
                   placeholder="Remarks (optional)"
                   value={remarks[s.id] ?? ""}
                   onChange={(e) => setRemarks({ ...remarks, [s.id]: e.target.value })}
@@ -164,7 +187,7 @@ const PublishSheets = () => {
       </section>
 
       <section className="mt-8">
-        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-(--muted-foreground)">Ready to publish</p>
+        <p className="text-xs font-medium text-(--muted-foreground)">Ready to publish</p>
         <div className="mt-3 space-y-3">
           {toPublish.length === 0 && <Empty>Nothing ready to publish.</Empty>}
           {toPublish.map((s) =>
@@ -181,13 +204,13 @@ const PublishSheets = () => {
       {message ? <p className="mt-4 text-xs text-(--muted)">{message}</p> : null}
 
       <section className="mt-8">
-        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-(--muted-foreground)">Recent history</p>
+        <p className="text-xs font-medium text-(--muted-foreground)">Recent history</p>
         <div className="mt-3 space-y-2">
           {history.length === 0 && <Empty>Nothing yet.</Empty>}
           {history.map((s) => (
             <div key={s.id} className="glass-inner flex items-center justify-between gap-3 rounded-lg px-4 py-2.5 text-sm">
               <p className="min-w-0 truncate text-(--foreground)">
-                {s.exams?.name} <span className="text-(--muted-foreground)">· {s.classes?.name}</span>
+                {s.exams?.name} <span className="text-(--muted-foreground)">{s.classes?.name}</span>
               </p>
               <StatusChip status={s.status} />
             </div>

@@ -8,10 +8,13 @@ import { chartAxis, chartTooltip } from "../../components/charts/ChartsConfig";
 import { Card, Empty, StatCard } from "../../components/ui";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
 
+// chartAxis config reused, with the tick size raised to the 11px text floor
+const axis = { ...chartAxis, tick: { ...chartAxis.tick, fontSize: 11 } };
+
 const downloadSheet = (sheet, rows, student) => {
   const win = window.open("", "_blank", "width=880,height=960");
   if (!win) {
-    alert("Popup blocked — please allow popups for this site to download results.");
+    alert("Popup blocked. Please allow popups for this site to download results.");
     return;
   }
   const examName = sheet.exams?.name ?? "Result";
@@ -45,17 +48,17 @@ const downloadSheet = (sheet, rows, student) => {
   body { font-family: Georgia, "Times New Roman", serif; color: #111827; padding: 40px; }
   .head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #4f46e5; padding-bottom: 14px; }
   .brand { font-size: 26px; letter-spacing: 0.5px; }
-  .brand small { display: block; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #6b7280; margin-top: 3px; }
+  .brand small { display: block; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #6b7280; margin-top: 3px; }
   .muted { color: #6b7280; font-size: 11px; }
   h1 { font-size: 20px; margin: 26px 0 4px; font-weight: 500; }
   table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 13px; }
   th, td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; }
-  th { background: #f3f4f6; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
-  .num { text-align: right; }
+  th { background: #f3f4f6; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
   .grade { color: #4f46e5; font-weight: bold; }
   .total td { font-weight: bold; background: #fafafa; }
   .stamp { margin-top: 30px; display: flex; justify-content: space-between; font-size: 11px; color: #6b7280; }
-  .foot { margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 10px; font-size: 9px; color: #9ca3af; text-align: center; }
+  .foot { margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 10px; font-size: 11px; color: #9ca3af; text-align: center; }
   @media print { body { padding: 24px; } }
 </style>
 </head>
@@ -84,8 +87,9 @@ const downloadSheet = (sheet, rows, student) => {
 
 const MyResults = () => {
   const { profile } = useAuth();
-  const [sheets, setSheets] = useState([]); // published sheets for my class
+  const [sheets, setSheets] = useState(null); // published sheets for my class; null = still loading
   const [items, setItems] = useState([]); // my result items across those sheets
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     supabase
@@ -93,11 +97,14 @@ const MyResults = () => {
       .select("id, published_at, exams ( name, academic_year )")
       .eq("status", "published")
       .order("published_at", { ascending: false })
-      .then(({ data }) => setSheets(data ?? []));
+      .then(({ data, error }) => {
+        setSheets(data ?? []);
+        if (error) setLoadError(`Could not load your results: ${error.message}. Refresh the page and try again.`);
+      });
   }, []);
 
   useEffect(() => {
-    const ids = sheets.map((s) => s.id);
+    const ids = (sheets ?? []).map((s) => s.id);
     if (ids.length === 0) {
       setItems([]);
       return;
@@ -107,7 +114,10 @@ const MyResults = () => {
       .select("sheet_id, marks_obtained, max_marks, subjects ( name, code )")
       .in("sheet_id", ids)
       .order("sheet_id")
-      .then(({ data }) => setItems(data ?? []));
+      .then(({ data, error }) => {
+        setItems(data ?? []);
+        if (error) setLoadError(`Could not load your marks: ${error.message}. Refresh the page and try again.`);
+      });
   }, [sheets]);
 
   const total = useMemo(
@@ -122,7 +132,7 @@ const MyResults = () => {
 
   const chartData = useMemo(
     () =>
-      sheets
+      (sheets ?? [])
         .map((sheet, idx) => {
           const mine = items.filter((i) => i.sheet_id === sheet.id);
           const got = mine.reduce((s, i) => s + Number(i.marks_obtained), 0);
@@ -140,6 +150,21 @@ const MyResults = () => {
     <>
       <DashboardHeader title="My Results" subtitle="Published results for your class." />
 
+      {loadError ? (
+        <p className="mt-6 rounded-lg border border-(--danger)/40 bg-(--danger-subtle) px-4 py-3 text-xs text-(--danger)">
+          {loadError}
+        </p>
+      ) : sheets === null ? (
+        <div className="mt-7 space-y-3" aria-hidden="true">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {["published", "average", "grade"].map((k) => (
+              <div key={k} className="glass-inner h-20 motion-safe:animate-pulse rounded-xl" />
+            ))}
+          </div>
+          <div className="glass-inner h-40 motion-safe:animate-pulse rounded-xl" />
+        </div>
+      ) : (
+        <>
       <div className="mt-7 grid gap-3 sm:grid-cols-3">
         <StatCard label="Published results" value={sheets.length} />
         <StatCard
@@ -151,17 +176,17 @@ const MyResults = () => {
 
       {chartData.length > 0 && (
         <Card className="mt-4">
-          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-(--muted-foreground)">
+          <p className="text-xs font-medium text-(--muted-foreground)">
             Score per exam (%)
           </p>
           <div className="mt-3 h-55 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
                 <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="2 4" vertical={false} />
-                <XAxis dataKey="exam" {...chartAxis} dy={8} />
-                <YAxis {...chartAxis} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} width={35} />
+                <XAxis dataKey="exam" {...axis} dy={8} />
+                <YAxis {...axis} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} width={35} />
                 <Tooltip
-                  cursor={{ fill: "rgba(129,140,248,0.06)" }}
+                  cursor={{ fill: "color-mix(in srgb, var(--primary) 6%, transparent)" }}
                   {...chartTooltip}
                 />
                 <Bar dataKey="score" fill="var(--primary)" radius={[6, 6, 0, 0]} barSize={28} />
@@ -172,7 +197,7 @@ const MyResults = () => {
       )}
 
       <section className="mt-8 space-y-4">
-        {sheets.length === 0 && <Empty>No published results yet. You'll be notified when results go live.</Empty>}
+        {sheets.length === 0 && <Empty>No published results yet. You’ll be notified when results go live.</Empty>}
         {sheets.map((sheet) => {
           const mine = items.filter((i) => i.sheet_id === sheet.id);
           const got = mine.reduce((s, i) => s + Number(i.marks_obtained), 0);
@@ -188,7 +213,7 @@ const MyResults = () => {
                   ) : null}
                 </p>
                 <div className="flex items-center gap-3">
-                  <p className="text-[10px] text-(--muted-foreground)">
+                  <p className="text-xs text-(--muted-foreground)">
                     Published {new Date(sheet.published_at).toLocaleDateString()}
                   </p>
                   <Button
@@ -199,14 +224,15 @@ const MyResults = () => {
                   </Button>
                 </div>
               </div>
-              <table className="mt-3 w-full text-sm">
+              <div className="-mx-5 overflow-x-auto px-5">
+              <table className="mt-3 w-full min-w-[26rem] text-sm tabular-nums">
                 <thead>
-                  <tr className="text-left text-[10px] text-(--muted-foreground)">
-                    <th className="py-1 font-medium uppercase tracking-[0.1em]">Subject</th>
-                    <th className="py-1 font-medium uppercase tracking-[0.1em]">Marks</th>
-                    <th className="py-1 font-medium uppercase tracking-[0.1em]">Max</th>
-                    <th className="py-1 font-medium uppercase tracking-[0.1em]">%</th>
-                    <th className="py-1 font-medium uppercase tracking-[0.1em]">Grade</th>
+                  <tr className="text-left text-xs text-(--muted)">
+                    <th className="py-1 font-medium">Subject</th>
+                    <th className="py-1 font-medium">Marks</th>
+                    <th className="py-1 font-medium">Max</th>
+                    <th className="py-1 font-medium">%</th>
+                    <th className="py-1 font-medium">Grade</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -228,15 +254,18 @@ const MyResults = () => {
                     <td className="py-2 text-(--foreground)">Total</td>
                     <td className="py-2 tabular font-medium text-(--foreground)">{got}</td>
                     <td className="py-2 tabular text-(--muted)">{max}</td>
-                    <td className="py-2 tabular font-medium text-(--foreground)">{Math.round(pct)}%</td>
+                    <td className="py-2 font-medium text-(--foreground)">{Math.round(pct)}%</td>
                     <td className="py-2 font-medium text-(--primary)">{gradeFor(pct)}</td>
                   </tr>
                 </tbody>
               </table>
+              </div>
             </Card>
           );
         })}
-      </section>
+        </section>
+        </>
+      )}
     </>
   );
 };

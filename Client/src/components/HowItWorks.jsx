@@ -29,7 +29,7 @@ const HowItWorks = () => {
         >
             <div className="max-w-2xl">
                 <Reveal>
-                    <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-(--muted-foreground)">
+                    <p className="text-xs text-(--muted)">
                         How it works
                     </p>
                 </Reveal>
@@ -64,7 +64,7 @@ const HowItWorks = () => {
                             transition={{ duration: 0.25, ease: "easeOut" }}
                         >
                             <div className="glass-inner flex h-7 w-7 items-center justify-center rounded-md">
-                                <span className="text-[9px] font-medium tracking-[0.08em] text-(--primary)">
+                                <span className="text-[11px] font-medium text-(--primary)">
                                     {step.number}
                                 </span>
                             </div>

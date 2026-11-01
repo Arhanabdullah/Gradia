@@ -18,7 +18,7 @@ const DashboardHeader = ({ title, subtitle }) => {
   return (
     <div className="flex items-start justify-between">
       <div>
-        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-(--muted-foreground)">
+        <p className="text-xs font-medium text-(--muted)">
           Dashboard
         </p>
         <h2 className="mt-1 text-xl font-semibold tracking-tight text-(--foreground)">{title ?? "Overview"}</h2>
@@ -35,7 +35,7 @@ const DashboardHeader = ({ title, subtitle }) => {
             {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
           </motion.button>
           <div className="hidden rounded-lg border border-(--border) bg-(--surface-secondary) px-3 py-2 sm:block">
-            <p className="text-[9px] text-(--muted-foreground)">Signed in</p>
+            <p className="text-xs text-(--muted)">Signed in</p>
             <p className="mt-0.5 max-w-40 truncate text-xs font-medium text-(--foreground)" title={profile.email}>
               {profile.name || profile.email}
             </p>
@@ -57,7 +57,7 @@ const DashboardHeader = ({ title, subtitle }) => {
           whileHover={{ y: -1, borderColor: "var(--primary)" }}
           transition={microTransition}
         >
-          <p className="text-[9px] text-(--muted-foreground)">Academic Year</p>
+          <p className="text-xs text-(--muted)">Academic Year</p>
           <p className="mt-0.5 text-xs font-medium text-(--foreground)">2025–26</p>
         </motion.div>
       )}

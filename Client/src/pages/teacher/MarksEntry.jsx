@@ -145,7 +145,7 @@ const MarksEntry = () => {
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label="Class">
             <Select value={classId} onChange={(e) => { setClassId(e.target.value); setExamId(""); setSubjectId(""); }}>
-              <option value="">— choose —</option>
+              <option value="">Select</option>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
@@ -153,7 +153,7 @@ const MarksEntry = () => {
           </Field>
           <Field label="Exam">
             <Select value={examId} onChange={(e) => setExamId(e.target.value)} disabled={!classId}>
-              <option value="">— choose —</option>
+              <option value="">Select</option>
               {exams.map((x) => (
                 <option key={x.id} value={x.id}>
                   {x.name}{x.academic_year ? ` (${x.academic_year})` : ""}
@@ -163,9 +163,9 @@ const MarksEntry = () => {
           </Field>
           <Field label="My subject">
             <Select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} disabled={!classId}>
-              <option value="">— choose —</option>
+              <option value="">Select</option>
               {subjects.map((s) => (
-                <option key={s.id} value={s.id}>{s.code} · {s.name}</option>
+                <option key={s.id} value={s.id}>{s.code} {s.name}</option>
               ))}
             </Select>
           </Field>
@@ -177,9 +177,9 @@ const MarksEntry = () => {
 
       {classId && examId && subjectId ? (
         <section className="mt-8">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-(--muted-foreground)">
-              Students · {entered}/{students.length} entered · max {subject?.max_marks ?? 100}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs font-medium text-(--muted-foreground)">
+              {entered} of {students.length} entered, max {maxMarks}
             </p>
             <Button onClick={save} disabled={saving || dirty.size === 0}>
               {saving ? "Saving…" : "Save marks"}
@@ -190,11 +190,12 @@ const MarksEntry = () => {
             {students.map((st) => (
               <div key={st.id} className="glass-inner flex items-center justify-between gap-3 rounded-lg px-4 py-2.5 text-sm">
                 <span className="text-(--foreground)">
-                  {st.name} <span className="text-(--muted-foreground)">· {st.username}</span>
+                  {st.name} <span className="text-(--muted-foreground)">({st.username})</span>
                 </span>
                 <input
                   type="number"
-                  className={`${inputClass} w-24 tabular ${invalid(marksState[st.id]) ? "border-red-500" : ""}`}
+                  aria-invalid={invalid(marksState[st.id]) ? true : undefined}
+                  className={`${inputClass} w-28 tabular-nums ${invalid(marksState[st.id]) ? "border-(--danger)!" : ""}`}
                   min={0}
                   max={maxMarks}
                   value={marksState[st.id] ?? ""}
@@ -203,25 +204,35 @@ const MarksEntry = () => {
               </div>
             ))}
           </div>
-          {message ? <p className="mt-3 text-xs text-(--muted)">{message}</p> : null}
+          {message ? (
+            <p
+              role="status"
+              className={`mt-3 text-xs ${message.startsWith("Save failed") || message.startsWith("Marks must be") ? "text-(--danger)" : "text-(--success)"}`}
+            >
+              {message}
+            </p>
+          ) : null}
 
           {performance && performance.entered > 0 ? (
             <Card className="mt-6">
               <div className="mb-4">
-                <p className="text-xs font-medium text-(--foreground)">
-                  Performance · {subject.code}
+                <p className="text-sm font-medium text-(--foreground)">
+                  Performance, {subject.code}
                 </p>
-                <p className="mt-0.5 text-[9px] text-(--muted-foreground)">
-                  {performance.entered} entered · class average {performance.average}/{maxMarks}
+                <p className="mt-0.5 text-xs text-(--muted-foreground) tabular-nums">
+                  {performance.entered} entered, class average {performance.average} of {maxMarks}
                 </p>
               </div>
               <div className="h-48 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={performance.rows} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
                     <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="2 4" vertical={false} />
-                    <XAxis dataKey="username" {...chartAxis} dy={8} />
-                    <YAxis {...chartAxis} domain={[0, maxMarks]} width={30} />
-                    <Tooltip cursor={{ fill: "rgba(129,140,248,0.06)" }} {...chartTooltip} />
+                    <XAxis dataKey="username" {...chartAxis} tick={{ ...chartAxis.tick, fontSize: 12 }} dy={8} />
+                    <YAxis {...chartAxis} tick={{ ...chartAxis.tick, fontSize: 12 }} domain={[0, maxMarks]} width={30} />
+                    <Tooltip
+                      cursor={{ fill: "color-mix(in oklab, var(--primary) 7%, transparent)" }}
+                      {...chartTooltip}
+                    />
                     <Bar dataKey="marks" fill="var(--primary)" radius={[5, 5, 0, 0]} barSize={18} />
                   </BarChart>
                 </ResponsiveContainer>

@@ -54,7 +54,7 @@ const DashboardSidebar = ({ items = PREVIEW_ITEMS, fluid = false }) => {
     <aside className={`glass-floating flex ${fluid ? "w-full md:w-56" : "w-56"} shrink-0 flex-col p-4`}>
       <div className="mb-8">
         <p className="text-sm font-semibold text-(--foreground)">Gradia</p>
-        <p className="mt-0.5 text-[9px] text-(--muted-foreground)">Academic Suite</p>
+        <p className="mt-0.5 text-xs text-(--muted)">Academic suite</p>
       </div>
       <nav className="space-y-1">
         {items.map((item) => (
@@ -62,7 +62,7 @@ const DashboardSidebar = ({ items = PREVIEW_ITEMS, fluid = false }) => {
         ))}
       </nav>
       <div className="mt-auto border-t border-(--border) pt-4">
-        <p className="px-3 text-[9px] uppercase tracking-[0.12em] text-(--muted-foreground)">
+        <p className="px-3 text-xs text-(--muted)">
           Account
         </p>
         <p className="mt-2 truncate px-3 text-xs text-(--muted)" title="Supabase-authenticated user">

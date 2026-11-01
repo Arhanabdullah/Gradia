@@ -15,19 +15,30 @@ const AdminSheets = () => {
   const [sheets, setSheets] = useState([]);
   const [expected, setExpected] = useState({}); // exam_id -> {students, subjects, entered}
   const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
 
   const load = async () => {
-    const [{ data: exams }, { data: sheets }, { data: subjects }, { data: marks }, { data: activeStudents }] =
-      await Promise.all([
+    const [examsRes, sheetsRes, subjectsRes, marksRes, studentsRes] = await Promise.all([
         supabase.from("exams").select("id, name, academic_year, class_id, classes ( name )").order("created_at", { ascending: false }),
         supabase.from("result_sheets").select("id, status, exam_id, updated_at, exams ( name, academic_year ), classes ( name )").order("updated_at", { ascending: false }),
         supabase.from("subjects").select("id, class_id"),
         supabase.from("marks").select("exam_id, subject_id"),
         supabase.from("profiles").select("id, class_id").eq("role", "student").eq("is_active", true),
       ]);
-    setExams(exams ?? []);
-    setSheets(sheets ?? []);
+    if (examsRes.error || sheetsRes.error || subjectsRes.error || marksRes.error || studentsRes.error) {
+      setLoadError("Could not load results. Check your connection and refresh the page.");
+    } else {
+      setLoadError("");
+    }
+    const exams = examsRes.data ?? [];
+    const sheets = sheetsRes.data ?? [];
+    const subjects = subjectsRes.data ?? [];
+    const marks = marksRes.data ?? [];
+    const activeStudents = studentsRes.data ?? [];
+    setExams(exams);
+    setSheets(sheets);
 
     // completeness per exam = entered marks / (active students of class x subjects of class)
     const map = {};
@@ -47,6 +58,7 @@ const AdminSheets = () => {
       };
     });
     setExpected(map);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -78,56 +90,75 @@ const AdminSheets = () => {
       <DashboardHeader title="Result Sheets" subtitle="Compile marks into review-ready sheets." />
 
       <section className="mt-6">
-        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-(--muted-foreground)">Exams</p>
+        <p className="text-xs font-medium text-(--muted-foreground)">Exams</p>
         <div className="mt-3 space-y-2">
-          {exams.length === 0 && <Empty>No exams yet — create one on the Exams page.</Empty>}
-          {exams.map((x) => {
-            const e = expected[x.id] ?? { total: 0, entered: 0 };
-            const complete = e.total > 0 && e.entered >= e.total;
-            const hasSheet = sheets.some((s) => s.exam_id === x.id);
-            return (
-              <Card key={x.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-                <div>
-                  <p className="text-sm text-(--foreground)">
-                    {x.name} <span className="text-(--muted-foreground)">· {x.classes?.name}{x.academic_year ? ` · ${x.academic_year}` : ""}</span>
-                  </p>
-                  <p className="mt-0.5 text-[10px] text-(--muted-foreground)">
-                    Marks: {e.entered}/{e.total || "?"} {complete ? "· complete" : `· ${e.total ? "incomplete" : "no students/subjects"}`}
-                  </p>
-                </div>
-                <Button disabled={busyId === x.id || hasSheet} onClick={() => compile(x)}>
-                  {hasSheet ? "Sheet exists" : busyId === x.id ? "Compiling…" : "Compile sheet"}
-                </Button>
-              </Card>
-            );
-          })}
+          {loadError ? <p className="text-xs text-(--danger)">{loadError}</p> : null}
+          {loading
+            ? Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="glass-inner h-16 motion-safe:animate-pulse rounded-xl" />
+              ))
+            : exams.length === 0 && <Empty>No exams yet. Create one on the Exams page in the sidebar.</Empty>}
+          {!loading &&
+            exams.map((x) => {
+              const e = expected[x.id] ?? { total: 0, entered: 0 };
+              const complete = e.total > 0 && e.entered >= e.total;
+              const hasSheet = sheets.some((s) => s.exam_id === x.id);
+              return (
+                <Card key={x.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                  <div>
+                    <p className="text-sm text-(--foreground)">
+                      {x.name}, <span className="text-(--muted-foreground)">{x.classes?.name}{x.academic_year ? `, ${x.academic_year}` : ""}</span>
+                    </p>
+                    <p className="mt-0.5 text-xs text-(--muted-foreground)">
+                      Marks: <span className="tabular-nums">{e.entered}</span> of{" "}
+                      <span className="tabular-nums">{e.total || "?"}</span> entered
+                      {complete
+                        ? ", complete"
+                        : e.total
+                          ? ", incomplete"
+                          : ", no students or subjects in this class"}
+                    </p>
+                  </div>
+                  <Button disabled={busyId === x.id || hasSheet} onClick={() => compile(x)}>
+                    {hasSheet ? "Sheet exists" : busyId === x.id ? "Compiling…" : "Compile sheet"}
+                  </Button>
+                </Card>
+              );
+            })}
         </div>
       </section>
 
       {message ? <p className="mt-4 text-xs text-(--muted)">{message}</p> : null}
 
       <section className="mt-8">
-        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-(--muted-foreground)">Sheets</p>
+        <p className="text-xs font-medium text-(--muted-foreground)">Sheets</p>
         <div className="mt-3 space-y-2">
-          {sheets.length === 0 && <Empty>No result sheets compiled yet.</Empty>}
-          {sheets.map((s) => (
-            <div key={s.id} className="glass-inner flex items-center justify-between gap-3 rounded-lg px-4 py-2.5 text-sm">
-              <div>
-                <p className="text-(--foreground)">
-                  {s.exams?.name} <span className="text-(--muted-foreground)">· {s.classes?.name}</span>
-                </p>
-                <p className="text-[10px] text-(--muted-foreground)">
-                  Updated {new Date(s.updated_at).toLocaleDateString()}
-                </p>
+          {loading
+            ? Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="glass-inner h-12 motion-safe:animate-pulse rounded-lg" />
+              ))
+            : sheets.length === 0 && (
+                <Empty>No result sheets compiled yet. Compile one from an exam listed above.</Empty>
+              )}
+          {!loading &&
+            sheets.map((s) => (
+              <div key={s.id} className="glass-inner flex items-center justify-between gap-3 rounded-lg px-4 py-2.5 text-sm">
+                <div>
+                  <p className="text-(--foreground)">
+                    {s.exams?.name}, {s.classes?.name}
+                  </p>
+                  <p className="text-xs text-(--muted-foreground) tabular-nums">
+                    Updated {new Date(s.updated_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <StatusChip status={s.status} />
+                  {s.status !== "published" && (
+                    <Button variant="danger" onClick={() => removeSheet(s)}>Delete</Button>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <StatusChip status={s.status} />
-                {s.status !== "published" && (
-                  <Button variant="danger" onClick={() => removeSheet(s)}>Delete</Button>
-                )}
-              </div>
-            </div>
-          ))}
+            ))}
         </div>
       </section>
     </>

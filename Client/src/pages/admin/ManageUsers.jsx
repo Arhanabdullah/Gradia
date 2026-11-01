@@ -9,6 +9,8 @@ const ManageUsers = () => {
   const [users, setUsers] = useState([]);
   const [classes, setClasses] = useState([]);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -21,12 +23,18 @@ const ManageUsers = () => {
   });
 
   const load = async () => {
-    const [{ data: users }, { data: classes }] = await Promise.all([
+    const [usersRes, classesRes] = await Promise.all([
       supabase.from("profiles").select("*").order("created_at", { ascending: false }),
       supabase.from("classes").select("id, name"),
     ]);
-    setUsers(users ?? []);
-    setClasses(classes ?? []);
+    if (usersRes.error || classesRes.error) {
+      setLoadError("Could not load accounts. Check your connection and refresh the page.");
+    } else {
+      setLoadError("");
+    }
+    setUsers(usersRes.data ?? []);
+    setClasses(classesRes.data ?? []);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -90,7 +98,7 @@ const ManageUsers = () => {
             <Select value={form.role} onChange={set("role")}>
               {ROLES.map((r) => (
                 <option key={r} value={r}>
-                  {r.toUpperCase()}
+                  {r.charAt(0).toUpperCase() + r.slice(1)}
                 </option>
               ))}
             </Select>
@@ -101,7 +109,7 @@ const ManageUsers = () => {
           {form.role === "student" && (
             <Field label="Class">
               <Select value={form.class_id} onChange={set("class_id")}>
-                <option value="">— none —</option>
+                <option value="">No class</option>
                 {classes.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -112,7 +120,7 @@ const ManageUsers = () => {
           )}
           <div className="sm:col-span-2">
             {error ? (
-              <p className="mb-3 whitespace-pre-line text-xs text-red-500">{error}</p>
+              <p className="mb-3 whitespace-pre-line text-xs text-(--danger)">{error}</p>
             ) : null}
             <Button type="submit" disabled={busy}>
               {busy ? "Creating…" : "Create account"}
@@ -122,30 +130,34 @@ const ManageUsers = () => {
       </Card>
 
       <section className="mt-8">
-        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-(--muted-foreground)">
-          All accounts
-        </p>
+        <p className="text-xs font-medium text-(--muted-foreground)">All accounts</p>
         <div className="mt-3 space-y-2">
-          {users.length === 0 && <Empty>No accounts yet.</Empty>}
-          {users.map((u) => (
-            <div key={u.id} className="glass-inner flex items-center justify-between gap-3 rounded-lg px-4 py-2.5 text-sm">
-              <div className="min-w-0">
-                <p className="truncate text-(--foreground)">
-                  {u.name} <span className="text-(--muted-foreground)">· {u.email}</span>
-                </p>
-                <p className="text-[10px] text-(--muted-foreground)">
-                  {u.role.toUpperCase()}
-                  {u.department ? ` · ${u.department}` : ""}
-                  {!u.is_active ? " · INACTIVE" : ""}
-                </p>
+          {loadError ? <p className="text-xs text-(--danger)">{loadError}</p> : null}
+          {loading
+            ? Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="glass-inner h-12 animate-pulse rounded-lg" />
+              ))
+            : users.length === 0 && <Empty>No accounts yet. Create the first one with the form above.</Empty>}
+          {!loading &&
+            users.map((u) => (
+              <div key={u.id} className="glass-inner flex items-center justify-between gap-3 rounded-lg px-4 py-2.5 text-sm">
+                <div className="min-w-0">
+                  <p className="truncate text-(--foreground)">
+                    {u.name}, <span className="text-(--muted-foreground)">{u.email}</span>
+                  </p>
+                  <p className="text-xs text-(--muted-foreground)">
+                    {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
+                    {u.department ? `, ${u.department}` : ""}
+                    {!u.is_active ? ", inactive" : ""}
+                  </p>
+                </div>
+                {u.role !== "admin" && (
+                  <Button variant={u.is_active ? "danger" : "success"} onClick={() => toggleActive(u)}>
+                    {u.is_active ? "Deactivate" : "Activate"}
+                  </Button>
+                )}
               </div>
-              {u.role !== "admin" && (
-                <Button variant={u.is_active ? "danger" : "success"} onClick={() => toggleActive(u)}>
-                  {u.is_active ? "Deactivate" : "Activate"}
-                </Button>
-              )}
-            </div>
-          ))}
+            ))}
         </div>
       </section>
     </>

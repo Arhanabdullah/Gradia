@@ -1,4 +1,4 @@
-// Public marketing page — unchanged design, previously inline in App.jsx.
+// Public marketing page: unchanged design, previously inline in App.jsx.
 import { useEffect, useState } from "react";
 
 import Navbar from "../components/Navbar/Navbar";

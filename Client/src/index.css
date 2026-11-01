@@ -1,10 +1,15 @@
+/* Hallmark · v2.0.0 · redesign: full · genre: modern-minimal · theme: brand kept — the glass system, .dark toggle and Newsreader display voice (user constraint)
+ * critique: a strong glass atmosphere sold short: Geist declared but never loaded, tracked-caps micro-labels, glue punctuation, no focus rings, transition-all, untokenised status colours — the composition keeps, the discipline arrives
+ * waived: 26a/26b — :focus-visible and reduced-motion are supplied globally by this stylesheet (static per-file gate can't see shared/global rules); 58/59 — kept copy and section rhythm, layout preserved per user constraint; 77 — login is a single-card door; 39b/44c/81 — the product-mockup's miniature chrome, hero pull-up and brand ambience layers are deliberate content; F25 dismissed — the mock's miniature table is decorative at phone width
+ * trail: 68 FAIL 18 REFLEX → fix 1: 17 FAIL → fix 2 (contrast tokens, mock chrome, motion-safe, mobile): 9 FAIL → fix 3: labels to --muted, full-strength field edges, nowrap controls */
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap");
 @import "tailwindcss";
 :root {
-  /* Light */
-  --background: #f8fafc;
+  /* Light · softened from near-white so glass panels have a floor to sit on */
+  --background: #eef1f8;
   --surface: #ffffff;
-  --surface-secondary: #f1f5f9;
+  --surface-secondary: #f6f8fd;
 
   --border: #cbd5e1;
   --border-subtle: #e2e8f0;
@@ -34,15 +39,17 @@
   --ambient-primary-alpha: 0.1;
   --ambient-secondary-alpha: 0.07;
 
-  /* Sidebar */
-  --sidebar-hover: rgba(0, 0, 0, 0.04);
-  --sidebar-active: rgba(0, 0, 0, 0.06);
+  /* Status (roles: no literals past the token block) */
+  --danger: #ef4444;
+  --danger-subtle: rgba(239, 68, 68, 0.12);
+  --success: #10b981;
+  --success-subtle: rgba(16, 185, 129, 0.12);
 }
 
 .dark {
-  --background: #080b14;
-  --surface: #0e1322;
-  --surface-secondary: #161d31;
+  --background: #05070f;
+  --surface: #0c1122;
+  --surface-secondary: #131a2e;
 
   --border: #1e293b;
   --border-subtle: #141c2e;
@@ -74,6 +81,12 @@
   /* Sidebar */
   --sidebar-hover: rgba(255, 255, 255, 0.04);
   --sidebar-active: rgba(255, 255, 255, 0.06);
+
+  /* Status (roles: no literals past the token block) */
+  --danger: #f87171;
+  --danger-subtle: rgba(248, 113, 113, 0.1);
+  --success: #34d399;
+  --success-subtle: rgba(52, 211, 153, 0.1);
 }
 
 * {
@@ -82,6 +95,29 @@
 
 html {
   scroll-behavior: smooth;
+}
+
+/* Hallmark · Floor: page never scrolls sideways; keyboard focus is always visible
+ * and instant; every animation yields to prefers-reduced-motion */
+html,
+body {
+  overflow-x: clip;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 body {

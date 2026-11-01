@@ -27,7 +27,7 @@ const Security = () => {
                 <div className="grid lg:grid-cols-[0.9fr_1.1fr]">
                     <div className="p-8 md:p-12">
                         <Reveal>
-                            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-(--muted-foreground)">
+                            <p className="text-xs text-(--muted)">
                                 Security
                             </p>
                         </Reveal>
@@ -50,7 +50,7 @@ const Security = () => {
                         <Reveal delay={0.3}>
                             <div className="glass-inner inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-(--foreground)">
                                 <span className="h-1.5 w-1.5 rounded-full bg-(--tertiary)" />
-                                <span className="text-[10px] font-medium text-(--muted)">
+                                <span className="text-xs font-medium text-(--muted)">
                                     Structured access by design
                                 </span>
                             </div>
@@ -64,7 +64,7 @@ const Security = () => {
                             >
                                 <div className="border-b border-(--border) p-7 last:border-b-0">
                                     <div className="flex items-start gap-4">
-                                        <span className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-(--border) text-[9px] font-medium text-(--primary)">
+                                        <span className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-(--border) text-[11px] font-medium text-(--primary)">
                                             {String(index + 1).padStart(2, "0")}
                                         </span>
                                         <div>

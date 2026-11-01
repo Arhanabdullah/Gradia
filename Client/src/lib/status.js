@@ -1,10 +1,12 @@
 // Status labels/chips and grade mapping shared across dashboard pages.
+// Chip colours ride the status tokens from index.css (--danger/--success and
+// friends); consumers of statusChipClass/statusLabel get the same class shapes.
 export const statusChipClass = {
-  compiled: "border-amber-500/40 text-amber-500",
-  hod_approved: "border-emerald-500/40 text-emerald-500",
-  hod_rejected: "border-red-500/40 text-red-500",
+  compiled: "border-(--primary-deep)/40 text-(--primary-deep)",
+  hod_approved: "border-(--success)/40 text-(--success)",
+  hod_rejected: "border-(--danger)/40 text-(--danger)",
   principal_signed: "border-(--primary)/50 text-(--primary)",
-  published: "border-sky-500/40 text-sky-500",
+  published: "border-(--tertiary)/40 text-(--tertiary)",
   draft: "border-(--border) text-(--muted)",
 };
 
