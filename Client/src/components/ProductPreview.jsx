@@ -77,7 +77,6 @@ const PreviewSidebar = ({ tab, onSelect }) => (
             })}
         </nav>
         <div className="mt-auto border-t border-(--border) pt-4">
-            <p className="text-[11px] text-(--muted)">Secured by Supabase</p>
         </div>
     </aside>
 );

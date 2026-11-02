@@ -46,7 +46,7 @@ const CTA = () => {
                             </motion.button>
                             <motion.a
                                 href="#product"
-                                className="whitespace-nowrap rounded-lg border glass-panel px-5 py-3 text-sm font-medium text-(--foreground)"
+                                className="whitespace-nowrap rounded-lg border border-(--muted) bg-(--surface-secondary) px-5 py-3 text-sm font-medium text-(--foreground) transition-colors hover:border-(--primary) focus-visible:outline-2 focus-visible:outline-(--primary) focus-visible:outline-offset-2"
                                 whileHover={{
                                     ...buttonHover,
                                     borderColor: "var(--primary)",

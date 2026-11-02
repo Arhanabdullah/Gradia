@@ -65,9 +65,6 @@ const DashboardSidebar = ({ items = PREVIEW_ITEMS, fluid = false }) => {
         <p className="px-3 text-xs text-(--muted)">
           Account
         </p>
-        <p className="mt-2 truncate px-3 text-xs text-(--muted)" title="Supabase-authenticated user">
-          Secured by Supabase
-        </p>
       </div>
     </aside>
   );
