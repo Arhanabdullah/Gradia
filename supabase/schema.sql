@@ -416,7 +416,7 @@ begin
   end if;
 
   update public.result_sheets
-  set status = case when p_approve then 'hod_approved' else 'hod_rejected' end,
+  set status = (case when p_approve then 'hod_approved' else 'hod_rejected' end)::public.sheet_status,
       hod_reviewed_by = auth.uid(),
       hod_remarks = p_remarks,
       updated_at = now()

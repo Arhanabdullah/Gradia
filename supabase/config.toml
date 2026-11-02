@@ -1,0 +1,7 @@
+# Gradia — Supabase local/deploy config
+project_id = "vwhvyktegchnookegyhn"
+
+[functions.create-user]
+enabled = true
+verify_jwt = true
+entrypoint = "functions/create-user/index.js"
