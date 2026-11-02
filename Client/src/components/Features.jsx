@@ -34,7 +34,7 @@ const Features = () => {
         >
             <div className="max-w-2xl">
                 <Reveal>
-                    <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-(--muted-foreground)">
+                    <p className="text-xs text-(--muted)">
                         Platform
                     </p>
                 </Reveal>
@@ -65,7 +65,7 @@ const Features = () => {
                             whileHover={{ backgroundColor: "rgba(255,255,255,0.04)" }}
                             transition={{ duration: 0.25, ease: "easeOut" }}
                         >
-                            <span className="text-[10px] font-medium tracking-[0.12em] text-(--primary)">
+                            <span className="text-[11px] font-medium text-(--primary)">
                                 {feature.number}
                             </span>
                             <h3 className="mt-8 text-base font-semibold text-(--foreground)">

@@ -1,78 +1,110 @@
-import { useEffect, useState } from "react";
+import { Routes, Route } from "react-router-dom";
 
-import Navbar from "./components/Navbar/Navbar";
-import Hero from "./components/HeroSection/Hero";
-import ProductPreview from "./components/ProductPreview";
-import HowItWorks from "./components/HowItWorks";
-import Features from "./components/Features";
-import Security from "./components/Security";
-import CTA from "./components/CTA";
-import Footer from "./components/Footer";
+import Landing from "./pages/Landing";
+import Login from "./pages/Login";
+import DashboardLayout from "./components/dashboard/DashboardLayout";
+import { useAuth } from "./context/AuthContext";
+import { Navigate } from "react-router-dom";
+
+import Overview from "./pages/Overview";
+import ManageUsers from "./pages/admin/ManageUsers";
+import ManageClasses from "./pages/admin/ManageClasses";
+import ManageExams from "./pages/admin/ManageExams";
+import AdminSheets from "./pages/admin/AdminSheets";
+import MarksEntry from "./pages/teacher/MarksEntry";
+import ReviewSheets from "./pages/hod/ReviewSheets";
+import PublishSheets from "./pages/principal/PublishSheets";
+import MyResults from "./pages/student/MyResults";
+import Notifications from "./pages/student/Notifications";
+
+const RequireRole = ({ role, children }) => {
+  const { profile } = useAuth();
+  if (!profile) return null;
+  if (role && profile.role !== role) return <Navigate to="/app" replace />;
+  return children;
+};
 
 const App = () => {
-  const [theme, setTheme] = useState(() => {
-    const savedTheme = localStorage.getItem("theme");
-    if (savedTheme) {
-      return savedTheme;
-    }
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-  });
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("theme", theme);
-  }, [theme]);
   return (
-    <div className="grid-background relative min-h-screen bg-(--background) text-(--foreground)">
-      {/* Ambient lighting layer */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 overflow-hidden"
-      >
-        <div
-          className="ambient-light ambient-light-primary"
-          style={{
-            width: "700px",
-            height: "500px",
-            left: "50%",
-            top: "-180px",
-            transform: "translateX(-50%)",
-          }}
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/app" element={<DashboardLayout />}>
+        <Route index element={<Overview />} />
+        <Route
+          path="users"
+          element={
+            <RequireRole role="admin">
+              <ManageUsers />
+            </RequireRole>
+          }
         />
-        <div
-          className="ambient-light ambient-light-secondary"
-          style={{
-            width: "500px",
-            height: "450px",
-            left: "-180px",
-            top: "35%",
-          }}
+        <Route
+          path="classes"
+          element={
+            <RequireRole role="admin">
+              <ManageClasses />
+            </RequireRole>
+          }
         />
-        <div
-          className="ambient-light ambient-light-primary"
-          style={{
-            width: "550px",
-            height: "500px",
-            right: "-200px",
-            top: "60%",
-          }}
+        <Route
+          path="exams"
+          element={
+            <RequireRole role="admin">
+              <ManageExams />
+            </RequireRole>
+          }
         />
-      </div>
-      {/* Actual page content */}
-      <div className="relative z-10">
-        <Navbar theme={theme} setTheme={setTheme} />
-        <main>
-          <Hero />
-          <ProductPreview />
-          <HowItWorks />
-          <Features />
-          <Security />
-          <CTA />
-        </main>
-        <Footer />
-      </div>
-    </div>
+        <Route
+          path="sheets"
+          element={
+            <RequireRole role="admin">
+              <AdminSheets />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="marks"
+          element={
+            <RequireRole role="teacher">
+              <MarksEntry />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="review"
+          element={
+            <RequireRole role="hod">
+              <ReviewSheets />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="publish"
+          element={
+            <RequireRole role="principal">
+              <PublishSheets />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="results"
+          element={
+            <RequireRole role="student">
+              <MyResults />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="notifications"
+          element={
+            <RequireRole role="student">
+              <Notifications />
+            </RequireRole>
+          }
+        />
+      </Route>
+    </Routes>
   );
 };
 

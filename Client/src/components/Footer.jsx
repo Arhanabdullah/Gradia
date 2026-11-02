@@ -6,35 +6,35 @@ const Footer = () => {
                     <p className="text-xl font-semibold text-(--foreground)">
                         Gradia
                     </p>
-                    <p className="mt-1 text-[10px] text-(--muted-foreground)"></p>
+                    <p className="mt-1 text-xs text-(--muted)"></p>
                 </div>
                 <div className="flex items-center gap-6">
                     <a
                         href="#product"
-                        className="text-[10px] text-(--muted) transition-colors duration-200 hover:text-(--foreground)"
+                        className="text-xs text-(--muted) transition-colors duration-200 hover:text-(--foreground) whitespace-nowrap"
                     >
                         Platform
                     </a>
                     <a
                         href="#how-it-works"
-                        className="text-[10px] text-(--muted) transition-colors duration-200 hover:text-(--foreground)"
+                        className="text-xs text-(--muted) transition-colors duration-200 hover:text-(--foreground) whitespace-nowrap"
                     >
                         How it works
                     </a>
                     <a
                         href="#features"
-                        className="text-[10px] text-(--muted) transition-colors duration-200 hover:text-(--foreground)"
+                        className="text-xs text-(--muted) transition-colors duration-200 hover:text-(--foreground) whitespace-nowrap"
                     >
                         Features
                     </a>
                     <a
                         href="#security"
-                        className="text-[10px] text-(--muted) transition-colors duration-200 hover:text-(--foreground)"
+                        className="text-xs text-(--muted) transition-colors duration-200 hover:text-(--foreground) whitespace-nowrap"
                     >
                         Security
                     </a>
                 </div>
-                <p className="text-[10px] text-(--muted-foreground)">
+                <p className="text-xs text-(--muted)">
                     © 2026 Gradia
                 </p>
             </div>

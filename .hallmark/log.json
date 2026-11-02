@@ -1,0 +1,40 @@
+[
+ {
+  "mode": "redesign",
+  "depth": "full",
+  "scope": "app",
+  "theme": "brand kept (glass)",
+  "genre": "modern-minimal",
+  "prompt": "redesign all pages keep glass + toggle",
+  "shape": "redesign of existing screens",
+  "axes": [
+   "indigo glass",
+   "Newsreader display",
+   "Geist ui"
+  ],
+  "hero": "editorial headline mockup in fold",
+  "nav": "glass nav kept",
+  "footer": "glass footer kept",
+  "imagery": "product mockup full fidelity",
+  "photos": 0,
+  "entry": "Hallmark full redesign of Gradia",
+  "fingerprint": "gradia-glass-v2",
+  "sections": [
+   "hero",
+   "preview",
+   "how",
+   "features",
+   "security",
+   "cta"
+  ],
+  "signature": "clickable mockup tabs",
+  "waived": [
+   "26a global",
+   "58/59/77 layout",
+   "39b/44c/81 mock"
+  ],
+  "before": "68 FAIL",
+  "after": "render defects 0",
+  "date": "2026-11-01"
+ }
+]

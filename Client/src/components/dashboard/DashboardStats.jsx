@@ -34,14 +34,14 @@ const DashboardStats = () => {
                     }}
                     transition={microTransition}
                 >
-                    <p className="text-[10px] font-medium text-(--tertiary)/80">
+                    <p className="text-xs font-medium text-(--muted)">
                         {stat.label}
                     </p>
                     <div className="mt-2 flex items-end justify-between gap-2">
-                        <p className="text-xl font-semibold tracking-tight text-(--foreground)">
+                        <p className="text-xl font-semibold tracking-tight text-(--foreground) tabular-nums">
                             {stat.value}
                         </p>
-                        <span className="text-[9px] font-medium text-(--tertiary)/80">
+                        <span className="text-[11px] font-medium text-(--muted) tabular-nums">
                             {stat.change}
                         </span>
                     </div>

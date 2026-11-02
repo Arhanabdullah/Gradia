@@ -35,11 +35,11 @@ const RecentResults = () => {
                     <p className="text-xs font-medium text-(--foreground)">
                         Recent Results
                     </p>
-                    <p className="mt-0.5 text-[9px] text-(--muted-foreground)">
+                    <p className="mt-0.5 text-xs text-(--muted)">
                         Latest published academic results
                     </p>
                 </div>
-                <button className="text-[10px] font-medium text-(--primary)">
+                <button className="text-xs font-medium text-(--primary) whitespace-nowrap">
                     View all
                 </button>
             </div>
@@ -47,16 +47,16 @@ const RecentResults = () => {
                 <table className="w-full min-w-130 text-left">
                     <thead>
                         <tr className="border-b border-(--border) bg-(--surface-secondary)">
-                            <th className="px-4 py-2.5 text-[9px] font-medium uppercase tracking-wider text-(--muted-foreground)">
+                            <th className="px-4 py-2.5 text-xs text-(--muted)">
                                 Student
                             </th>
-                            <th className="px-4 py-2.5 text-[9px] font-medium uppercase tracking-wider text-(--muted-foreground)">
+                            <th className="px-4 py-2.5 text-xs text-(--muted)">
                                 Subject
                             </th>
-                            <th className="px-4 py-2.5 text-[9px] font-medium uppercase tracking-wider text-(--muted-foreground)">
+                            <th className="px-4 py-2.5 text-xs text-(--muted)">
                                 Score
                             </th>
-                            <th className="px-4 py-2.5 text-[9px] font-medium uppercase tracking-wider text-(--muted-foreground)">
+                            <th className="px-4 py-2.5 text-xs text-(--muted)">
                                 Grade
                             </th>
                         </tr>
@@ -81,7 +81,7 @@ const RecentResults = () => {
                                     {result.score}
                                 </td>
                                 <td className="px-4 py-3">
-                                    <span className="rounded-md bg-(--surface-secondary) px-2 py-1 text-[9px] font-medium text-(--foreground)">
+                                    <span className="rounded-md bg-(--surface-secondary) px-2 py-1 text-[11px] font-medium text-(--foreground)">
                                         {result.grade}
                                     </span>
                                 </td>

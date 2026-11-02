@@ -1,7 +1,7 @@
 export const chartAxis = {
     tick: {
         fill: "var(--muted-foreground)",
-        fontSize: 9,
+        fontSize: 12,
     },
     axisLine: false,
     tickLine: false,
@@ -13,7 +13,8 @@ export const chartTooltip = {
         border: "1px solid var(--border)",
         borderRadius: "10px",
         boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
-        fontSize: "11px",
+        color: "var(--foreground)",
+        fontSize: "12px",
     },
     labelStyle: {
         color: "var(--muted)",

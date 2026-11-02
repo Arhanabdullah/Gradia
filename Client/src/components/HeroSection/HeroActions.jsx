@@ -1,12 +1,13 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
     revealVariant,
-    buttonHover,
     buttonTap,
     microTransition,
 } from "../../animations/variants";
 
 const HeroActions = () => {
+    const navigate = useNavigate();
     return (
         <div className="flex flex-col items-center">
             <motion.div
@@ -17,8 +18,12 @@ const HeroActions = () => {
                 custom={0.3}
             >
                 <motion.a
+                    onClick={(e) => {
+                        e.preventDefault();
+                        navigate("/login");
+                    }}
                     href="#request-demo"
-                    className="inline-flex items-center justify-center rounded-lg bg-(--primary-deep) px-5 py-2.5 text-sm font-medium text-white shadow-[0_8px_30px_rgba(79,70,229,0.22)]"
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-lg bg-(--primary-deep) px-5 py-2.5 text-sm font-medium text-white shadow-[0_8px_30px_rgba(79,70,229,0.22)] transition-colors hover:bg-(--primary)/85"
                     whileHover={{
                         scale: 1.04,
                         backgroundColor: "var(--primary)",
@@ -31,11 +36,10 @@ const HeroActions = () => {
                 </motion.a>
                 <motion.a
                     href="#how-it-works"
-                    className="inline-flex items-center justify-center rounded-lg border border-(--border) bg-(--surface)/20 px-5 py-2.5 text-sm font-medium text-(--foreground) backdrop-blur-md"
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-lg border border-(--border) bg-(--surface)/20 px-5 py-2.5 text-sm font-medium text-(--foreground) backdrop-blur-md"
                     whileHover={{
                         scale: 1.04,
                         borderColor: "var(--primary)",
-                        backgroundColor: "rgba(255,255,255,0.04)",
                     }}
                     whileTap={buttonTap}
                     transition={microTransition}
@@ -44,7 +48,7 @@ const HeroActions = () => {
                 </motion.a>
             </motion.div>
             <motion.p
-                className="mt-5 text-[10px] tracking-wide text-(--muted-foreground)"
+                className="mt-5 text-[11px] text-(--muted)"
                 variants={revealVariant}
                 initial="hidden"
                 animate="visible"

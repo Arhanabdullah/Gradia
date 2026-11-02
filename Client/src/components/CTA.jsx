@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import Reveal from "./Reveal";
 import {
     buttonHover,
@@ -6,21 +7,19 @@ import {
     microTransition,
 } from "../animations/variants";
 const CTA = () => {
+    const navigate = useNavigate();
     return (
         <section
             id="request-demo"
             className="mx-auto w-full max-w-7xl px-6 py-24 md:py-28"
         >
             <Reveal>
-                <div className="glass-floating  relative overflow-hidden rounded-2xl px-6 py-16 text-center sm:px-10 md:py-20">
+                <div className="glass-floating relative overflow-hidden rounded-2xl px-6 py-16 text-center sm:px-10 md:py-20">
                     <div
                         className="pointer-events-none absolute left-1/2 top-0 h-64 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-(--primary)/8 blur-3xl"
                     />
                     <div className=" relative z-10 mx-auto max-w-2xl">
-                        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-(--muted-foreground)">
-                            Get started
-                        </p>
-                        <h2 className="mt-4 font-editorial text-4xl leading-tight tracking-tight text-(--foreground) sm:text-5xl">
+                        <h2 className="font-editorial text-4xl leading-tight tracking-tight text-(--foreground) sm:text-5xl">
                             Make academic results
                             <br />
                             <span className="italic text-(--primary)">
@@ -34,7 +33,8 @@ const CTA = () => {
                         </p>
                         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                             <motion.button
-                                className="rounded-lg bg-(--primary) px-5 py-3 text-sm font-semibold text-(--background)"
+                                onClick={() => navigate("/login")}
+                                className="whitespace-nowrap rounded-lg bg-(--primary) px-5 py-3 text-sm font-semibold text-(--background)"
                                 whileHover={{
                                     ...buttonHover,
                                     backgroundColor: "var(--primary-deep)",
@@ -46,7 +46,7 @@ const CTA = () => {
                             </motion.button>
                             <motion.a
                                 href="#product"
-                                className="rounded-lg border glass-panel  px-5 py-3 text-sm font-medium text-(--foreground)"
+                                className="whitespace-nowrap rounded-lg border border-(--muted) bg-(--surface-secondary) px-5 py-3 text-sm font-medium text-(--foreground) transition-colors hover:border-(--primary) focus-visible:outline-2 focus-visible:outline-(--primary) focus-visible:outline-offset-2"
                                 whileHover={{
                                     ...buttonHover,
                                     borderColor: "var(--primary)",
