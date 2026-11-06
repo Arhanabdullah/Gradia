@@ -33,6 +33,31 @@ Every Phase 2 migration is **additive and idempotent**: `create … if not exist
 `add column if not exists`, guarded constraint/index creation. No table, column or
 function from the original schema is dropped or renamed.
 
+## Phase 3 migrations
+
+Apply after the Phase 2 chain, in filename order.
+
+| File | Changes |
+|---|---|
+| `202611070001_security_helpers.sql` | Active-account helpers (`is_active_user`, `app_role`, `has_role`, `require_active_user`, `require_role`), scope helpers (`teaches_class`, `is_class_hod`, `can_view_*`), policy indexes, function grants |
+| `202611070002_security_triggers.sql` | `handle_new_user()` no longer trusts `user_metadata`; `enforce_profile_privileges()` blocks non-admin role/activation/scope changes; `enforce_notification_update()` limits users to `is_read` |
+| `202611070003_security_policies.sql` | Full replacement of every RLS policy with active-account and academic-scope predicates; no `force row level security` |
+| `202611070004_secure_workflow_rpcs.sql` | Same four workflow RPCs with `require_role()` guards, version snapshot, review trail and notification fan-out |
+
+Key behaviours after Phase 3:
+
+- New auth users always start as active `student`. The `create-user` Edge Function
+  applies the validated role/scope with the service role afterwards.
+- A deactivated account reads nothing (every policy requires an active profile) and
+  cannot call any guarded RPC. `set-user-active` additionally bans the auth user.
+- Published `result_sheets`, versions, items and component items are immutable for
+  every role, including admin. Corrections must create a new version (Phase 4/7).
+- Clients have no INSERT/UPDATE/DELETE policy on workflow tables (`result_sheets`,
+  `result_sheet_versions`, `result_items`, `result_component_items`,
+  `result_reviews`, `audit_logs`, `mark_revisions`). Only RPCs/triggers write them.
+- `handle_new_user()` and `enforce_profile_privileges()` override the versions in
+  `schema.sql` and `202611050001`. Never re-run those after Phase 3.
+
 ## Known sequencing deferrals
 
 Two legacy constraints are intentionally kept through Phase 2 because current UI code
@@ -109,6 +134,37 @@ select
   (select count(*) from public.result_items)          as items,
   (select count(*) from public.result_component_items) as component_items;
 ```
+
+## Phase 3 verification
+
+Read-only checks after applying Phase 3:
+
+```sql
+-- every table with policies has RLS enabled
+select c.relname, c.relrowsecurity
+from pg_class c join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public' and c.relkind = 'r'
+  and exists (select 1 from pg_policies p where p.schemaname = 'public' and p.tablename = c.relname)
+  and not c.relrowsecurity;
+
+-- helpers exist and are SECURITY DEFINER
+select p.proname, p.prosecdef
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname in ('is_active_user','app_role','require_role','can_view_sheet');
+
+-- clients must not be able to write workflow tables
+select tablename, policyname, cmd
+from pg_policies
+where schemaname = 'public'
+  and tablename in ('result_sheets','result_sheet_versions','result_items',
+                    'result_component_items','result_reviews','audit_logs','mark_revisions')
+  and cmd in ('INSERT','UPDATE','DELETE','ALL');
+-- expected: only `result sheets admin delete` (DELETE, status <> published)
+```
+
+Behavioral checks live in `supabase/tests/phase3_security_tests.sql`; they are
+authored but **not executed** as of Phase 3. See `supabase/tests/README.md`.
 
 ## Rollback
 
