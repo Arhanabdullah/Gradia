@@ -1,6 +1,13 @@
 -- ============================================================
 -- GRADIA — Supabase schema. Run this ONCE in the SQL Editor.
 -- ============================================================
+-- ⚠ LEGACY BASELINE — DO NOT RE-RUN ON A MIGRATED DATABASE.
+--   This file is the original baseline only. From Phase 2 onwards the
+--   database is built forward by supabase/migrations/*.sql.
+--   Re-running this file replaces handle_new_user() with an older
+--   version and would leave the schema in an inconsistent state.
+--   Bootstrap order lives in supabase/migrations/README.md.
+-- ============================================================
 -- Bootstrap order:
 --   1. Run this whole file.
 --   2. Dashboard → Authentication → Users → "Add user"

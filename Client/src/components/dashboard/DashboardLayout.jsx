@@ -7,16 +7,18 @@ const NAV_BY_ROLE = {
   admin: [
     { to: "/app", label: "Overview", end: true },
     { to: "/app/users", label: "Users" },
-    { to: "/app/classes", label: "Classes & Subjects" },
+    { to: "/app/classes", label: "Academics" },
     { to: "/app/exams", label: "Exams" },
     { to: "/app/sheets", label: "Result Sheets" },
   ],
   teacher: [
     { to: "/app", label: "Overview", end: true },
+    { to: "/app/exams", label: "Exams" },
     { to: "/app/marks", label: "Marks Entry" },
   ],
   hod: [
     { to: "/app", label: "Overview", end: true },
+    { to: "/app/exams", label: "Exams" },
     { to: "/app/review", label: "Review Sheets" },
   ],
   principal: [
