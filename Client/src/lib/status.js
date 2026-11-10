@@ -8,6 +8,14 @@ export const statusChipClass = {
   principal_signed: "border-(--primary)/50 text-(--primary)",
   published: "border-(--tertiary)/40 text-(--tertiary)",
   draft: "border-(--border) text-(--muted)",
+  open: "border-(--primary)/50 text-(--primary)",
+  ongoing: "border-(--tertiary)/40 text-(--tertiary)",
+  completed: "border-(--success)/40 text-(--success)",
+  cancelled: "border-(--danger)/40 text-(--danger)",
+  submitted: "border-(--primary)/50 text-(--primary)",
+  under_review: "border-(--primary-deep)/40 text-(--primary-deep)",
+  approved: "border-(--success)/40 text-(--success)",
+  returned: "border-(--danger)/40 text-(--danger)",
 };
 
 export const statusLabel = {
@@ -17,6 +25,14 @@ export const statusLabel = {
   hod_rejected: "Sent back by HOD",
   principal_signed: "Ready to publish",
   published: "Published",
+  open: "Open",
+  ongoing: "Ongoing",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  submitted: "Submitted",
+  under_review: "Under review",
+  approved: "Approved",
+  returned: "Returned",
 };
 
 export function gradeFor(percentage) {

@@ -58,6 +58,45 @@ Key behaviours after Phase 3:
 - `handle_new_user()` and `enforce_profile_privileges()` override the versions in
   `schema.sql` and `202611050001`. Never re-run those after Phase 3.
 
+## Phase 4 migrations
+
+Apply after the Phase 3 chain, in filename order.
+
+| File | Changes |
+|---|---|
+| `202611090001_exam_scheduling.sql` | `exam_groups`, `exam_subjects` scheduling fields, exam scope RPCs and status workflow |
+| `202611100001_multi_teacher_class_subjects.sql` | Drops the legacy one-teacher-per-class-subject constraint; keeps `(class_subject_id, teacher_id)` and the one-primary index |
+| `202611100002_degrees_academic_structure.sql` | `degrees` catalogue between departments and courses; nullable `degree_id` on `courses`, `classes`, `profiles`; degree/department consistency triggers; degree RLS |
+| `202611100003_global_degrees.sql` | Removes `degrees.department_id`; degrees become a global catalogue with unique name and code; class/profile degree consistency kept |
+
+### Degrees
+
+`202611100002` and `202611100003` are additive and **do not backfill or invent data**:
+
+- Degrees are a global catalogue shared by every department. `202611100003` removes the
+  department column, so a degree such as BSc or MSc can be offered by several departments.
+  Degree names and codes are unique across the catalogue.
+- The department stays on courses, classes and profiles. A course links its own
+  department and degree; a class keeps its course's department and degree.
+- Existing courses, classes and student/HOD profiles keep `degree_id = NULL` until an
+  administrator assigns a real degree. The new client requires a degree for every new
+  course, class, student and department HOD.
+- A class degree must match its course degree, and a profile degree must match its
+  course or class degree. Database triggers enforce this for direct API writes as well.
+- Changing a course degree updates its classes automatically.
+- `degree_id` is part of the protected profile scope in `enforce_profile_privileges()`,
+  so only an active admin (or the service role) can change it.
+- Deleting a degree still used by a course, class or profile is blocked by
+  `on delete restrict`.
+
+Deployment order for this change: apply `202611100002` and `202611100003`, deploy the
+degree-aware client and the updated `create-user` Edge Function, then assign degrees to
+existing records through Academics → Degrees / Courses / Classes and Users → Edit.
+
+`202611100003` rejects duplicate degree names or codes. A deployment that already created
+department-scoped degrees must merge or rename duplicates before applying it. The live
+catalogue was empty when the migration was introduced.
+
 ## Known sequencing deferrals
 
 Two legacy constraints are intentionally kept through Phase 2 because current UI code
@@ -69,11 +108,12 @@ depends on them. Removing them without the matching UI change would break the ap
    requires dropping the old constraint **and** updating that upsert in the same change.
    Scheduled for Phase 5/7.
 
-2. **`teacher_assignments` unique `(class_id, subject_id)`**
-   `ManageClasses.jsx` upserts with `onConflict: "class_id,subject_id"`.
-   Multiple teachers per class subject needs this constraint dropped **and** the upsert
-   switched to `class_subject_id,teacher_id`. The new unique indexes are already in place;
-   the swap is scheduled for Phase 5.
+2. **`teacher_assignments` unique `(class_id, subject_id)`** — resolved by
+   `202611100001_multi_teacher_class_subjects.sql`. `ManageClasses.jsx` now links
+   teacher rows through `class_subject_id`, requires at least one teacher per class
+   subject and supports multiple teachers. Apply the migration only after that client
+   change is deployed. The partial `(class_subject_id, teacher_id)` and
+   one-primary indexes remain in force.
 
 ## Applying
 

@@ -28,16 +28,27 @@ const loadChart = async (profile) => {
     };
   }
   if (profile.role === "teacher") {
-    const [{ data: subjects }, { data: marks }] = await Promise.all([
-      supabase.from("subjects").select("id, code").eq("teacher_id", profile.id),
+    const [{ data: assignments }, { data: marks }] = await Promise.all([
+      supabase
+        .from("teacher_assignments")
+        .select("subject_id, subjects ( id, code )")
+        .eq("teacher_id", profile.id),
       supabase.from("marks").select("subject_id").eq("entered_by", profile.id),
     ]);
     const counts = {};
-    (marks ?? []).forEach((m) => (counts[m.subject_id] = (counts[m.subject_id] ?? 0) + 1));
+    (marks ?? []).forEach((mark) => (counts[mark.subject_id] = (counts[mark.subject_id] ?? 0) + 1));
+    const bySubject = new Map();
+    (assignments ?? []).forEach((row) => {
+      if (row.subject_id && !bySubject.has(row.subject_id)) {
+        bySubject.set(row.subject_id, row.subjects?.code ?? "Subject");
+      }
+    });
     return {
       title: "Marks entered",
       subtitle: "Entries per assigned subject",
-      data: (subjects ?? []).map((s) => ({ label: s.code, value: counts[s.id] ?? 0 })),
+      data: [...bySubject.entries()]
+        .map(([id, code]) => ({ label: code, value: counts[id] ?? 0 }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
     };
   }
   return null;
@@ -72,7 +83,7 @@ const loadCounts = async (role, profile) => {
     ];
   if (role === "teacher")
     return [
-      { label: "My subjects", value: await countQuery("subjects", { teacher_id: profile.id }) },
+      { label: "My subjects", value: await countQuery("teacher_assignments", { teacher_id: profile.id }) },
       { label: "Marks entered by me", value: await countQuery("marks", { entered_by: profile.id }) },
     ];
   if (role === "hod")
@@ -91,7 +102,7 @@ const loadCounts = async (role, profile) => {
   return [
     { label: "Class", value: profile.classes?.name ?? "Not assigned yet" },
     ...(profile.class_id
-      ? [{ label: "Subjects in class", value: await countQuery("subjects", { class_id: profile.class_id }) }]
+      ? [{ label: "Subjects in class", value: await countQuery("class_subjects", { class_id: profile.class_id }) }]
       : []),
     { label: "Unread notifications", value: await countQuery("notifications", { user_id: profile.id, is_read: false }) },
   ];
@@ -99,17 +110,36 @@ const loadCounts = async (role, profile) => {
 
 const loadDept = async (profile) => {
   if (profile.role !== "hod") return null;
-  const [{ data: classes }, { data: subjects }, { data: students }] = await Promise.all([
+
+  const [{ data: ownClasses }, { data: classSubjects }, { data: students }] = await Promise.all([
     supabase.from("classes").select("id, name, department").eq("hod_id", profile.id).order("name"),
-    supabase.from("subjects").select("id, class_id"),
+    supabase.from("class_subjects").select("class_id, subject_id"),
     supabase.from("profiles").select("id, class_id").eq("role", "student"),
   ]);
-  return (classes ?? []).map((c) => ({
-    id: c.id,
-    name: c.name,
-    department: c.department,
-    subjects: (subjects ?? []).filter((s) => s.class_id === c.id).length,
-    students: (students ?? []).filter((s) => s.class_id === c.id).length,
+
+  let classes = ownClasses ?? [];
+  if (classes.length === 0) {
+    const { data: assignments } = await supabase
+      .from("class_hod_assignments")
+      .select("class_id")
+      .eq("hod_id", profile.id);
+    const classIds = [...new Set((assignments ?? []).map((row) => row.class_id))];
+    if (classIds.length > 0) {
+      const { data } = await supabase
+        .from("classes")
+        .select("id, name, department")
+        .in("id", classIds)
+        .order("name");
+      classes = data ?? [];
+    }
+  }
+
+  return classes.map((klass) => ({
+    id: klass.id,
+    name: klass.name,
+    department: klass.department,
+    subjects: (classSubjects ?? []).filter((row) => row.class_id === klass.id).length,
+    students: (students ?? []).filter((student) => student.class_id === klass.id).length,
   }));
 };
 
@@ -167,8 +197,42 @@ const Overview = () => {
             <div className="text-right">
               <p className="text-xs font-medium text-(--muted-foreground)">Class</p>
               <p className="mt-0.5 text-sm text-(--foreground)">{profile.classes?.name ?? "Not assigned yet"}</p>
+              {profile.degrees?.name ? (
+                <p className="text-xs text-(--muted-foreground)">{profile.degrees.name}</p>
+              ) : null}
               {profile.department ? (
                 <p className="text-xs text-(--muted-foreground)">{profile.department}</p>
+              ) : null}
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
+      {profile.role === "hod" ? (
+        <Card className="mt-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-(--foreground)">{profile.name}</p>
+              <p className="mt-0.5 text-xs text-(--muted)">
+                {profile.email}, {profile.username}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-medium text-(--muted-foreground)">
+                {profile.hod_type === "subject" ? "Subject HOD" : "Department HOD"}
+              </p>
+              {profile.hod_type !== "subject" ? (
+                <>
+                  <p className="mt-0.5 text-sm text-(--foreground)">
+                    {profile.departments?.name ?? profile.department ?? "No department assigned"}
+                  </p>
+                  <p className="text-xs text-(--muted-foreground)">
+                    {profile.degrees?.name ? `Degree: ${profile.degrees.name}` : "No degree assigned"}
+                  </p>
+                  <p className="text-xs text-(--muted-foreground)">
+                    {profile.courses?.name ? `Course: ${profile.courses.name}` : "No course assigned"}
+                  </p>
+                </>
               ) : null}
             </div>
           </div>

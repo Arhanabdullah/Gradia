@@ -2,30 +2,33 @@
  * critique: a strong glass atmosphere sold short: Geist declared but never loaded, tracked-caps micro-labels, glue punctuation, no focus rings, transition-all, untokenised status colours — the composition keeps, the discipline arrives
  * waived: 26a/26b — :focus-visible and reduced-motion are supplied globally by this stylesheet (static per-file gate can't see shared/global rules); 58/59 — kept copy and section rhythm, layout preserved per user constraint; 77 — login is a single-card door; 39b/44c/81 — the product-mockup's miniature chrome, hero pull-up and brand ambience layers are deliberate content; F25 dismissed — the mock's miniature table is decorative at phone width
  * trail: 68 FAIL 18 REFLEX → fix 1: 17 FAIL → fix 2 (contrast tokens, mock chrome, motion-safe, mobile): 9 FAIL → fix 3: labels to --muted, full-strength field edges, nowrap controls */
+/* retheme v2.7 (2026-11-09): "coral cream & crimson night" — light lid: coral #F17A7E on #F9FAF4 cream with slate-teal second voice, orange/yellow as ambient tints; dark lid: #1A1A1D ink with crimson ramp (#C3073F, #950740, #6F2232) */
+/* retheme v2.6 (2026-11-09): "vermilion paper & bronze night" — light lid: vermilion #E43D12 on #EBE9E1 paper with rose second voice; dark lid: black/charcoal fills, orange #e3874f accent, bronze #886a4a second voice */
+/* retheme v2.5 (2026-11-09): "raspberry & deep sea" — Raspberry red for the light lid, Deep Sea blue for the dark lid, each borrowing the other as its second voice; Charcoal text on light */
 /* retheme v2.4 (2026-11-01): "bronze & paper" — desaturated bronze/champagne accent on warm paper neutrals, calm steel-blue second voice; honeycomb retired ("too bright", owner's call); ambience stays quiet in both lids */
 /* retheme v2.3 (2026-11-01): "honeycomb" — gold/amber accent on deep honey-brown fills, sky-blue second signal; jade retired at owner's call; ambience dials also reduced this pass (grid washes ×0.65, token alphas −30%) */
 @import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap");
 @import "tailwindcss";
 :root {
-  /* Light · "bronze & paper": warm paper neutrals so glass panels have a floor to sit on */
-  --background: #f2f1ed;
+  /* Light · "coral cream": soft #F9FAF4 cream so glass panels have a floor to sit on */
+  --background: #f9faf4;
   --surface: #ffffff;
-  --surface-secondary: #f7f6f2;
+  --surface-secondary: #f1f3ea;
 
-  --border: #d6d0c4;
-  --border-subtle: #e6e2d8;
+  --border: #d9dccf;
+  --border-subtle: #e8eadf;
 
-  --foreground: #17140e;
-  --muted: #45403a;
-  --muted-foreground: #8a8378;
+  --foreground: #1f2e30;
+  --muted: #4a6163;
+  --muted-foreground: #7d9092;
 
-  --primary: #8a6c3c;
-  --primary-deep: #6d5430;
-  --tertiary: #5b7d96;
-  --grid: rgba(138, 108, 60, 0.05);
+  --primary: #f17a7e;
+  --primary-deep: #b93e43;
+  --tertiary: #4a6163;
+  --grid: rgba(241, 122, 126, 0.05);
 
-  --glass-base: 7, 3, 14;
+  --glass-base: 31, 46, 48;
   --glass-border: 255, 255, 255;
   --glass-highlight: 255, 255, 255;
   /* Material strength */
@@ -36,8 +39,8 @@
   --glass-highlight-alpha: 0.55;
 
   /* Ambient lighting */
-  --ambient-primary: 138, 108, 60;
-  --ambient-secondary: 91, 125, 150;
+  --ambient-primary: 241, 122, 126;
+  --ambient-secondary: 255, 201, 75;
   --ambient-primary-alpha: 0.05;
   --ambient-secondary-alpha: 0.04;
 
@@ -49,24 +52,25 @@
 }
 
 .dark {
-  --background: #0b0c10;
-  --surface: #12131a;
-  --surface-secondary: #191b23;
+  /* Dark · "crimson night": ink fills, crimson accent, deeper wine second signal */
+  --background: #1a1a1d;
+  --surface: #26262a;
+  --surface-secondary: #212124;
 
-  --border: #2e2f35;
-  --border-subtle: #1f2026;
+  --border: #4e4e50;
+  --border-subtle: #2e2e32;
 
-  --foreground: #f3f1ec;
-  --muted: #a6a199;
-  --muted-foreground: #5b5d66;
+  --foreground: #f4f1f2;
+  --muted: #a8a8ab;
+  --muted-foreground: #6f6f73;
 
-  --primary: #cfae7a;
-  --primary-deep: #6d5430;
-  --tertiary: #7fa6c4;
+  --primary: #e0295a;
+  --primary-deep: #c3073f;
+  --tertiary: #950740;
 
-  --grid: rgba(207, 174, 122, 0.05);
+  --grid: rgba(195, 7, 63, 0.05);
   /* Glass */
-  --glass-base: 7, 3, 14;
+  --glass-base: 38, 38, 42;
   --glass-highlight: 255, 255, 255;
   --glass-border: 255, 255, 255;
   --glass-floating-alpha: 0.24;
@@ -75,8 +79,8 @@
   --glass-border-alpha: 0.07;
   --glass-highlight-alpha: 0.05;
   /* Ambient lighting */
-  --ambient-primary: 207, 174, 122;
-  --ambient-secondary: 127, 166, 196;
+  --ambient-primary: 195, 7, 63;
+  --ambient-secondary: 149, 7, 64;
   --ambient-primary-alpha: 0.06;
   --ambient-secondary-alpha: 0.04;
 
@@ -195,21 +199,21 @@ body {
 }
 .nav-glass {
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.12) 45%, transparent 70%),
-    rgba(250, 251, 253, 0.6);
+    linear-gradient(135deg, rgba(241, 122, 126, 0.55), rgba(255, 255, 255, 0.12) 45%, transparent 70%),
+    rgba(250, 251, 246, 0.6);
   backdrop-filter: blur(22px) saturate(160%);
   -webkit-backdrop-filter: blur(22px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.9);
   box-shadow:
-    0 8px 30px rgba(30, 41, 59, 0.12),
+    0 8px 30px rgba(31, 46, 48, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
   border-radius: 16px;
 }
 
 .dark .nav-glass {
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02) 45%, transparent 70%),
-    rgba(7, 3, 14, 0.55);
+    linear-gradient(135deg, rgba(224, 41, 90, 0.16), rgba(224, 41, 90, 0.04) 45%, transparent 70%),
+    rgba(38, 38, 42, 0.55);
   backdrop-filter: blur(22px) saturate(160%);
   -webkit-backdrop-filter: blur(22px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -222,7 +226,7 @@ body {
 .glass-floating {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 45%, transparent 70%),
-    rgba(7, 3, 14, 0.48);
+    rgba(38, 38, 42, 0.48);
   backdrop-filter: blur(22px) saturate(160%);
   -webkit-backdrop-filter: blur(22px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -234,7 +238,7 @@ body {
 .glass-panel {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.012) 45%, transparent 70%),
-    rgba(7, 3, 14, 0.35);
+    rgba(38, 38, 42, 0.35);
   backdrop-filter: blur(22px) saturate(160%);
   -webkit-backdrop-filter: blur(22px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -246,7 +250,7 @@ body {
 .glass-inner {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 55%),
-    rgba(7, 3, 14, 0.26);
+    rgba(38, 38, 42, 0.26);
   backdrop-filter: blur(18px) saturate(160%);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.13);
@@ -259,7 +263,7 @@ body {
     rgba(255, 255, 255, 0.55);
   border-color: rgba(255, 255, 255, 0.85);
   box-shadow:
-    0 12px 40px rgba(30, 41, 59, 0.14),
+    0 12px 40px rgba(31, 46, 48, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
@@ -269,7 +273,7 @@ body {
     rgba(255, 255, 255, 0.45);
   border-color: rgba(255, 255, 255, 0.8);
   box-shadow:
-    0 12px 40px rgba(30, 41, 59, 0.1),
+    0 12px 40px rgba(31, 46, 48, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 

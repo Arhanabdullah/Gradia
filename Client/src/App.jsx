@@ -17,10 +17,11 @@ import PublishSheets from "./pages/principal/PublishSheets";
 import MyResults from "./pages/student/MyResults";
 import Notifications from "./pages/student/Notifications";
 
-const RequireRole = ({ role, children }) => {
+const RequireRole = ({ role, roles, children }) => {
   const { profile } = useAuth();
   if (!profile) return null;
-  if (role && profile.role !== role) return <Navigate to="/app" replace />;
+  const allowed = roles ?? (role ? [role] : []);
+  if (allowed.length && !allowed.includes(profile.role)) return <Navigate to="/app" replace />;
   return children;
 };
 
@@ -50,7 +51,7 @@ const App = () => {
         <Route
           path="exams"
           element={
-            <RequireRole role="admin">
+            <RequireRole roles={["admin", "teacher", "hod"]}>
               <ManageExams />
             </RequireRole>
           }

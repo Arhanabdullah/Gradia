@@ -65,6 +65,7 @@ Deno.serve(async (req) => {
     const studentId = String(body.student_id ?? "").trim();
     const teacherId = String(body.teacher_id ?? "").trim();
     const departmentId = String(body.department_id ?? "").trim();
+    const degreeId = String(body.degree_id ?? "").trim();
     const courseId = String(body.course_id ?? "").trim();
     const classId = String(body.class_id ?? "").trim();
     const hodType = String(body.hod_type ?? "").trim();
@@ -76,43 +77,72 @@ Deno.serve(async (req) => {
     if (!allowedRoles.has(role)) return json({ error: "Invalid account role" }, 400);
     if (!username) return json({ error: "Username is required" }, 400);
 
-    const scopeIds = { departmentId, courseId, classId, hodSubjectId };
+    const scopeIds = { departmentId, degreeId, courseId, classId, hodSubjectId };
     for (const [key, value] of Object.entries(scopeIds)) {
       if (value && !isUuid(value)) return json({ error: `Invalid ${key} identifier` }, 400);
     }
 
-    if (role === "student" && (!studentId || !departmentId || !courseId || !classId)) {
-      return json({ error: "Students require Student ID, Department, Course and Class" }, 400);
+    if (role === "student" && (!studentId || !departmentId || !degreeId || !courseId || !classId)) {
+      return json({ error: "Students require Student ID, Department, Degree, Course and Class" }, 400);
     }
     if (role === "teacher" && !teacherId) return json({ error: "Teacher ID is required" }, 400);
     if (role === "hod" && !["department", "subject"].includes(hodType)) {
       return json({ error: "Choose Department HOD or Subject HOD" }, 400);
     }
-    if (role === "hod" && hodType === "department" && !departmentId) {
-      return json({ error: "Select a department for this HOD" }, 400);
+    if (role === "hod" && hodType === "department" && (!departmentId || !degreeId)) {
+      return json({ error: "Select a department and degree for this HOD" }, 400);
     }
     if (role === "hod" && hodType === "subject" && !hodSubjectId) {
       return json({ error: "Select a subject for this HOD" }, 400);
     }
 
     if (role === "student") {
-      const [{ data: department }, { data: course }, { data: klass }] = await Promise.all([
+      const [{ data: department }, { data: degree }, { data: course }, { data: klass }] = await Promise.all([
         admin.from("departments").select("id").eq("id", departmentId).maybeSingle(),
-        admin.from("courses").select("id, department_id").eq("id", courseId).maybeSingle(),
-        admin.from("classes").select("id, course_id, academic_term_id").eq("id", classId).maybeSingle(),
+        admin.from("degrees").select("id").eq("id", degreeId).maybeSingle(),
+        admin.from("courses").select("id, department_id, degree_id").eq("id", courseId).maybeSingle(),
+        admin.from("classes").select("id, course_id, degree_id").eq("id", classId).maybeSingle(),
       ]);
       if (!department) return json({ error: "Selected department was not found" }, 400);
+      if (!degree) {
+        return json({ error: "Selected degree was not found" }, 400);
+      }
       if (!course || course.department_id !== departmentId) {
         return json({ error: "Selected course does not belong to the selected department" }, 400);
+      }
+      if (course.degree_id && course.degree_id !== degreeId) {
+        return json({ error: "Selected course does not belong to the selected degree" }, 400);
       }
       if (!klass) return json({ error: "Selected class was not found" }, 400);
       if (klass.course_id && klass.course_id !== courseId) {
         return json({ error: "Selected class does not belong to the selected course" }, 400);
       }
+      if (klass.degree_id && klass.degree_id !== degreeId) {
+        return json({ error: "Selected class does not belong to the selected degree" }, 400);
+      }
     }
     if (role === "hod" && hodType === "department") {
-      const { data } = await admin.from("departments").select("id").eq("id", departmentId).maybeSingle();
-      if (!data) return json({ error: "Selected department was not found" }, 400);
+      const [{ data: department }, { data: degree }] = await Promise.all([
+        admin.from("departments").select("id").eq("id", departmentId).maybeSingle(),
+        admin.from("degrees").select("id").eq("id", degreeId).maybeSingle(),
+      ]);
+      if (!department) return json({ error: "Selected department was not found" }, 400);
+      if (!degree) {
+        return json({ error: "Selected degree was not found" }, 400);
+      }
+      if (courseId) {
+        const { data: course } = await admin
+          .from("courses")
+          .select("id, department_id, degree_id")
+          .eq("id", courseId)
+          .maybeSingle();
+        if (!course || course.department_id !== departmentId) {
+          return json({ error: "Selected course does not belong to the selected department" }, 400);
+        }
+        if (course.degree_id && course.degree_id !== degreeId) {
+          return json({ error: "Selected course does not belong to the selected degree" }, 400);
+        }
+      }
     }
     if (role === "hod" && hodType === "subject") {
       const { data } = await admin.from("subjects").select("id").eq("id", hodSubjectId).maybeSingle();
@@ -158,7 +188,10 @@ Deno.serve(async (req) => {
       teacher_id: role === "teacher" ? teacherId : null,
       department_id:
         role === "student" || (role === "hod" && hodType === "department") ? departmentId : null,
-      course_id: role === "student" ? courseId : null,
+      degree_id:
+        role === "student" || (role === "hod" && hodType === "department") ? degreeId : null,
+      course_id:
+        role === "student" || (role === "hod" && hodType === "department") ? courseId || null : null,
       class_id: role === "student" ? classId : null,
       hod_type: role === "hod" ? hodType : null,
       hod_subject_id: role === "hod" && hodType === "subject" ? hodSubjectId : null,
@@ -179,22 +212,26 @@ Deno.serve(async (req) => {
 
     // Non-fatal consistency records: the account already works through
     // profiles.class_id, so a failure here is logged instead of rolled back.
+    // These tables are optional, so a project that has not applied the
+    // academic migration yet simply skips them without noisy logs.
     if (role === "student") {
-      const { data: klass } = await admin
+      const enrollment = {
+        student_id: userId,
+        class_id: classId,
+        status: "active",
+      };
+      const { data: klass, error: klassError } = await admin
         .from("classes")
         .select("academic_term_id")
         .eq("id", classId)
         .maybeSingle();
-      const { error: enrollError } = await admin.from("student_enrollments").upsert(
-        {
-          student_id: userId,
-          class_id: classId,
-          academic_term_id: klass?.academic_term_id ?? null,
-          status: "active",
-        },
-        { ignoreDuplicates: true },
-      );
-      if (enrollError) console.error("create-user: enrollment insert failed", enrollError.message);
+      if (!klassError && klass) enrollment.academic_term_id = klass.academic_term_id ?? null;
+      const { error: enrollError } = await admin
+        .from("student_enrollments")
+        .upsert(enrollment, { ignoreDuplicates: true });
+      if (enrollError && !isMissingRelation(enrollError)) {
+        console.error("create-user: enrollment insert failed", enrollError.message);
+      }
     }
 
     if (role === "hod" && hodType === "department") {
@@ -212,7 +249,9 @@ Deno.serve(async (req) => {
         },
         { ignoreDuplicates: true },
       );
-      if (hodError) console.error("create-user: HOD scope insert failed", hodError.message);
+      if (hodError && !isMissingRelation(hodError)) {
+        console.error("create-user: HOD scope insert failed", hodError.message);
+      }
     }
 
     return json({ id: userId }, 200);
@@ -227,4 +266,15 @@ function json(body, status) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+// Optional tables and columns from later academic migrations may not exist on a
+// project yet. PostgREST reports that as PGRST205 (missing table) or Postgres
+// 42P01, while a missing column is 42703. These are expected, not failures.
+const MISSING_RELATION_CODES = new Set(["42P01", "42P02", "42703", "PGRST205"]);
+
+function isMissingRelation(error) {
+  if (!error) return false;
+  if (MISSING_RELATION_CODES.has(error.code)) return true;
+  return /does not exist|schema cache|find the table|find the column/i.test(error.message ?? "");
 }
