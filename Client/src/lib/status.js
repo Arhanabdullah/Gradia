@@ -21,7 +21,7 @@ export const statusChipClass = {
 export const statusLabel = {
   draft: "Draft",
   compiled: "Awaiting HOD review",
-  hod_approved: "Awaiting principal sign-off",
+  hod_approved: "Approved by HOD",
   hod_rejected: "Sent back by HOD",
   principal_signed: "Ready to publish",
   published: "Published",

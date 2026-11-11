@@ -11,7 +11,7 @@ import {
   EXAM_TYPES,
   batchKey,
   derivedBatch,
-  groupHasPendingApproval,
+  groupHasPendingPublication,
   groupHasPendingMarks,
   groupIsPublished,
   groupTimeBucket,
@@ -44,7 +44,7 @@ const TABS = [
   { id: "ongoing", label: "Ongoing" },
   { id: "completed", label: "Completed" },
   { id: "pending_marks", label: "Pending marks entry" },
-  { id: "pending_approval", label: "Results pending approval" },
+  { id: "pending_publication", label: "Results pending publication" },
   { id: "published", label: "Published" },
 ];
 
@@ -89,7 +89,7 @@ function matchesTab(tab, group) {
     return groupTimeBucket(group) === tab;
   }
   if (tab === "published") return groupIsPublished(group);
-  if (tab === "pending_approval") return groupHasPendingApproval(group);
+  if (tab === "pending_publication") return groupHasPendingPublication(group);
   if (tab === "pending_marks") return groupHasPendingMarks(group);
   return true;
 }

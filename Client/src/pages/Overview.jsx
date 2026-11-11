@@ -12,7 +12,7 @@ const STATUS_SHORT = {
   compiled: "Compiled",
   hod_approved: "HOD OK",
   hod_rejected: "Sent back",
-  principal_signed: "Signed",
+  principal_signed: "Ready",
   published: "Published",
 };
 
@@ -59,7 +59,7 @@ const SUBTITLE = {
   admin: "Institution status at a glance.",
   teacher: "Your teaching workload at a glance.",
   hod: "Department review pipeline at a glance.",
-  principal: "Final sign-off pipeline at a glance.",
+  principal: "Publication pipeline at a glance.",
   student: "Your academic snapshot.",
 };
 
@@ -95,8 +95,12 @@ const loadCounts = async (role, profile) => {
     ];
   if (role === "principal")
     return [
-      { label: "Awaiting my sign-off", value: await countQuery("result_sheets", { status: "hod_approved" }) },
-      { label: "Ready to publish", value: await countQuery("result_sheets", { status: "principal_signed" }) },
+      { label: "Awaiting HOD approval", value: await countQuery("result_sheets", { status: "compiled" }) },
+      {
+        label: "Ready to publish",
+        value: (await countQuery("result_sheets", { status: "hod_approved" }))
+          + (await countQuery("result_sheets", { status: "principal_signed" })),
+      },
       { label: "Published", value: await countQuery("result_sheets", { status: "published" }) },
     ];
   // student

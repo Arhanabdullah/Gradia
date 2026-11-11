@@ -661,7 +661,7 @@ const MarksEntry = () => {
               {published
                 ? "Results for this examination are published. Marks can no longer be edited."
                 : submission?.status === "approved"
-                  ? "These marks were approved. They are locked while the result sheet moves through sign-off."
+                  ? "These marks were approved. They are locked while the result sheet is reviewed and published."
                   : "These marks are awaiting review. They cannot be edited until a reviewer returns them."}
             </p>
           ) : null}

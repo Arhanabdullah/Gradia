@@ -113,6 +113,18 @@ The migration is additive and does not touch existing tables. It must be applied
 `202611100003_global_degrees.sql` so the migration chain stays in filename order, although
 the attendance table itself does not reference degrees.
 
+## Result workflow and visibility migrations
+
+| File | Changes |
+|---|---|
+| `202611110002_course_duration_decimal.sql` | `courses.duration_years` becomes `numeric(3,1)` so durations such as `5.5` are accepted |
+| `202611120001_exam_subject_visibility.sql` | `can_view_subject()` also allows a subject attached to an exam the caller can already view, so exam schedules no longer hide paper names behind RLS |
+| `202611120002_remove_principal_signoff.sql` | Removes the principal sign-off stage; `publish_result_sheet()` accepts `hod_approved` directly and `sign_off_result_sheet()` is disabled |
+
+`202611120002` keeps `principal_signed` publishable for sheets already in flight and leaves
+the enum value in place for backward compatibility. The publishing permission still belongs
+to the `principal` role; only the intermediate approval stage was removed.
+
 ## Known sequencing deferrals
 
 Two legacy constraints are intentionally kept through Phase 2 because current UI code

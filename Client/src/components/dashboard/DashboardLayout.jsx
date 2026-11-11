@@ -30,7 +30,7 @@ const NAV_BY_ROLE = {
   principal: [
     { to: "/app", label: "Overview", end: true },
     { to: "/app/directory", label: "Users Dashboard" },
-    { to: "/app/publish", label: "Sign Off & Publish" },
+    { to: "/app/publish", label: "Publish results" },
   ],
   student: [
     { to: "/app", label: "Overview", end: true },

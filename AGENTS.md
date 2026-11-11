@@ -15,7 +15,7 @@ Single npm package (`Client/`) + Supabase backend. All app code is plain JavaScr
 - Students download published results as print-to-PDF: `src/pages/student/MyResults.jsx` `downloadSheet()` writes plain HTML (no Tailwind) into a popup and calls `print()`.
 
 ## Workflow (enforced in the DB, not the UI)
-`marks` (teacher) → `compile_result_sheet` (admin) → `review_result_sheet` approve/reject (HOD) → `sign_off_result_sheet` → `publish_result_sheet` (principal; also inserts student `notifications`). Statuses: `compiled → hod_approved | hod_rejected → principal_signed → published`.
+`marks` (teacher) → `compile_result_sheet` (admin) → `review_result_sheet` approve/reject (HOD) → `publish_result_sheet` (principal; also inserts student `notifications`). Statuses: `compiled → hod_approved | hod_rejected → published`. The principal sign-off step was removed; HOD-approved sheets are publishable directly. Legacy `principal_signed` rows remain publishable.
 - Never write `result_sheets`/`result_items` from the client — snapshots are RPC-controlled and RLS blocks direct writes.
 - Client must never hold the service-role key; only the anon key lives in `Client/.env` (`VITE_`-prefixed).
 

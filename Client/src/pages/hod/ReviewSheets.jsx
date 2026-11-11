@@ -82,7 +82,7 @@ const ReviewSheets = () => {
       });
       setNotice({
         tone: "success",
-        text: `Sheet "${sheet.exams?.name}" ${approve ? "approved" : "sent back"}.`,
+        text: `Sheet "${sheet.exams?.name}" ${approve ? "approved and ready to publish" : "sent back"}.`,
       });
     } catch (err) {
       setNotice({ tone: "danger", text: err.message });

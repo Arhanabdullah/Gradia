@@ -139,7 +139,7 @@ export function groupIsPublished(group) {
   return groupSheets(group).some((sheet) => sheet.status === "published");
 }
 
-export function groupHasPendingApproval(group) {
+export function groupHasPendingPublication(group) {
   const marksPending = groupSubmissions(group).some(
     (row) => row.status === "submitted" || row.status === "under_review",
   );

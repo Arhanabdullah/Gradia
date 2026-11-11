@@ -53,7 +53,7 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 
 The objective of Gradia is to provide a centralized platform for managing student academic results while reducing manual work and improving the accuracy, transparency, and efficiency of the result publication process.
 
-The system follows a role-based workflow where teachers enter marks, administrators compile results, the HOD reviews and approves them, and the Principal provides the final sign-off before results are published to students.
+The system follows a role-based workflow where teachers enter marks, administrators compile results, and the HOD reviews and approves them. Approved results go straight to the Principal for publication, without a separate sign-off stage.
 
 ---
 
@@ -91,10 +91,7 @@ Are all marks entered?
       │        │
       ▼        ▼
 Send Back   Principal
-for         Signs Off
-Correction     │
-      │        ▼
-      └────► Publish Result
-                 │
-                 ▼
-            Notify Students
+for         Publishes
+Correction  Result
+      │        │
+      └────► Notify Students
