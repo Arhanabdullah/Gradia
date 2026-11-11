@@ -34,6 +34,22 @@ export function Select({ className = "", children, ...props }) {
   return <select className={`${inputClass} ${className}`} {...props}>{children}</select>;
 }
 
+export function SearchField({ value, onChange, label = "Search", placeholder = "Search", className = "" }) {
+  return (
+    <div className={className}>
+      <Field label={label}>
+        <input
+          type="search"
+          className={inputClass}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+        />
+      </Field>
+    </div>
+  );
+}
+
 export function Card({ className = "", children, ...props }) {
   return (
     <div className={`glass-inner rounded-xl p-5 ${className}`} {...props}>

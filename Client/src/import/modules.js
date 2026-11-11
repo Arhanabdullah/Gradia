@@ -409,8 +409,8 @@ const courseModule = {
       label: "Duration in years",
       required: false,
       aliases: ["duration", "duration years", "duration in years", "years"],
-      example: "4",
-      help: "A whole number of years, for example 4.",
+      example: "5.5",
+      help: "A positive number of years, including decimals such as 5.5.",
     },
   ],
   exampleRows: [
@@ -452,9 +452,9 @@ const courseModule = {
     const code = optionalText(values.code);
     let duration = null;
     if (text(values.duration_years)) {
-      duration = asInt(values.duration_years);
-      if (duration === null || Number.isNaN(duration) || duration < 1 || duration > 10) {
-        roleError(errors, "Duration in years", "must be a whole number between 1 and 10.");
+      duration = asNumber(values.duration_years);
+      if (duration === null || Number.isNaN(duration) || duration <= 0 || duration > 99.9) {
+        roleError(errors, "Duration in years", "must be a positive number, such as 4 or 5.5.");
       }
     }
     const department = departmentHit.item;

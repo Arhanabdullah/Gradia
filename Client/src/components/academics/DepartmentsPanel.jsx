@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Button, Card, Empty, Field, inputClass } from "../ui";
+import { useMemo, useState } from "react";
+import { Button, Card, Empty, Field, SearchField, inputClass } from "../ui";
 import ImportButton from "../import/ImportButton";
 
 const emptyDepartment = { name: "", code: "" };
@@ -16,8 +16,19 @@ export default function DepartmentsPanel({
   const [form, setForm] = useState(emptyDepartment);
   const [editingId, setEditingId] = useState("");
   const [formError, setFormError] = useState("");
+  const [query, setQuery] = useState("");
 
   const courseCount = (id) => courses.filter((course) => course.department_id === id).length;
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return departments;
+    return departments.filter((department) =>
+      [department.name, department.code]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(needle)),
+    );
+  }, [departments, query]);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -92,15 +103,32 @@ export default function DepartmentsPanel({
         {formError ? <p className="mt-3 text-xs text-(--danger)">{formError}</p> : null}
       </Card>
 
-      <div className="mt-5 space-y-2">
+      <div className="mt-5 flex flex-wrap items-end justify-between gap-3">
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          label="Search departments"
+          placeholder="Name or code"
+          className="w-full sm:max-w-xs"
+        />
+        {!loading ? (
+          <p className="pb-2.5 text-xs text-(--muted-foreground) tabular-nums">
+            {filtered.length} of {departments.length} department{departments.length === 1 ? "" : "s"}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="mt-3 space-y-2">
         {loading ? (
           Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="glass-inner h-14 animate-pulse rounded-lg" />
           ))
         ) : departments.length === 0 ? (
           <Empty>No departments yet. Create the first one with the form above.</Empty>
+        ) : filtered.length === 0 ? (
+          <Empty>No departments match "{query.trim()}".</Empty>
         ) : (
-          departments.map((department) => {
+          filtered.map((department) => {
             const used = courseCount(department.id);
             return (
               <div
