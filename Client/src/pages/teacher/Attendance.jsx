@@ -175,7 +175,7 @@ const Attendance = () => {
 
     supabase
       .from("teacher_assignments")
-      .select("teacher_id, profiles ( id, name )")
+      .select("teacher_id, profiles!teacher_assignments_teacher_id_fkey(id, name)")
       .eq("class_id", classId)
       .eq("subject_id", subjectId)
       .then(({ data, error: loadError }) => {

@@ -220,7 +220,7 @@ const UsersDirectory = () => {
             classId
               ? supabase
                   .from("teacher_assignments")
-                  .select("subject_id, teacher_id, profiles ( name )")
+                  .select("subject_id, teacher_id, profiles!teacher_assignments_teacher_id_fkey(name)")
                   .eq("class_id", classId)
               : Promise.resolve({ data: [], error: null }),
             supabase
