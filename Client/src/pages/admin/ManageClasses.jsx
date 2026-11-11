@@ -55,7 +55,6 @@ export default function ManageClasses() {
   const [subjectQuery, setSubjectQuery] = useState("");
   const [catalogueQuery, setCatalogueQuery] = useState("");
   const [assignedQuery, setAssignedQuery] = useState("");
-  const [teacherQuery, setTeacherQuery] = useState("");
 
   const filteredCourses = useMemo(
     () =>
@@ -551,7 +550,6 @@ export default function ManageClasses() {
     setEditingTeacherRowId("");
     setCatalogueQuery("");
     setAssignedQuery("");
-    setTeacherQuery("");
   }
 
   function manageSubjectsFor(classId) {
@@ -693,10 +691,8 @@ export default function ManageClasses() {
             editingTeacherRowId={editingTeacherRowId}
             catalogueQuery={catalogueQuery}
             assignedQuery={assignedQuery}
-            teacherQuery={teacherQuery}
             onCatalogueQueryChange={setCatalogueQuery}
             onAssignedQueryChange={setAssignedQuery}
-            onTeacherQueryChange={setTeacherQuery}
             onSelectClass={selectClassForAssignment}
             onToggleSubject={toggleSubject}
             onToggleTeacherForSubject={toggleTeacherForSubject}
