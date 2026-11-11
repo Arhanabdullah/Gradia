@@ -6,23 +6,30 @@ import { Button } from "../ui";
 const NAV_BY_ROLE = {
   admin: [
     { to: "/app", label: "Overview", end: true },
+    { to: "/app/directory", label: "Users Dashboard" },
     { to: "/app/users", label: "Users" },
     { to: "/app/classes", label: "Academics" },
     { to: "/app/exams", label: "Exams" },
+    { to: "/app/attendance", label: "Attendance" },
     { to: "/app/sheets", label: "Result Sheets" },
   ],
   teacher: [
     { to: "/app", label: "Overview", end: true },
+    { to: "/app/directory", label: "Users Dashboard" },
     { to: "/app/exams", label: "Exams" },
     { to: "/app/marks", label: "Marks Entry" },
+    { to: "/app/attendance", label: "Attendance" },
   ],
   hod: [
     { to: "/app", label: "Overview", end: true },
+    { to: "/app/directory", label: "Users Dashboard" },
     { to: "/app/exams", label: "Exams" },
+    { to: "/app/attendance", label: "Attendance" },
     { to: "/app/review", label: "Review Sheets" },
   ],
   principal: [
     { to: "/app", label: "Overview", end: true },
+    { to: "/app/directory", label: "Users Dashboard" },
     { to: "/app/publish", label: "Sign Off & Publish" },
   ],
   student: [

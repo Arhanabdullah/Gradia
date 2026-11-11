@@ -7,11 +7,13 @@ import { useAuth } from "./context/AuthContext";
 import { Navigate } from "react-router-dom";
 
 import Overview from "./pages/Overview";
+import UsersDirectory from "./pages/UsersDirectory";
 import ManageUsers from "./pages/admin/ManageUsers";
 import ManageClasses from "./pages/admin/ManageClasses";
 import ManageExams from "./pages/admin/ManageExams";
 import AdminSheets from "./pages/admin/AdminSheets";
 import MarksEntry from "./pages/teacher/MarksEntry";
+import Attendance from "./pages/teacher/Attendance";
 import ReviewSheets from "./pages/hod/ReviewSheets";
 import PublishSheets from "./pages/principal/PublishSheets";
 import MyResults from "./pages/student/MyResults";
@@ -32,6 +34,14 @@ const App = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/app" element={<DashboardLayout />}>
         <Route index element={<Overview />} />
+        <Route
+          path="directory"
+          element={
+            <RequireRole roles={["admin", "principal", "hod", "teacher"]}>
+              <UsersDirectory />
+            </RequireRole>
+          }
+        />
         <Route
           path="users"
           element={
@@ -69,6 +79,14 @@ const App = () => {
           element={
             <RequireRole role="teacher">
               <MarksEntry />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="attendance"
+          element={
+            <RequireRole roles={["admin", "teacher", "hod"]}>
+              <Attendance />
             </RequireRole>
           }
         />

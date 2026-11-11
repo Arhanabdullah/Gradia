@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
 import { StatCard, Empty, Card, StatusChip } from "../components/ui";
+import AttendanceSummary from "../components/AttendanceSummary";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
 import { Link } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -149,6 +150,8 @@ const Overview = () => {
   const [recent, setRecent] = useState([]);
   const [chart, setChart] = useState(null);
   const [dept, setDept] = useState(null);
+  const [attendance, setAttendance] = useState([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
@@ -156,6 +159,23 @@ const Overview = () => {
     loadCounts(profile.role, profile).then(setStats).catch(() => setLoadError(true));
     loadChart(profile).then(setChart).catch(() => setLoadError(true));
     loadDept(profile).then(setDept).catch(() => setLoadError(true));
+
+    if (profile.role === "student") {
+      setAttendanceLoading(true);
+      supabase
+        .from("attendance")
+        .select("subject_id, attended_classes, total_classes, subjects ( name, code )")
+        .eq("student_id", profile.id)
+        .then(({ data, error }) => {
+          setAttendance(data ?? []);
+          setAttendanceLoading(false);
+          // The attendance migration is additive. An older deployment must
+          // still render the rest of the student dashboard.
+          if (error && !/does not exist|schema cache|could not find the table/i.test(error.message ?? "")) {
+            setLoadError(true);
+          }
+        });
+    }
 
     if (["admin", "hod", "principal"].includes(profile.role)) {
       supabase
@@ -206,6 +226,16 @@ const Overview = () => {
             </div>
           </div>
         </Card>
+      ) : null}
+
+      {profile.role === "student" ? (
+        <AttendanceSummary
+          className="mt-4"
+          rows={attendance}
+          loading={attendanceLoading}
+          title="Overall attendance"
+          subtitle="Attended classes divided by classes conducted, across every recorded year and subject."
+        />
       ) : null}
 
       {profile.role === "hod" ? (

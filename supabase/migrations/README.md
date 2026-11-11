@@ -97,6 +97,22 @@ existing records through Academics → Degrees / Courses / Classes and Users →
 department-scoped degrees must merge or rename duplicates before applying it. The live
 catalogue was empty when the migration was introduced.
 
+## Attendance migration
+
+| File | Adds |
+|---|---|
+| `202611110001_attendance.sql` | `attendance` records linked to student, class, subject, academic year and teacher; generated per-subject percentage; validation trigger; scope helpers and RLS |
+
+The table stores `attended_classes` and `total_classes`; `attendance_percentage` is a
+generated column (`attended / total * 100`). A unique constraint on
+`(student_id, class_id, subject_id, academic_year)` prevents duplicate records, so the
+attendance screen upserts instead of inserting. The client calculates overall attendance
+as `sum(attended) / sum(total) * 100` across subjects.
+
+The migration is additive and does not touch existing tables. It must be applied after
+`202611100003_global_degrees.sql` so the migration chain stays in filename order, although
+the attendance table itself does not reference degrees.
+
 ## Known sequencing deferrals
 
 Two legacy constraints are intentionally kept through Phase 2 because current UI code
