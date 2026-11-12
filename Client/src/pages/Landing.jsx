@@ -10,9 +10,12 @@ import Security from "../components/Security";
 import CTA from "../components/CTA";
 import Footer from "../components/Footer";
 import { setTheme, getTheme } from "../lib/theme";
+import { useDocumentTitle } from "../lib/useDocumentTitle";
 
 const Landing = () => {
   const [theme, setThemeState] = useState(() => getTheme());
+
+  useDocumentTitle("Results, minus the chaos");
 
   useEffect(() => {
     const next = theme === "dark" ? "dark" : "light";
@@ -25,44 +28,21 @@ const Landing = () => {
   };
 
   return (
-    <div className="grid-background relative min-h-screen bg-(--background) text-(--foreground)">
-      {/* Ambient lighting layer */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div
-          className="ambient-light ambient-light-primary"
-          style={{
-            width: "700px",
-            height: "500px",
-            left: "50%",
-            top: "-180px",
-            transform: "translateX(-50%)",
-          }}
-        />
-        <div
-          className="ambient-light ambient-light-secondary"
-          style={{
-            width: "500px",
-            height: "450px",
-            left: "-180px",
-            top: "35%",
-          }}
-        />
-        <div
-          className="ambient-light ambient-light-primary"
-          style={{
-            width: "550px",
-            height: "500px",
-            right: "-200px",
-            top: "60%",
-          }}
-        />
-      </div>
-      {/* Actual page content */}
-      <div className="relative z-10">
-        <Navbar theme={theme} setTheme={toggle} />
-        <main>
+    <div className="relative min-h-screen bg-(--background) text-(--foreground)">
+      {/* Page content */}
+      <div className="relative z-10 flex flex-col">
+        <a
+        href="#main-content"
+        className="sr-only rounded-xl bg-(--primary) px-4 py-2.5 text-sm font-semibold text-(--background) focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50"
+      >
+        Skip to content
+      </a>
+      <Navbar theme={theme} setTheme={toggle} />
+        <main id="main-content" tabIndex={-1} className="focus-target flex-1">
           <Hero />
-          <ProductPreview />
+          <div className="mx-auto w-full max-w-7xl px-6 py-12 md:py-16">
+            <ProductPreview />
+          </div>
           <HowItWorks />
           <Features />
           <Security />

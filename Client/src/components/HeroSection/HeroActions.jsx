@@ -23,11 +23,11 @@ const HeroActions = () => {
                         navigate("/login");
                     }}
                     href="#request-demo"
-                    className="inline-flex items-center justify-center whitespace-nowrap rounded-lg bg-(--primary-deep) px-5 py-2.5 text-sm font-medium text-white shadow-[0_8px_30px_rgba(79,70,229,0.22)] transition-colors hover:bg-(--primary)/85"
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-lg bg-(--primary) px-5 py-2.5 text-sm font-medium text-(--background) shadow-[0_8px_30px_rgba(14,116,144,0.22)] transition-colors hover:bg-(--primary-hover)"
                     whileHover={{
                         scale: 1.04,
                         backgroundColor: "var(--primary)",
-                        boxShadow: "0 10px 35px rgba(79,70,229,0.28)",
+                        boxShadow: "0 10px 35px rgba(14,116,144,0.28)",
                     }}
                     whileTap={buttonTap}
                     transition={microTransition}
@@ -48,7 +48,7 @@ const HeroActions = () => {
                 </motion.a>
             </motion.div>
             <motion.p
-                className="mt-5 text-[11px] text-(--muted)"
+                className="mt-5 text-xs text-(--muted)"
                 variants={revealVariant}
                 initial="hidden"
                 animate="visible"

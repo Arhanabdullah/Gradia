@@ -2,7 +2,9 @@ import { Routes, Route } from "react-router-dom";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
+import NotFound from "./pages/NotFound";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
+import AppLoader from "./components/AppLoader";
 import { useAuth } from "./context/AuthContext";
 import { Navigate } from "react-router-dom";
 
@@ -18,7 +20,8 @@ import MyResults from "./pages/student/MyResults";
 import Notifications from "./pages/student/Notifications";
 
 const RequireRole = ({ role, roles, children }) => {
-  const { profile } = useAuth();
+  const { profile, loading } = useAuth();
+  if (loading) return <AppLoader />;
   if (!profile) return null;
   const allowed = roles ?? (role ? [role] : []);
   if (allowed.length && !allowed.includes(profile.role)) return <Navigate to="/app" replace />;
@@ -105,6 +108,7 @@ const App = () => {
           }
         />
       </Route>
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };

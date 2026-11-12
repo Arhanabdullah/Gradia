@@ -215,7 +215,7 @@ const AdminSheets = () => {
                       <span className="tabular-nums">{info.total || "?"}</span> entered,{" "}
                       {info.subjects} subject{info.subjects === 1 ? "" : "s"}
                     </p>
-                    <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-(--muted-foreground)">
+                    <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-(--muted-foreground)">
                       <span>
                         Approvals: <span className="tabular-nums">{info.submissions.approved}</span> of{" "}
                         <span className="tabular-nums">{info.subjects}</span>
@@ -232,7 +232,7 @@ const AdminSheets = () => {
                         </span>
                       ) : null}
                     </p>
-                    <p className="mt-1 text-[11px] text-(--muted-foreground)">{statusLine}</p>
+                    <p className="mt-1 text-xs text-(--muted-foreground)">{statusLine}</p>
                   </div>
                   <Button disabled={busyId === exam.id || hasSheet || !ready} onClick={() => compile(exam)}>
                     {hasSheet ? "Sheet exists" : busyId === exam.id ? "Compiling" : "Compile sheet"}

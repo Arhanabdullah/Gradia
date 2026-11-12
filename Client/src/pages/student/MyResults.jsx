@@ -46,7 +46,7 @@ const downloadSheet = (sheet, rows, student) => {
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: Georgia, "Times New Roman", serif; color: #111827; padding: 40px; }
-  .head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #6d5430; padding-bottom: 14px; }
+  .head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #155e75; padding-bottom: 14px; }
   .brand { font-size: 26px; letter-spacing: 0.5px; }
   .brand small { display: block; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #6b7280; margin-top: 3px; }
   .muted { color: #6b7280; font-size: 11px; }
@@ -55,7 +55,7 @@ const downloadSheet = (sheet, rows, student) => {
   th, td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; }
   th { background: #f3f4f6; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
   .num { text-align: right; font-variant-numeric: tabular-nums; }
-  .grade { color: #6d5430; font-weight: bold; }
+  .grade { color: #155e75; font-weight: bold; }
   .total td { font-weight: bold; background: #fafafa; }
   .stamp { margin-top: 30px; display: flex; justify-content: space-between; font-size: 11px; color: #6b7280; }
   .foot { margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 10px; font-size: 11px; color: #9ca3af; text-align: center; }
@@ -181,7 +181,7 @@ const MyResults = () => {
           </p>
           <div className="mt-3 h-55 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+              <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="2 4" vertical={false} />
                 <XAxis dataKey="exam" {...axis} dy={8} />
                 <YAxis {...axis} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} width={35} />

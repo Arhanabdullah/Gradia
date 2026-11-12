@@ -259,7 +259,7 @@ const ReviewSheets = () => {
         <p className="text-sm font-medium text-(--foreground)">Approval history</p>
 
         <div className="mt-3 space-y-2">
-          <p className="text-[11px] text-(--muted-foreground)">Marks submissions</p>
+          <p className="text-xs text-(--muted-foreground)">Marks submissions</p>
           {marksHistory.length === 0 ? <Empty>No reviewed marks yet.</Empty> : null}
           {marksHistory.map((row) => (
             <div key={row.id} className="glass-inner flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-2.5 text-sm">
@@ -281,7 +281,7 @@ const ReviewSheets = () => {
         </div>
 
         <div className="mt-5 space-y-2">
-          <p className="text-[11px] text-(--muted-foreground)">Result sheets</p>
+          <p className="text-xs text-(--muted-foreground)">Result sheets</p>
           {history.length === 0 ? <Empty>No reviewed sheets yet.</Empty> : null}
           {history.map((s) => (
             <div key={s.id} className="glass-inner flex items-center justify-between gap-3 rounded-lg px-4 py-2.5 text-sm">

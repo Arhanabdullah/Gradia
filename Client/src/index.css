@@ -1,94 +1,77 @@
-/* Hallmark · v2.0.0 · redesign: full · genre: modern-minimal · theme: brand kept — the glass system, .dark toggle and Newsreader display voice (user constraint)
- * critique: a strong glass atmosphere sold short: Geist declared but never loaded, tracked-caps micro-labels, glue punctuation, no focus rings, transition-all, untokenised status colours — the composition keeps, the discipline arrives
- * waived: 26a/26b — :focus-visible and reduced-motion are supplied globally by this stylesheet (static per-file gate can't see shared/global rules); 58/59 — kept copy and section rhythm, layout preserved per user constraint; 77 — login is a single-card door; 39b/44c/81 — the product-mockup's miniature chrome, hero pull-up and brand ambience layers are deliberate content; F25 dismissed — the mock's miniature table is decorative at phone width
- * trail: 68 FAIL 18 REFLEX → fix 1: 17 FAIL → fix 2 (contrast tokens, mock chrome, motion-safe, mobile): 9 FAIL → fix 3: labels to --muted, full-strength field edges, nowrap controls */
-/* retheme v2.7 (2026-11-09): "coral cream & crimson night" — light lid: coral #F17A7E on #F9FAF4 cream with slate-teal second voice, orange/yellow as ambient tints; dark lid: #1A1A1D ink with crimson ramp (#C3073F, #950740, #6F2232) */
-/* retheme v2.6 (2026-11-09): "vermilion paper & bronze night" — light lid: vermilion #E43D12 on #EBE9E1 paper with rose second voice; dark lid: black/charcoal fills, orange #e3874f accent, bronze #886a4a second voice */
-/* retheme v2.5 (2026-11-09): "raspberry & deep sea" — Raspberry red for the light lid, Deep Sea blue for the dark lid, each borrowing the other as its second voice; Charcoal text on light */
-/* retheme v2.4 (2026-11-01): "bronze & paper" — desaturated bronze/champagne accent on warm paper neutrals, calm steel-blue second voice; honeycomb retired ("too bright", owner's call); ambience stays quiet in both lids */
-/* retheme v2.3 (2026-11-01): "honeycomb" — gold/amber accent on deep honey-brown fills, sky-blue second signal; jade retired at owner's call; ambience dials also reduced this pass (grid washes ×0.65, token alphas −30%) */
-@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap");
+/* Hallmark · v2.3.0 · redesign: professional-genz · theme: gunpowder/cyan · faces: Instrument Serif + Plus Jakarta Sans */
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400..800&display=swap");
 @import "tailwindcss";
+
 :root {
-  /* Light · "coral cream": soft #F9FAF4 cream so glass panels have a floor to sit on */
-  --background: #f9faf4;
-  --surface: #ffffff;
-  --surface-secondary: #f1f3ea;
+  /* Light · Gunpowder & Cyan: pale base, gunpowder ink, cyan accent, white-shade secondary */
+  --background: #f3f5f6;
+  --surface: #f8f9fa;
+  --surface-secondary: #e9ecee;
 
-  --border: #d9dccf;
-  --border-subtle: #e8eadf;
+  --border: #dfe3e7;
+  --border-subtle: #eceef1;
 
-  --foreground: #1f2e30;
-  --muted: #4a6163;
-  --muted-foreground: #7d9092;
+  --foreground: #1a1d23;
+  --muted: #5b6370;
+  --muted-foreground: #8d939c;
 
-  --primary: #f17a7e;
-  --primary-deep: #b93e43;
-  --tertiary: #4a6163;
-  --grid: rgba(241, 122, 126, 0.05);
+  --primary: #0e7490;
+  --primary-deep: #155e75;
+  --primary-hover: #155e75;
+  --tertiary: #5d6570;
+  --tooltip-bg: #ffffff;
+  --grid: rgba(14, 116, 144, 0.05);
 
-  --glass-base: 31, 46, 48;
-  --glass-border: 255, 255, 255;
+  --glass-base: 255, 255, 255;
+  --glass-border: 226, 232, 240;
   --glass-highlight: 255, 255, 255;
-  /* Material strength */
-  --glass-floating-alpha: 0.42;
-  --glass-panel-alpha: 0.22;
-  --glass-inner-alpha: 0.14;
-  --glass-border-alpha: 0.42;
-  --glass-highlight-alpha: 0.55;
+  --glass-floating-alpha: 0.8;
+  --glass-panel-alpha: 0.6;
+  --glass-inner-alpha: 0.4;
+  --glass-border-alpha: 0.8;
+  --glass-highlight-alpha: 0.9;
 
-  /* Ambient lighting */
-  --ambient-primary: 241, 122, 126;
-  --ambient-secondary: 255, 201, 75;
-  --ambient-primary-alpha: 0.05;
-  --ambient-secondary-alpha: 0.04;
+  --ambient-primary: 14, 116, 144;
+  --ambient-secondary: 148, 158, 169;
+  --ambient-primary-alpha: 0.08;
+  --ambient-secondary-alpha: 0.06;
 
-  /* Status (roles: no literals past the token block) */
   --danger: #ef4444;
-  --danger-subtle: rgba(239, 68, 68, 0.12);
+  --danger-subtle: rgba(239, 68, 68, 0.1);
   --success: #10b981;
-  --success-subtle: rgba(16, 185, 129, 0.12);
+  --success-subtle: rgba(16, 185, 129, 0.1);
 }
 
 .dark {
-  /* Dark · "crimson night": ink fills, crimson accent, deeper wine second signal */
-  --background: #1a1a1d;
-  --surface: #26262a;
-  --surface-secondary: #212124;
-
-  --border: #4e4e50;
-  --border-subtle: #2e2e32;
-
-  --foreground: #f4f1f2;
-  --muted: #a8a8ab;
-  --muted-foreground: #6f6f73;
-
-  --primary: #e0295a;
-  --primary-deep: #c3073f;
-  --tertiary: #950740;
-
-  --grid: rgba(195, 7, 63, 0.05);
-  /* Glass */
-  --glass-base: 38, 38, 42;
+  /* Dark · Gunpowder & Cyan: charcoal base, white-shade text, bright cyan accent */
+  --background: #14171d;
+  --surface: #1b1f26;
+  --surface-secondary: #262b34;
+  --border: #2b313b;
+  --border-subtle: #1e222a;
+  --foreground: #f4f6f8;
+  --muted: #a8aeb8;
+  --muted-foreground: #767e8a;
+  --primary: #22d3ee;
+  --primary-deep: #0e7490;
+  --primary-hover: #67e8f9;
+  --tertiary: #e7eaee;
+  --tooltip-bg: #242a33;
+  --grid: rgba(34, 211, 238, 0.05);
+  --glass-base: 20, 23, 29;
   --glass-highlight: 255, 255, 255;
-  --glass-border: 255, 255, 255;
-  --glass-floating-alpha: 0.24;
-  --glass-panel-alpha: 0.14;
-  --glass-inner-alpha: 0.09;
-  --glass-border-alpha: 0.07;
-  --glass-highlight-alpha: 0.05;
-  /* Ambient lighting */
-  --ambient-primary: 195, 7, 63;
-  --ambient-secondary: 149, 7, 64;
-  --ambient-primary-alpha: 0.06;
-  --ambient-secondary-alpha: 0.04;
-
-  /* Sidebar */
-  --sidebar-hover: rgba(255, 255, 255, 0.04);
-  --sidebar-active: rgba(255, 255, 255, 0.06);
-
-  /* Status (roles: no literals past the token block) */
+  --glass-border: 43, 49, 59;
+  --glass-floating-alpha: 0.2;
+  --glass-panel-alpha: 0.1;
+  --glass-inner-alpha: 0.05;
+  --glass-border-alpha: 0.05;
+  --glass-highlight-alpha: 0.02;
+  --ambient-primary: 34, 211, 238;
+  --ambient-secondary: 200, 210, 220;
+  --ambient-primary-alpha: 0.04;
+  --ambient-secondary-alpha: 0.02;
+  --sidebar-hover: rgba(255, 255, 255, 0.05);
+  --sidebar-active: rgba(255, 255, 255, 0.1);
   --danger: #f87171;
   --danger-subtle: rgba(248, 113, 113, 0.1);
   --success: #34d399;
@@ -103,6 +86,22 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Hallmark · Loader: cyan spinner ring used by the app loading page */
+.loader-ring {
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  border: 2.5px solid color-mix(in srgb, var(--primary) 18%, transparent);
+  border-top-color: var(--primary);
+  animation: loader-spin 0.9s linear infinite;
+}
+
+@keyframes loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Hallmark · Floor: page never scrolls sideways; keyboard focus is always visible
  * and instant; every animation yields to prefers-reduced-motion */
 html,
@@ -113,6 +112,13 @@ body {
 :focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+/* Programmatic focus handoff targets (skip-link destinations, 404 heading):
+   focus lands here via .focus(), never via keyboard traversal, so the ring
+   would only draw noise around non-interactive elements. */
+.focus-target:focus {
+  outline: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -130,7 +136,7 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: "Geist", sans-serif;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
   transition:
     background-color 300ms ease,
     color 300ms ease;
@@ -154,12 +160,12 @@ body {
 }
 
 .font-editorial {
-  font-family: "Newsreader", serif;
+  font-family: "Instrument Serif", Georgia, serif;
   font-weight: 400;
 }
 
 .font-ui {
-  font-family: "Geist", sans-serif;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
 .tabular {
@@ -167,7 +173,7 @@ body {
 }
 
 .hero-title {
-  font-family: "Newsreader", serif;
+  font-family: "Instrument Serif", Georgia, serif;
   font-size: 4.5rem;
   line-height: 1.05;
   letter-spacing: -0.03em;
@@ -198,90 +204,92 @@ body {
   );
 }
 .nav-glass {
+  border: 1px solid transparent;
   background:
-    linear-gradient(135deg, rgba(241, 122, 126, 0.55), rgba(255, 255, 255, 0.12) 45%, transparent 70%),
-    rgba(250, 251, 246, 0.6);
-  backdrop-filter: blur(22px) saturate(160%);
-  -webkit-backdrop-filter: blur(22px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+    linear-gradient(135deg, rgba(var(--ambient-primary), 0.35), rgba(255, 255, 255, 0.1) 45%, transparent 70%) padding-box,
+    rgba(250, 251, 252, 0.6) padding-box,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.45) 55%, rgba(var(--ambient-primary), 0.6)) border-box;
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
   box-shadow:
-    0 8px 30px rgba(31, 46, 48, 0.12),
+    0 8px 30px rgba(23, 27, 33, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
   border-radius: 16px;
 }
 
 .dark .nav-glass {
   background:
-    linear-gradient(135deg, rgba(224, 41, 90, 0.16), rgba(224, 41, 90, 0.04) 45%, transparent 70%),
-    rgba(38, 38, 42, 0.55);
-  backdrop-filter: blur(22px) saturate(160%);
-  -webkit-backdrop-filter: blur(22px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+    linear-gradient(135deg, rgba(var(--ambient-primary), 0.16), rgba(var(--ambient-primary), 0.04) 45%, transparent 70%) padding-box,
+    rgba(24, 27, 33, 0.62) padding-box,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.07) 55%, rgba(var(--ambient-primary), 0.4)) border-box;
   box-shadow:
-    0 8px 30px rgba(0, 0, 0, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    0 8px 30px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
   border-radius: 16px;
 }
 
 .glass-floating {
+  border: 1px solid transparent;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 45%, transparent 70%),
-    rgba(38, 38, 42, 0.48);
-  backdrop-filter: blur(22px) saturate(160%);
-  -webkit-backdrop-filter: blur(22px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02) 45%, transparent 70%) padding-box,
+    rgba(24, 27, 33, 0.62) padding-box,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.06) 55%, rgba(var(--ambient-primary), 0.32)) border-box;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    0 12px 40px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .glass-panel {
+  border: 1px solid transparent;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.012) 45%, transparent 70%),
-    rgba(38, 38, 42, 0.35);
-  backdrop-filter: blur(22px) saturate(160%);
-  -webkit-backdrop-filter: blur(22px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.015) 45%, transparent 70%) padding-box,
+    rgba(24, 27, 33, 0.5) padding-box,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05) 55%, rgba(var(--ambient-primary), 0.26)) border-box;
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
   box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 12px 40px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .glass-inner {
+  border: 1px solid transparent;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 55%),
-    rgba(38, 38, 42, 0.26);
-  backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 55%) padding-box,
+    rgba(24, 27, 33, 0.42) padding-box,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04) 55%, rgba(var(--ambient-primary), 0.22)) border-box;
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.11);
 }
 
 :root:not(.dark) .glass-floating {
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.18) 45%, transparent 70%),
-    rgba(255, 255, 255, 0.55);
-  border-color: rgba(255, 255, 255, 0.85);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.2) 45%, transparent 70%) padding-box,
+    rgba(255, 255, 255, 0.66) padding-box,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.5) 55%, rgba(var(--ambient-primary), 0.45)) border-box;
   box-shadow:
-    0 12px 40px rgba(31, 46, 48, 0.14),
+    0 12px 40px rgba(23, 27, 33, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 :root:not(.dark) .glass-panel {
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.14) 45%, transparent 70%),
-    rgba(255, 255, 255, 0.45);
-  border-color: rgba(255, 255, 255, 0.8);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.14) 45%, transparent 70%) padding-box,
+    rgba(255, 255, 255, 0.55) padding-box,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.45) 55%, rgba(var(--ambient-primary), 0.35)) border-box;
   box-shadow:
-    0 12px 40px rgba(31, 46, 48, 0.1),
+    0 12px 40px rgba(23, 27, 33, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 :root:not(.dark) .glass-inner {
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.5), transparent 55%),
-    rgba(255, 255, 255, 0.34);
-  border-color: rgba(255, 255, 255, 0.66);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.5), transparent 55%) padding-box,
+    rgba(255, 255, 255, 0.42) padding-box,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.4) 55%, rgba(var(--ambient-primary), 0.3)) border-box;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
 }
 

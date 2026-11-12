@@ -58,7 +58,7 @@ const PreviewSidebar = ({ tab, onSelect }) => (
     <aside className="glass-floating flex w-full shrink-0 flex-col p-4 md:w-56">
         <div className="mb-8">
             <p className="text-sm font-semibold text-(--foreground)">Gradia</p>
-            <p className="mt-0.5 text-[11px] text-(--muted)">Academic suite</p>
+            <p className="mt-0.5 text-xs text-(--muted)">Academic suite</p>
         </div>
         <nav className="space-y-1" aria-label="Preview sections">
             {PREVIEW_TABS.map((label) => {
@@ -84,7 +84,7 @@ const PreviewSidebar = ({ tab, onSelect }) => (
 const PanelHeader = ({ title, caption }) => (
     <div>
         <p className="text-xs font-medium text-(--foreground)">{title}</p>
-        <p className="mt-0.5 text-[11px] text-(--muted)">{caption}</p>
+        <p className="mt-0.5 text-xs text-(--muted)">{caption}</p>
     </div>
 );
 
@@ -96,7 +96,7 @@ const StudentPanel = () => (
                 <div key={student.name} className="flex items-center justify-between gap-3 py-2.5">
                     <div className="min-w-0">
                         <p className="truncate text-xs font-medium text-(--foreground)">{student.name}</p>
-                        <p className="mt-0.5 text-[11px] text-(--muted)">{student.className}</p>
+                        <p className="mt-0.5 text-xs text-(--muted)">{student.className}</p>
                     </div>
                     <p className="text-xs font-semibold text-(--foreground) tabular-nums">
                         {student.average}
@@ -115,10 +115,10 @@ const ResultsPanel = () => (
                 <div key={sheet.subject} className="flex items-center justify-between gap-3 py-2.5">
                     <div className="min-w-0">
                         <p className="truncate text-xs font-medium text-(--foreground)">{sheet.subject}</p>
-                        <p className="mt-0.5 text-[11px] text-(--muted)">{sheet.className}</p>
+                        <p className="mt-0.5 text-xs text-(--muted)">{sheet.className}</p>
                     </div>
                     <span
-                        className={`whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                        className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${
                             resultStatusClass[sheet.status]
                         }`}
                     >
@@ -180,7 +180,7 @@ const ProductPreview = () => {
                             <span className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
                         </div>
                         <div className="mx-auto hidden rounded-md border border-(--border-subtle) bg-(--surface-secondary) px-4 py-1 sm:block">
-                            <p className="text-[11px] text-(--muted)">
+                            <p className="text-xs text-(--muted)">
                                 app.gradia.academy/dashboard
                             </p>
                         </div>
@@ -211,7 +211,7 @@ const ProductPreview = () => {
                                                 <p className="text-xs font-medium text-(--foreground)">
                                                     Performance Overview
                                                 </p>
-                                                <p className="mt-0.5 text-[11px] text-(--muted)">
+                                                <p className="mt-0.5 text-xs text-(--muted)">
                                                     Average score over the academic year
                                                 </p>
                                             </div>
@@ -232,7 +232,7 @@ const ProductPreview = () => {
                                                 <p className="text-xs font-medium text-(--foreground)">
                                                     Subject Performance
                                                 </p>
-                                                <p className="mt-0.5 text-[11px] text-(--muted)">
+                                                <p className="mt-0.5 text-xs text-(--muted)">
                                                     Average score by subject
                                                 </p>
                                             </div>

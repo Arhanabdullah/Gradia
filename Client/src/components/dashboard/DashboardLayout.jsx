@@ -2,6 +2,9 @@ import { Outlet, useLocation, Navigate } from "react-router-dom";
 import DashboardSidebar from "./DashboardSidebar";
 import { useAuth } from "../../context/AuthContext";
 import { Button } from "../ui";
+import AppLoader from "../AppLoader";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { useMinLoadingState } from "../../lib/useMinLoadingState";
 
 const NAV_BY_ROLE = {
   admin: [
@@ -36,13 +39,11 @@ const DashboardLayout = () => {
   const { profile, loading, signOut } = useAuth();
   const location = useLocation();
 
-  if (loading) {
-    return (
-      <div className="grid-background flex min-h-screen items-center justify-center bg-(--background)">
-        <p className="text-sm text-(--muted-foreground)">Loading Gradia…</p>
-      </div>
-    );
-  }
+  useDocumentTitle("Dashboard");
+
+  // hold the loader on screen briefly even on fast profile fetches
+  const showLoader = useMinLoadingState(loading, 700);
+  if (showLoader) return <AppLoader />;
 
   if (!profile) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
 
@@ -64,8 +65,18 @@ const DashboardLayout = () => {
 
   return (
     <div className="grid-background flex min-h-screen bg-(--background) text-(--foreground)">
+      <a
+        href="#main-content"
+        className="sr-only rounded-xl bg-(--primary) px-4 py-2.5 text-sm font-semibold text-(--background) focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50"
+      >
+        Skip to content
+      </a>
       <DashboardSidebar items={NAV_BY_ROLE[profile.role] ?? []} />
-      <main className="relative z-10 flex-1 overflow-y-auto p-6">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="focus-target relative z-10 flex-1 overflow-y-auto p-6"
+      >
         <div className="mx-auto max-w-5xl">
           <Outlet />
         </div>

@@ -73,7 +73,7 @@ function StatusPill({ status }) {
   };
   const [label, className] = styles[status] ?? [status, "border-(--border) text-(--muted-foreground)"];
   return (
-    <span className={`inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium ${className}`}>
+    <span className={`inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium ${className}`}>
       {label}
     </span>
   );
@@ -90,7 +90,7 @@ function SummaryCard({ label, value, tone = "default" }) {
           : "text-(--foreground)";
   return (
     <div className="glass-inner rounded-xl p-3">
-      <p className="text-[11px] font-medium text-(--muted-foreground)">{label}</p>
+      <p className="text-xs font-medium text-(--muted-foreground)">{label}</p>
       <p className={`mt-1 text-lg font-semibold tabular-nums ${toneClass}`}>{value}</p>
     </div>
   );
@@ -431,7 +431,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
       >
         <header className="flex items-start justify-between gap-4 border-b border-(--border)/60 p-5">
           <div className="min-w-0">
-            <p className="text-[11px] font-medium text-(--muted-foreground)">Import from file</p>
+            <p className="text-xs font-medium text-(--muted-foreground)">Import from file</p>
             <h2 id="import-wizard-title" className="mt-1 text-lg font-semibold tracking-tight text-(--foreground)">
               {module.title}
             </h2>
@@ -458,7 +458,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                 <li key={item.id} className="flex items-center gap-1">
                   <span
                     aria-current={active ? "step" : undefined}
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
                       active
                         ? "bg-(--primary-deep) text-white"
                         : complete
@@ -469,7 +469,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                     {complete ? <CheckCircle2 size={12} /> : index + 1}
                   </span>
                   <span
-                    className={`whitespace-nowrap text-[11px] ${
+                    className={`whitespace-nowrap text-xs ${
                       active ? "font-semibold text-(--foreground)" : "text-(--muted-foreground)"
                     }`}
                   >
@@ -525,13 +525,13 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                   <>
                     <Loader2 className="animate-spin text-(--primary)" size={22} />
                     <p className="mt-2 text-sm font-medium text-(--foreground)">Reading the file</p>
-                    <p className="mt-1 text-[11px] text-(--muted-foreground)">Checking the format, headers and row count.</p>
+                    <p className="mt-1 text-xs text-(--muted-foreground)">Checking the format, headers and row count.</p>
                   </>
                 ) : (
                   <>
                     <Upload className="text-(--primary)" size={22} />
                     <p className="mt-2 text-sm font-medium text-(--foreground)">Drop a file here, or browse</p>
-                    <p className="mt-1 text-[11px] text-(--muted-foreground)">.xlsx, .xls, .csv or .json</p>
+                    <p className="mt-1 text-xs text-(--muted-foreground)">.xlsx, .xls, .csv or .json</p>
                   </>
                 )}
               </div>
@@ -555,7 +555,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                       <FileSpreadsheet className="mt-0.5 shrink-0 text-(--primary)" size={18} />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-(--foreground)">{file?.name}</p>
-                        <p className="mt-0.5 text-[11px] text-(--muted-foreground)">
+                        <p className="mt-0.5 text-xs text-(--muted-foreground)">
                           {formatBytes(file?.size ?? 0)}, {parsed.sheets.length} worksheet
                           {parsed.sheets.length === 1 ? "" : "s"}, {parsed.sheets.reduce((sum, item) => sum + item.rows.length, 0).toLocaleString()} data rows
                         </p>
@@ -599,7 +599,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                   ) : null}
 
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-[11px] text-(--muted-foreground)">
+                    <p className="text-xs text-(--muted-foreground)">
                       {sheet ? `${sheet.headers.length} columns, ${sheet.rows.length.toLocaleString()} rows on "${sheet.name}".` : ""}
                     </p>
                     <Button
@@ -635,7 +635,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
               </Card>
 
               {contextLoading ? (
-                <p className="flex items-center gap-2 text-[11px] text-(--muted-foreground)">
+                <p className="flex items-center gap-2 text-xs text-(--muted-foreground)">
                   <Loader2 className="animate-spin" size={13} /> Loading Gradia reference data.
                 </p>
               ) : null}
@@ -693,7 +693,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                           {field.label}
                           {field.required ? " *" : ""}
                         </span>
-                        <span className={`text-[11px] ${field.required ? "text-(--danger)" : "text-(--muted-foreground)"}`}>
+                        <span className={`text-xs ${field.required ? "text-(--danger)" : "text-(--muted-foreground)"}`}>
                           {field.required ? "Required" : "Optional"}
                         </span>
                       </div>
@@ -709,7 +709,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                           ))}
                         </Select>
                       </div>
-                      <p className="mt-1.5 truncate text-[11px] text-(--muted-foreground)">
+                      <p className="mt-1.5 truncate text-xs text-(--muted-foreground)">
                         {sample ? `First value: ${sample}` : field.help ?? `Example: ${field.example ?? "value"}`}
                       </p>
                     </div>
@@ -792,7 +792,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                         />
                         <span className="min-w-0">
                           <span className="block text-sm font-medium text-(--foreground)">{copy.label}</span>
-                          <span className="mt-0.5 block text-[11px] text-(--muted-foreground)">{copy.description}</span>
+                          <span className="mt-0.5 block text-xs text-(--muted-foreground)">{copy.description}</span>
                         </span>
                       </label>
                     );
@@ -850,7 +850,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                 </table>
               </div>
               {plan.records.length > 100 ? (
-                <p className="text-[11px] text-(--muted-foreground)">
+                <p className="text-xs text-(--muted-foreground)">
                   Showing the first 100 of {plan.records.length.toLocaleString()} rows. Every row is checked and imported.
                 </p>
               ) : null}
@@ -974,7 +974,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                 <SummaryCard label="Failed or invalid" value={live.failed + live.invalid} tone="danger" />
               </div>
 
-              <p className="text-[11px] text-(--muted-foreground)">
+              <p className="text-xs text-(--muted-foreground)">
                 The wizard stays open until every row has been processed. You can download a full report on the next step.
               </p>
             </div>
@@ -1028,7 +1028,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
               {module.id === "users" && createdAccounts.length ? (
                 <div className="rounded-xl border border-(--border) p-4">
                   <p className="text-sm font-medium text-(--foreground)">Temporary passwords</p>
-                  <p className="mt-1 text-[11px] text-(--muted-foreground)">
+                  <p className="mt-1 text-xs text-(--muted-foreground)">
                     Share these securely. The downloaded report contains every created account.
                   </p>
                   <div className="mt-3 overflow-x-auto">
@@ -1045,14 +1045,14 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                           <tr key={item.rowNumber} className="border-b border-(--border-subtle)/60 last:border-b-0">
                             <td className="px-2 py-1.5 tabular-nums text-(--muted-foreground)">{item.rowNumber}</td>
                             <td className="px-2 py-1.5 text-(--foreground)">{item.label}</td>
-                            <td className="px-2 py-1.5 font-mono text-[11px] text-(--foreground)">{item.meta.password}</td>
+                            <td className="px-2 py-1.5 font-mono text-xs text-(--foreground)">{item.meta.password}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
                   {createdAccounts.length > 20 ? (
-                    <p className="mt-2 text-[11px] text-(--muted-foreground)">
+                    <p className="mt-2 text-xs text-(--muted-foreground)">
                       Showing 20 of {createdAccounts.length.toLocaleString()} created accounts. Download the report for the rest.
                     </p>
                   ) : null}
@@ -1085,7 +1085,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                     </table>
                   </div>
                   {failedOutcomes.length > 100 ? (
-                    <p className="mt-2 text-[11px] text-(--muted-foreground)">
+                    <p className="mt-2 text-xs text-(--muted-foreground)">
                       Showing 100 of {failedOutcomes.length.toLocaleString()} rows. Download the report for the rest.
                     </p>
                   ) : null}

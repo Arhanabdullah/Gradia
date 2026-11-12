@@ -23,13 +23,13 @@ const CTA = () => {
                             Make academic results
                             <br />
                             <span className="italic text-(--primary)">
-                                simpler for everyone.
+                                simpler.
                             </span>
                         </h2>
                         <p className="mx-auto mt-5 max-w-lg text-sm leading-7 text-(--muted)">
-                            Bring your academic workflows together with a
-                            platform designed for students, faculty, and
-                            administrators.
+                            One platform for the entire result
+                            pipeline, from the first mark to the
+                            final publication.
                         </p>
                         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                             <motion.button
@@ -37,7 +37,7 @@ const CTA = () => {
                                 className="whitespace-nowrap rounded-lg bg-(--primary) px-5 py-3 text-sm font-semibold text-(--background)"
                                 whileHover={{
                                     ...buttonHover,
-                                    backgroundColor: "var(--primary-deep)",
+                                    backgroundColor: "var(--primary-hover)",
                                 }}
                                 whileTap={buttonTap}
                                 transition={microTransition}

@@ -11,7 +11,7 @@ const buttonBase =
   "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-medium transition-colors active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-(--primary) focus-visible:outline-offset-2";
 
 const variants = {
-  primary: `${buttonBase} bg-(--primary-deep) text-white hover:bg-(--primary-deep)/85`,
+  primary: `${buttonBase} bg-(--primary) text-(--background) hover:bg-(--primary-hover)`,
   subtle: `${buttonBase} border border-(--border) text-(--foreground) hover:border-(--primary) hover:bg-(--primary)/5`,
   danger: `${buttonBase} border border-(--danger)/40 text-(--danger) hover:bg-(--danger-subtle)`,
   success: `${buttonBase} border border-(--success)/40 text-(--success) hover:bg-(--success-subtle)`,
@@ -62,7 +62,7 @@ export function Empty({ children }) {
 export function StatusChip({ status }) {
   return (
     <span
-      className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${statusChipClass[status] ?? statusChipClass.draft}`}
+      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${statusChipClass[status] ?? statusChipClass.draft}`}
     >
       {statusLabel[status] ?? status}
     </span>

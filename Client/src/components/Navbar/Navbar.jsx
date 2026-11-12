@@ -16,7 +16,7 @@ const Navbar = ({ theme, setTheme }) => {
                             Gradia
                         </p>
                     </a>
-                    <p className="text-[11px] text-(--muted)">
+                    <p className="text-xs text-(--muted)">
                         Academic suite
                     </p>
                 </div>

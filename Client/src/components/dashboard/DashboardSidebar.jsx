@@ -56,7 +56,7 @@ const DashboardSidebar = ({ items = PREVIEW_ITEMS, fluid = false }) => {
         <p className="text-sm font-semibold text-(--foreground)">Gradia</p>
         <p className="mt-0.5 text-xs text-(--muted)">Academic suite</p>
       </div>
-      <nav className="space-y-1">
+      <nav className="space-y-1" aria-label="Dashboard">
         {items.map((item) => (
           <SidebarItem key={item.to ?? item.label} item={item} />
         ))}

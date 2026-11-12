@@ -688,7 +688,7 @@ const MarksEntry = () => {
               <Button variant="subtle" onClick={applyBulk} disabled={students.length === 0}>
                 Apply
               </Button>
-              <p className="pb-2 text-[11px] text-(--muted-foreground)">
+              <p className="pb-2 text-xs text-(--muted-foreground)">
                 Useful for full-mark practicals and for clearing a whole class before re-entry.
               </p>
             </div>
@@ -722,7 +722,7 @@ const MarksEntry = () => {
                     <tr key={student.id} className="border-b border-(--border-subtle)/60 last:border-b-0">
                       <td className="px-3 py-2">
                         <p className="font-medium text-(--foreground)">{student.name}</p>
-                        <p className="mt-0.5 text-[11px] text-(--muted-foreground)">{student.username}</p>
+                        <p className="mt-0.5 text-xs text-(--muted-foreground)">{student.username}</p>
                       </td>
                       <td className="px-3 py-2">
                         {readOnly ? (
@@ -759,7 +759,7 @@ const MarksEntry = () => {
                               onChange={(event) => setValue(student.id, event.target.value)}
                             />
                             {belowPass ? (
-                              <p className="mt-1 text-[11px] text-(--muted-foreground)">Below pass mark</p>
+                              <p className="mt-1 text-xs text-(--muted-foreground)">Below pass mark</p>
                             ) : null}
                           </div>
                         )}
@@ -803,25 +803,25 @@ const MarksEntry = () => {
 
               <dl className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div>
-                  <dt className="text-[11px] text-(--muted-foreground)">Submitted</dt>
+                  <dt className="text-xs text-(--muted-foreground)">Submitted</dt>
                   <dd className="mt-0.5 text-xs text-(--foreground)">
                     {submission.submitted_at ? timestampLabel(submission.submitted_at) : "Not submitted"}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] text-(--muted-foreground)">Reviewed</dt>
+                  <dt className="text-xs text-(--muted-foreground)">Reviewed</dt>
                   <dd className="mt-0.5 text-xs text-(--foreground)">
                     {submission.reviewed_at ? timestampLabel(submission.reviewed_at) : "Not reviewed"}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] text-(--muted-foreground)">Approved</dt>
+                  <dt className="text-xs text-(--muted-foreground)">Approved</dt>
                   <dd className="mt-0.5 text-xs text-(--foreground)">
                     {submission.approved_at ? timestampLabel(submission.approved_at) : "Not approved"}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] text-(--muted-foreground)">Published</dt>
+                  <dt className="text-xs text-(--muted-foreground)">Published</dt>
                   <dd className="mt-0.5 text-xs text-(--foreground)">
                     {sheet?.published_at ? timestampLabel(sheet.published_at) : "Not published"}
                   </dd>
@@ -863,7 +863,7 @@ const MarksEntry = () => {
               </div>
               <div className="h-48 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={performance.rows} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+                  <BarChart data={performance.rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="2 4" vertical={false} />
                     <XAxis dataKey="username" {...chartAxis} tick={{ ...chartAxis.tick, fontSize: 12 }} dy={8} />
                     <YAxis {...chartAxis} tick={{ ...chartAxis.tick, fontSize: 12 }} domain={[0, maxMarks]} width={30} />
