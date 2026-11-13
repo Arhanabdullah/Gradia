@@ -25,7 +25,7 @@ const SubjectPerformanceChart = () => {
                     margin={{
                         top: 8,
                         right: 4,
-                        left: -20,
+                        left: 0,
                         bottom: 0,
                     }}
                 >

@@ -81,7 +81,7 @@ const RecentResults = () => {
                                     {result.score}
                                 </td>
                                 <td className="px-4 py-3">
-                                    <span className="rounded-md bg-(--surface-secondary) px-2 py-1 text-[11px] font-medium text-(--foreground)">
+                                    <span className="rounded-md bg-(--surface-secondary) px-2 py-1 text-xs font-medium text-(--foreground)">
                                         {result.grade}
                                     </span>
                                 </td>

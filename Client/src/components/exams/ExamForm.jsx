@@ -648,7 +648,7 @@ export default function ExamForm({
                       </label>
                     </div>
                     {row.teacher_id ? (
-                      <p className="mt-1 text-[11px] text-(--muted-foreground)">
+                      <p className="mt-1 text-xs text-(--muted-foreground)">
                         Invigilator: {teacherName.get(row.teacher_id) ?? "Selected teacher"}
                       </p>
                     ) : null}
@@ -667,7 +667,7 @@ export default function ExamForm({
         ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-[11px] text-(--muted-foreground)">
+          <p className="text-xs text-(--muted-foreground)">
             Dates and times are checked against the other papers for the same class before saving.
           </p>
           <Button type="submit" disabled={saving || selectedClassIds.length === 0}>

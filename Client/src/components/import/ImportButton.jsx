@@ -60,7 +60,7 @@ export default function ImportButton({
         {label ?? `Import ${module.title.toLowerCase()}`}
       </Button>
       {summary ? (
-        <p role="status" className="text-[11px] text-(--muted-foreground)">
+        <p role="status" className="text-xs text-(--muted-foreground)">
           {describeSummary(summary)}
         </p>
       ) : null}

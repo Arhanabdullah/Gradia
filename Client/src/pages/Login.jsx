@@ -5,8 +5,10 @@ import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { Button, Field, inputClass } from "../components/ui";
+import { useDocumentTitle } from "../lib/useDocumentTitle";
 
 const Login = () => {
+  useDocumentTitle("Sign in");
   const navigate = useNavigate();
   const { profile, session, loading } = useAuth();
   const [email, setEmail] = useState("");
@@ -45,9 +47,6 @@ const Login = () => {
       >
         <p className="text-sm font-semibold">Gradia</p>
         <h1 className="mt-6 font-editorial text-3xl tracking-tight">Sign in</h1>
-        <p className="mt-1.5 text-xs text-(--muted)">
-          Accounts are created by your administrator.
-        </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <Field label="Email">

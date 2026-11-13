@@ -5,7 +5,7 @@ This file is the system at every depth. Every page reads it and varies **composi
 ## What is fixed (do not change)
 
 - **The glass token system** in `Client/src/index.css` (`:root` / `.dark`) — glass visuals, ambience, backgrounds. Append nothing to it except what the redesign stamp block already added (status/ring tokens, focus, reduced-motion, x-clip). The `.dark` toggle (`src/lib/theme.js`, persisted in localStorage) is kept exactly as is.
-- **Faces**: `Newsreader` = display/editorial voice (headlines, hero, "Sign in"), `Geist` = everything else. Two families total, no more. No display face on labels, buttons, table heads or data.
+- **Faces**: `Instrument Serif` = display/editorial voice (headlines, hero, "Sign in"), `Plus Jakarta Sans` = everything else. Two families total, no more. No display face on labels, buttons, table heads or data.
 - **Tokens**: every colour rides a CSS variable (`--background`, `--surface`, `--foreground`, `--muted-foreground`, `--primary`, `--primary-deep`, `--tertiary`, `--border`, `--border-subtle`, `--danger(+subtle)`, `--success(+subtle)`). No literal hex/rgb/Tailwind-red classes in markup. Dark-mode appearance comes from `.dark` re-declaring tokens; do not add per-element light/dark classes.
 - **Radius per nesting level**: one radius per level — page shells/panels `rounded-2xl`, cards `rounded-xl`, controls and chips `rounded-lg` / `rounded-full`.
 - The universal `* { border-radius: 12px }` rule **stays** (it is the glass material's base).

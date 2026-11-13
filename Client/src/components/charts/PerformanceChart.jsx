@@ -28,7 +28,7 @@ const PerformanceChart = () => {
                     margin={{
                         top: 8,
                         right: 8,
-                        left: -20,
+                        left: 0,
                         bottom: 0,
                     }}
                 >
@@ -50,7 +50,8 @@ const PerformanceChart = () => {
                     />
                     <Tooltip
                         cursor={{
-                            stroke: "var(--border)",
+                            stroke: "var(--muted-foreground)",
+                            strokeOpacity: 0.5,
                             strokeDasharray: "3 3",
                         }}
                         {...chartTooltip}
@@ -64,7 +65,7 @@ const PerformanceChart = () => {
                         activeDot={{
                             r: 4,
                             fill: "var(--primary)",
-                            stroke: "var(--surface)",
+                            stroke: "var(--surface-secondary)",
                             strokeWidth: 2,
                         }}
                     />

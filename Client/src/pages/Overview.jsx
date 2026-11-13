@@ -269,7 +269,7 @@ const Overview = () => {
           </div>
           <div className="h-55 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chart.data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+              <BarChart data={chart.data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="2 4" vertical={false} />
                 <XAxis dataKey="label" {...chartAxis} tick={{ ...chartAxis.tick, fontSize: 11 }} dy={8} />
                 <YAxis {...chartAxis} tick={{ ...chartAxis.tick, fontSize: 11 }} allowDecimals={false} width={30} />

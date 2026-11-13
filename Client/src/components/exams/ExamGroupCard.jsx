@@ -23,7 +23,7 @@ function SubmissionChip({ status }) {
   const label = status === "draft" ? "Not submitted" : submissionStatusLabel(status);
   return (
     <span
-      className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+      className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${
         statusChipClass[status] ?? statusChipClass.draft
       }`}
     >
@@ -152,7 +152,7 @@ export default function ExamGroupCard({
             {classNames.length ? `, ${classNames.length} class${classNames.length === 1 ? "" : "es"}` : ""}
           </p>
           {classNames.length ? (
-            <p className="mt-1 truncate text-[11px] text-(--muted-foreground)" title={classNames.join(", ")}>
+            <p className="mt-1 truncate text-xs text-(--muted-foreground)" title={classNames.join(", ")}>
               {classNames.join(", ")}
             </p>
           ) : null}
@@ -182,15 +182,15 @@ export default function ExamGroupCard({
 
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
         <div className="rounded-lg border border-(--border-subtle) px-3 py-2">
-          <p className="text-[11px] text-(--muted-foreground)">Papers scheduled</p>
+          <p className="text-xs text-(--muted-foreground)">Papers scheduled</p>
           <p className="mt-0.5 text-sm font-semibold text-(--foreground) tabular-nums">{summary.total}</p>
         </div>
         <div className="rounded-lg border border-(--border-subtle) px-3 py-2">
-          <p className="text-[11px] text-(--muted-foreground)">Awaiting approval</p>
+          <p className="text-xs text-(--muted-foreground)">Awaiting approval</p>
           <p className="mt-0.5 text-sm font-semibold text-(--foreground) tabular-nums">{summary.pending}</p>
         </div>
         <div className="rounded-lg border border-(--border-subtle) px-3 py-2">
-          <p className="text-[11px] text-(--muted-foreground)">Approved</p>
+          <p className="text-xs text-(--muted-foreground)">Approved</p>
           <p className="mt-0.5 text-sm font-semibold text-(--foreground) tabular-nums">{summary.approved}</p>
         </div>
       </div>
@@ -234,7 +234,7 @@ export default function ExamGroupCard({
                 <tr key={subject.id} className="border-b border-(--border-subtle)/60 last:border-b-0 align-top">
                   <td className="px-3 py-2">
                     <p className="font-medium text-(--foreground)">{subjectLabel(subject.subjects)}</p>
-                    <p className="mt-0.5 text-[11px] text-(--muted-foreground)">
+                    <p className="mt-0.5 text-xs text-(--muted-foreground)">
                       Max {subject.max_marks}
                       {subject.pass_marks != null ? `, pass ${subject.pass_marks}` : ""}
                     </p>
@@ -276,7 +276,7 @@ export default function ExamGroupCard({
                       <>
                         <span>{timeRange(subject.start_time, subject.end_time)}</span>
                         {subject.duration_minutes ? (
-                          <p className="mt-0.5 text-[11px] text-(--muted-foreground)">
+                          <p className="mt-0.5 text-xs text-(--muted-foreground)">
                             {subject.duration_minutes} min
                           </p>
                         ) : null}
@@ -326,7 +326,7 @@ export default function ExamGroupCard({
                   <td className="px-3 py-2">
                     <SubmissionChip status={statusValue} />
                     {exams.length > 1 ? (
-                      <p className="mt-1 text-[11px] text-(--muted-foreground) tabular-nums">
+                      <p className="mt-1 text-xs text-(--muted-foreground) tabular-nums">
                         {groupStatusSummary({
                           ...group,
                           exams: exams.map((exam) => ({

@@ -2,47 +2,32 @@ import { Outlet, useLocation, Navigate } from "react-router-dom";
 import DashboardSidebar from "./DashboardSidebar";
 import { useAuth } from "../../context/AuthContext";
 import { Button } from "../ui";
-
-const NAV_BY_ROLE = {
-  admin: [
-    { to: "/app", label: "Overview", end: true },
-    { to: "/app/users", label: "Users" },
-    { to: "/app/classes", label: "Academics" },
-    { to: "/app/exams", label: "Exams" },
-    { to: "/app/sheets", label: "Result Sheets" },
-  ],
-  teacher: [
-    { to: "/app", label: "Overview", end: true },
-    { to: "/app/exams", label: "Exams" },
-    { to: "/app/marks", label: "Marks Entry" },
-  ],
-  hod: [
-    { to: "/app", label: "Overview", end: true },
-    { to: "/app/exams", label: "Exams" },
-    { to: "/app/review", label: "Review Sheets" },
-  ],
-  principal: [
-    { to: "/app", label: "Overview", end: true },
-    { to: "/app/publish", label: "Sign Off & Publish" },
-  ],
-  student: [
-    { to: "/app", label: "Overview", end: true },
-    { to: "/app/results", label: "My Results" },
-    { to: "/app/notifications", label: "Notifications" },
-  ],
-};
+import AppLoader from "../AppLoader";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { useMinLoadingState } from "../../lib/useMinLoadingState";
+import { useState, useEffect } from "react";
+import BackToTop from "../BackToTop";
 
 const DashboardLayout = () => {
   const { profile, loading, signOut } = useAuth();
   const location = useLocation();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  if (loading) {
-    return (
-      <div className="grid-background flex min-h-screen items-center justify-center bg-(--background)">
-        <p className="text-sm text-(--muted-foreground)">Loading Gradia…</p>
-      </div>
-    );
-  }
+  useDocumentTitle("Dashboard");
+
+  // Persist sidebar collapse state
+  useEffect(() => {
+    const saved = localStorage.getItem("sidebarCollapsed");
+    if (saved !== null) setSidebarCollapsed(JSON.parse(saved));
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed));
+  }, [sidebarCollapsed]);
+
+  // hold the loader on screen briefly even on fast profile fetches
+  const showLoader = useMinLoadingState(loading, 700);
+  if (showLoader) return <AppLoader />;
 
   if (!profile) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
 
@@ -64,12 +49,28 @@ const DashboardLayout = () => {
 
   return (
     <div className="grid-background flex min-h-screen bg-(--background) text-(--foreground)">
-      <DashboardSidebar items={NAV_BY_ROLE[profile.role] ?? []} />
-      <main className="relative z-10 flex-1 overflow-y-auto p-6">
-        <div className="mx-auto max-w-5xl">
-          <Outlet />
-        </div>
-      </main>
+      <a
+        href="#main-content"
+        className="sr-only rounded-xl bg-(--primary) px-4 py-2.5 text-sm font-semibold text-(--background) focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50"
+      >
+        Skip to content
+      </a>
+      <DashboardSidebar
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
+      />
+      <div className="flex-1">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="focus-target relative z-10"
+        >
+          <div className="mx-auto max-w-5xl px-6 py-6">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+      <BackToTop />
     </div>
   );
 };

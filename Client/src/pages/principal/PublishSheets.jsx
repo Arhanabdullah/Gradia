@@ -146,7 +146,7 @@ const PublishSheets = () => {
           </div>
           <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={perf} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+              <BarChart data={perf} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="2 4" vertical={false} />
                 <XAxis dataKey="label" {...axis} dy={8} />
                 <YAxis {...axis} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} width={35} />
