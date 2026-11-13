@@ -1,9 +1,8 @@
 // Public marketing page: unchanged design, previously inline in App.jsx.
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense, lazy } from "react";
 
 import Navbar from "../components/Navbar/Navbar";
 import Hero from "../components/HeroSection/Hero";
-import ProductPreview from "../components/ProductPreview";
 import HowItWorks from "../components/HowItWorks";
 import Features from "../components/Features";
 import Security from "../components/Security";
@@ -11,6 +10,10 @@ import CTA from "../components/CTA";
 import Footer from "../components/Footer";
 import { setTheme, getTheme } from "../lib/theme";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
+import AppLoader from "../components/AppLoader";
+
+// Lazy load ProductPreview (contains recharts charts)
+const ProductPreview = lazy(() => import("../components/ProductPreview"));
 
 const Landing = () => {
   const [theme, setThemeState] = useState(() => getTheme());
@@ -41,7 +44,9 @@ const Landing = () => {
         <main id="main-content" tabIndex={-1} className="focus-target flex-1">
           <Hero />
           <div className="mx-auto w-full max-w-7xl px-6 py-12 md:py-16">
-            <ProductPreview />
+            <Suspense fallback={<AppLoader label="Loading preview…" />}>
+              <ProductPreview />
+            </Suspense>
           </div>
           <HowItWorks />
           <Features />

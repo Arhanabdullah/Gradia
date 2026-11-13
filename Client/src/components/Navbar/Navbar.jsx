@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import NavLink from "./NavLink";
 import ThemeToggle from "./ThemeToggle";
 import NavButton from "./NavButton";
@@ -36,9 +37,11 @@ const Navbar = ({ theme, setTheme }) => {
                         Sign in
                     </NavButton>
 
-                    <NavButton onClick={() => navigate("/login")}>
+                    <Link to="/request-demo">
+                      <NavButton>
                         Request demo
-                    </NavButton>
+                      </NavButton>
+                    </Link>
                 </div>
             </div>
         </nav>
