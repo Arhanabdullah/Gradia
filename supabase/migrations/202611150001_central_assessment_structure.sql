@@ -1741,14 +1741,19 @@ grant select, insert, update, delete on public.assessment_template_components to
 -- The internal helpers stay behind security-definer callers. Only the four
 -- configuration RPCs and the two read helpers are callable by a signed-in
 -- user; every RPC still checks the Exam Cell / admin role itself.
+--
+-- This project grants execute on new functions to authenticated by default,
+-- so the internal helpers and trigger functions are revoked explicitly.
 revoke execute on function public.resolved_exam_result_kind(uuid) from anon, public;
 revoke execute on function public.resolved_template_for_subject(uuid) from anon, public;
-revoke execute on function public.assessment_component_total(uuid, uuid, uuid) from anon, public;
-revoke execute on function public.materialize_assessment_template(uuid, uuid) from anon, public;
+revoke execute on function public.assessment_component_total(uuid, uuid, uuid) from anon, authenticated, public;
+revoke execute on function public.materialize_assessment_template(uuid, uuid) from anon, authenticated, public;
 revoke execute on function public.apply_assessment_template(uuid, uuid, boolean) from anon, public;
 revoke execute on function public.apply_assessment_templates_to_exam(uuid, boolean) from anon, public;
 revoke execute on function public.set_subject_assessment_template(uuid, uuid) from anon, public;
 revoke execute on function public.set_default_assessment_template(uuid, boolean) from anon, public;
+revoke execute on function public.auto_apply_assessment_template() from anon, authenticated, public;
+revoke execute on function public.guard_assessment_template_delete() from anon, authenticated, public;
 
 grant execute on function public.resolved_exam_result_kind(uuid) to authenticated;
 grant execute on function public.resolved_template_for_subject(uuid) to authenticated;
