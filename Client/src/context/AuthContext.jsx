@@ -7,17 +7,34 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  // getSession() is async, so the first render always has session === null.
+  // Without this flag the profile effect would resolve that placeholder as
+  // "signed out", clear loading, and bounce a hard load/refresh of a deep
+  // link (/app/reports, /app/archive, ...) through /login back to /app.
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    let active = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active) return;
+      setSession(session);
+      setSessionReady(true);
+    });
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
-    return () => subscription.unsubscribe();
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setSessionReady(true);
+    });
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
     let active = true;
+    if (!sessionReady) return undefined;
     if (session?.user) {
       const loadProfile = async () => {
         // two FKs exist between profiles and classes (class_id / hod_id),
@@ -44,7 +61,7 @@ export function AuthProvider({ children }) {
     return () => {
       active = false;
     };
-  }, [session]);
+  }, [session, sessionReady]);
 
   const value = {
     session,
