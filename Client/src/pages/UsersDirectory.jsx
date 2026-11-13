@@ -11,6 +11,8 @@ const ROLE_OPTIONS = [
   { value: "hod", label: "HODs" },
   { value: "principal", label: "Principals" },
   { value: "admin", label: "Admins" },
+  { value: "coordinator", label: "Coordinators" },
+  { value: "exam_cell", label: "Exam Cell" },
 ];
 
 const ROLE_LABEL = {
@@ -19,6 +21,8 @@ const ROLE_LABEL = {
   hod: "HOD",
   principal: "Principal",
   admin: "Admin",
+  coordinator: "Coordinator",
+  exam_cell: "Exam Cell",
 };
 
 const PROFILE_SELECT =
@@ -239,7 +243,7 @@ const UsersDirectory = () => {
             supabase
               .from("marks")
               .select(
-                "id, exam_id, subject_id, marks_obtained, status, exams ( name, academic_year ), subjects ( name, code, max_marks )",
+                "id, exam_id, subject_id, marks_obtained, status, assessment_component_id, assessment_components ( max_marks ), exams ( name, academic_year ), subjects ( name, code, max_marks )",
               )
               .eq("student_id", user.id),
             supabase
@@ -319,11 +323,12 @@ const UsersDirectory = () => {
           }))
         : detail.marks.map((mark) => {
             const subject = firstEmbed(mark.subjects);
+            const component = firstEmbed(mark.assessment_components);
             return {
               subjectId: mark.subject_id,
               subject,
               obtained: Number(mark.marks_obtained ?? 0),
-              max: Number(subject?.max_marks ?? 0),
+              max: Number(component?.max_marks ?? subject?.max_marks ?? 0),
             };
           });
 

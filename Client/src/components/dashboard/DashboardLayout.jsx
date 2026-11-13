@@ -37,6 +37,21 @@ const NAV_BY_ROLE = {
     { to: "/app/results", label: "My Results" },
     { to: "/app/notifications", label: "Notifications" },
   ],
+  coordinator: [
+    { to: "/app", label: "Overview", end: true },
+    { to: "/app/reports", label: "Monitoring" },
+    { to: "/app/archive", label: "Result archive" },
+    { to: "/app/directory", label: "Users Dashboard" },
+  ],
+  exam_cell: [
+    { to: "/app", label: "Overview", end: true },
+    { to: "/app/config", label: "Result configuration" },
+    { to: "/app/assessment", label: "Assessment setup" },
+    { to: "/app/approval", label: "Result approval" },
+    { to: "/app/sheets", label: "Result Sheets" },
+    { to: "/app/archive", label: "Result archive" },
+    { to: "/app/directory", label: "Users Dashboard" },
+  ],
 };
 
 const DashboardLayout = () => {

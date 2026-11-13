@@ -18,6 +18,11 @@ import ReviewSheets from "./pages/hod/ReviewSheets";
 import PublishSheets from "./pages/principal/PublishSheets";
 import MyResults from "./pages/student/MyResults";
 import Notifications from "./pages/student/Notifications";
+import CoordinatorReports from "./pages/coordinator/CoordinatorReports";
+import ResultArchive from "./pages/coordinator/ResultArchive";
+import ResultConfig from "./pages/exam_cell/ResultConfig";
+import AssessmentSetup from "./pages/exam_cell/AssessmentSetup";
+import ResultApproval from "./pages/exam_cell/ResultApproval";
 
 const RequireRole = ({ role, roles, children }) => {
   const { profile } = useAuth();
@@ -37,7 +42,7 @@ const App = () => {
         <Route
           path="directory"
           element={
-            <RequireRole roles={["admin", "principal", "hod", "teacher"]}>
+            <RequireRole roles={["admin", "principal", "hod", "teacher", "coordinator", "exam_cell"]}>
               <UsersDirectory />
             </RequireRole>
           }
@@ -69,7 +74,7 @@ const App = () => {
         <Route
           path="sheets"
           element={
-            <RequireRole role="admin">
+            <RequireRole roles={["admin", "exam_cell"]}>
               <AdminSheets />
             </RequireRole>
           }
@@ -119,6 +124,46 @@ const App = () => {
           element={
             <RequireRole role="student">
               <Notifications />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="reports"
+          element={
+            <RequireRole role="coordinator">
+              <CoordinatorReports />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="archive"
+          element={
+            <RequireRole roles={["coordinator", "principal", "exam_cell"]}>
+              <ResultArchive />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="config"
+          element={
+            <RequireRole role="exam_cell">
+              <ResultConfig />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="assessment"
+          element={
+            <RequireRole role="exam_cell">
+              <AssessmentSetup />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="approval"
+          element={
+            <RequireRole role="exam_cell">
+              <ResultApproval />
             </RequireRole>
           }
         />

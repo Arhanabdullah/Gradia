@@ -42,7 +42,14 @@ const ReviewSheets = () => {
       supabase
         .from("result_sheets")
         .select(sheetSelect)
-        .in("status", ["hod_approved", "hod_rejected", "principal_signed", "published"])
+        .in("status", [
+          "hod_approved",
+          "hod_rejected",
+          "principal_signed",
+          "exam_approved",
+          "exam_rejected",
+          "published",
+        ])
         .order("updated_at", { ascending: false })
         .limit(10),
       supabase

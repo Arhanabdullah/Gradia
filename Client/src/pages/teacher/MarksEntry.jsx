@@ -97,7 +97,11 @@ const MarksEntry = () => {
   const [examId, setExamId] = useState("");
   const [subjectId, setSubjectId] = useState("");
 
+  const [components, setComponents] = useState([]);
+  const [componentId, setComponentId] = useState("");
+
   const [students, setStudents] = useState([]);
+  const [allMarks, setAllMarks] = useState([]);
   const [marksState, setMarksState] = useState({});
   const [statusState, setStatusState] = useState({});
   const [remarksState, setRemarksState] = useState({});
@@ -204,6 +208,11 @@ const MarksEntry = () => {
     [assignments, classId],
   );
 
+  const examSubject = useMemo(
+    () => examSubjects.find((row) => row.subject_id === subjectId) ?? null,
+    [examSubjects, subjectId],
+  );
+
   useEffect(() => {
     let cancelled = false;
     setExamSubjects([]);
@@ -241,6 +250,7 @@ const MarksEntry = () => {
   useEffect(() => {
     let cancelled = false;
     setStudents([]);
+    setAllMarks([]);
     setMarksState({});
     setStatusState({});
     setRemarksState({});
@@ -256,7 +266,7 @@ const MarksEntry = () => {
         const [marksRes, submissionRes, sheetRes] = await Promise.all([
           supabase
             .from("marks")
-            .select("id, student_id, marks_obtained, status, remarks")
+            .select("id, student_id, marks_obtained, status, remarks, assessment_component_id")
             .eq("exam_id", examId)
             .eq("subject_id", subjectId),
           supabase
@@ -279,27 +289,8 @@ const MarksEntry = () => {
         if (submissionRes.error) throw new Error(submissionRes.error.message);
         setSheet(sheetRes.error ? null : sheetRes.data ?? null);
 
-        const marks = {};
-        const statuses = {};
-        const remarks = {};
-        const ids = {};
-        (marksRes.data ?? []).forEach((row) => {
-          marks[row.student_id] = String(row.marks_obtained ?? "");
-          statuses[row.student_id] = row.status ?? "present";
-          remarks[row.student_id] = row.remarks ?? "";
-          ids[row.student_id] = row.id;
-        });
-
-        const initialStatuses = {};
-        roster.forEach((student) => {
-          initialStatuses[student.id] = statuses[student.id] ?? "present";
-        });
-
         setStudents(roster);
-        setMarksState(marks);
-        setStatusState(initialStatuses);
-        setRemarksState(remarks);
-        setSavedIds(ids);
+        setAllMarks(marksRes.data ?? []);
 
         const current = submissionRes.data ?? null;
         setSubmission(current);
@@ -322,10 +313,80 @@ const MarksEntry = () => {
     };
   }, [classId, examId, subjectId, marksVersion]);
 
-  const examSubject = examSubjects.find((row) => row.subject_id === subjectId);
+  // Components belong to the exam subject. Legacy examinations always have
+  // at least one "Overall" component seeded by the database migration.
+  useEffect(() => {
+    let cancelled = false;
+    setComponents([]);
+    setComponentId("");
+    if (!examSubject) return undefined;
+
+    supabase
+      .from("assessment_components")
+      .select("id, name, component_type, max_marks, pass_marks, weight_percent, display_order, is_optional")
+      .eq("exam_subject_id", examSubject.id)
+      .order("display_order")
+      .then(({ data, error: componentError }) => {
+        if (cancelled) return;
+        if (componentError) {
+          setError(componentError.message);
+          return;
+        }
+        const rows = data ?? [];
+        setComponents(rows);
+        setComponentId((current) =>
+          rows.some((row) => row.id === current) ? current : rows[0]?.id ?? "",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [examSubject]);
+
+  // The table always edits one component at a time. Rebuild the editable
+  // rows from the full mark set whenever the component or data changes.
+  useEffect(() => {
+    if (!classId || !examId || !subjectId) return;
+    const componentMarks = allMarks.filter((row) =>
+      componentId
+        ? row.assessment_component_id === componentId
+        : row.assessment_component_id == null,
+    );
+
+    const marks = {};
+    const statuses = {};
+    const remarks = {};
+    const ids = {};
+    componentMarks.forEach((row) => {
+      marks[row.student_id] = String(row.marks_obtained ?? "");
+      statuses[row.student_id] = row.status ?? "present";
+      remarks[row.student_id] = row.remarks ?? "";
+      ids[row.student_id] = row.id;
+    });
+
+    const initialStatuses = {};
+    students.forEach((student) => {
+      initialStatuses[student.id] = statuses[student.id] ?? "present";
+    });
+
+    setMarksState(marks);
+    setStatusState(initialStatuses);
+    setRemarksState(remarks);
+    setSavedIds(ids);
+  }, [allMarks, componentId, students, classId, examId, subjectId]);
+
   const subject = subjects.find((row) => row.id === subjectId);
-  const maxMarks = Number(examSubject?.max_marks ?? subject?.max_marks ?? 100);
-  const passMarks = examSubject?.pass_marks != null ? Number(examSubject.pass_marks) : null;
+  const component = components.find((row) => row.id === componentId) ?? null;
+  const maxMarks = Number(
+    component?.max_marks ?? examSubject?.max_marks ?? subject?.max_marks ?? 100,
+  );
+  const passMarks =
+    component?.pass_marks != null
+      ? Number(component.pass_marks)
+      : examSubject?.pass_marks != null
+        ? Number(examSubject.pass_marks)
+        : null;
   const locked = Boolean(submission && LOCKED_STATUSES.includes(submission.status));
   const published = sheet?.status === "published";
   const readOnly = locked || published;
@@ -366,6 +427,41 @@ const MarksEntry = () => {
   }).length;
 
   const missingCount = students.length - enteredCount;
+
+  // Coverage across every configured component, so a teacher cannot submit
+  // one component while another is still blank.
+  const componentCoverage = components.map((row) => {
+    if (row.id === componentId) {
+      return { ...row, covered: enteredCount, missing: missingCount };
+    }
+    const covered = students.filter((student) =>
+      allMarks.some(
+        (mark) => mark.assessment_component_id === row.id && mark.student_id === student.id,
+      ),
+    ).length;
+    return { ...row, covered, missing: students.length - covered };
+  });
+  // Optional components never block submission. If every component is
+  // optional, fall back to requiring coverage so at least one mark exists.
+  const requiredCoverage = components.some((row) => !row.is_optional)
+    ? componentCoverage.filter((row) => !row.is_optional)
+    : componentCoverage;
+  const missingAll =
+    components.length === 0
+      ? missingCount
+      : requiredCoverage.reduce((sum, row) => sum + row.missing, 0);
+
+  const changeComponent = (nextId) => {
+    if (nextId === componentId) return;
+    if (dirty.size > 0) {
+      setError("Save your changes before switching assessment components.");
+      return;
+    }
+    setError("");
+    setMessage("");
+    setDirty(new Set());
+    setComponentId(nextId);
+  };
 
   const performance = useMemo(() => {
     if (!subject || !examId) return null;
@@ -414,6 +510,10 @@ const MarksEntry = () => {
   const save = async () => {
     setError("");
     setMessage("");
+    if (components.length > 0 && !componentId) {
+      setError("Choose an assessment component before saving marks.");
+      return;
+    }
     if (invalidCount > 0) {
       setError(`Marks must be between 0 and ${maxMarks}. Fix ${invalidCount} invalid entr${invalidCount === 1 ? "y" : "ies"} first.`);
       return;
@@ -438,6 +538,7 @@ const MarksEntry = () => {
           exam_id: examId,
           subject_id: subjectId,
           student_id: studentId,
+          assessment_component_id: componentId || null,
           marks_obtained: status === "present" ? Number(value) : 0,
           status,
           remarks: (remarksState[studentId] ?? "").trim() || null,
@@ -446,19 +547,25 @@ const MarksEntry = () => {
       }
 
       for (const studentId of deletes) {
-        const { error: deleteError } = await supabase
+        let deleteQuery = supabase
           .from("marks")
           .delete()
           .eq("exam_id", examId)
           .eq("subject_id", subjectId)
           .eq("student_id", studentId);
+        deleteQuery = componentId
+          ? deleteQuery.eq("assessment_component_id", componentId)
+          : deleteQuery.is("assessment_component_id", null);
+        const { error: deleteError } = await deleteQuery;
         if (deleteError) throw new Error(deleteError.message);
       }
 
       if (rows.length > 0) {
         const { error: saveError } = await supabase
           .from("marks")
-          .upsert(rows, { onConflict: "exam_id,subject_id,student_id" });
+          .upsert(rows, {
+            onConflict: "exam_id,subject_id,student_id,assessment_component_id",
+          });
         if (saveError) throw new Error(saveError.message);
       }
 
@@ -487,8 +594,12 @@ const MarksEntry = () => {
       setError("No active students are enrolled in this class.");
       return;
     }
-    if (missingCount > 0) {
-      setError(`Enter a mark or a non-present status for ${missingCount} student${missingCount === 1 ? "" : "s"}.`);
+    if (missingAll > 0) {
+      setError(
+        components.length > 1
+          ? `Enter a mark or a non-present status for ${missingAll} student/component slot${missingAll === 1 ? "" : "s"}.`
+          : `Enter a mark or a non-present status for ${missingAll} student${missingAll === 1 ? "" : "s"}.`,
+      );
       return;
     }
 
@@ -629,10 +740,35 @@ const MarksEntry = () => {
 
       {classId && examId && subjectId ? (
         <section className="mt-6">
+          {components.length > 0 ? (
+            <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-(--border-subtle) p-3">
+              <Field label="Assessment component">
+                <Select
+                  value={componentId}
+                  onChange={(event) => changeComponent(event.target.value)}
+                  disabled={readOnly || saving}
+                >
+                  {components.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.name}, max {row.max_marks}
+                      {row.weight_percent != null ? `, weight ${row.weight_percent}%` : ""}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <p className="pb-2 text-[11px] text-(--muted-foreground) tabular-nums">
+                {componentCoverage
+                  .map((row) => `${row.name} ${row.covered}/${students.length}`)
+                  .join(", ")}
+              </p>
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-(--foreground)">Student marks</p>
               <p className="mt-1 text-xs text-(--muted-foreground) tabular-nums">
+                {component ? `${component.name}, ` : ""}
                 {enteredCount} of {students.length} entered, maximum {maxMarks}
                 {passMarks != null ? `, pass ${passMarks}` : ""}
                 {invalidCount > 0 ? `, ${invalidCount} invalid` : ""}
@@ -648,7 +784,7 @@ const MarksEntry = () => {
                 <Button
                   variant="subtle"
                   onClick={submit}
-                  disabled={submitting || dirty.size > 0 || invalidCount > 0 || missingCount > 0}
+                  disabled={submitting || dirty.size > 0 || invalidCount > 0 || missingAll > 0}
                 >
                   {submitting ? "Submitting" : "Submit for approval"}
                 </Button>

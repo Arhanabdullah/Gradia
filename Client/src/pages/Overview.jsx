@@ -13,15 +13,25 @@ const STATUS_SHORT = {
   hod_approved: "HOD OK",
   hod_rejected: "Sent back",
   principal_signed: "Ready",
+  exam_approved: "Exam OK",
+  exam_rejected: "Exam sent back",
   published: "Published",
 };
 
 const loadChart = async (profile) => {
-  if (["admin", "hod", "principal"].includes(profile.role)) {
+  if (["admin", "hod", "principal", "exam_cell", "coordinator"].includes(profile.role)) {
     const { data } = await supabase.from("result_sheets").select("status");
     const counts = {};
     (data ?? []).forEach((s) => (counts[s.status] = (counts[s.status] ?? 0) + 1));
-    const order = ["compiled", "hod_approved", "principal_signed", "published", "hod_rejected"];
+    const order = [
+      "compiled",
+      "hod_approved",
+      "exam_approved",
+      "principal_signed",
+      "published",
+      "hod_rejected",
+      "exam_rejected",
+    ];
     return {
       title: "Result sheet pipeline",
       subtitle: "Sheets by workflow stage",
@@ -60,6 +70,8 @@ const SUBTITLE = {
   teacher: "Your teaching workload at a glance.",
   hod: "Department review pipeline at a glance.",
   principal: "Publication pipeline at a glance.",
+  coordinator: "Institution-wide monitoring at a glance.",
+  exam_cell: "Result configuration and approval at a glance.",
   student: "Your academic snapshot.",
 };
 
@@ -99,9 +111,28 @@ const loadCounts = async (role, profile) => {
       {
         label: "Ready to publish",
         value: (await countQuery("result_sheets", { status: "hod_approved" }))
-          + (await countQuery("result_sheets", { status: "principal_signed" })),
+          + (await countQuery("result_sheets", { status: "principal_signed" }))
+          + (await countQuery("result_sheets", { status: "exam_approved" })),
       },
       { label: "Published", value: await countQuery("result_sheets", { status: "published" }) },
+    ];
+  if (role === "coordinator")
+    return [
+      { label: "Students", value: await countQuery("profiles", { role: "student" }) },
+      { label: "Teachers", value: await countQuery("profiles", { role: "teacher" }) },
+      { label: "Classes", value: await countQuery("classes") },
+      { label: "Subjects", value: await countQuery("subjects") },
+      { label: "Results published", value: await countQuery("result_sheets", { status: "published" }) },
+      { label: "Attendance records", value: await countQuery("attendance") },
+    ];
+  if (role === "exam_cell")
+    return [
+      { label: "Awaiting Exam Cell approval", value: await countQuery("result_sheets", { status: "hod_approved" }) },
+      { label: "Approved by Exam Cell", value: await countQuery("result_sheets", { status: "exam_approved" }) },
+      { label: "Published", value: await countQuery("result_sheets", { status: "published" }) },
+      { label: "Awaiting HOD review", value: await countQuery("result_sheets", { status: "compiled" }) },
+      { label: "Grading schemes", value: await countQuery("grading_schemes") },
+      { label: "Assessment components", value: await countQuery("assessment_components") },
     ];
   // student
   return [
@@ -181,7 +212,7 @@ const Overview = () => {
         });
     }
 
-    if (["admin", "hod", "principal"].includes(profile.role)) {
+    if (["admin", "hod", "principal", "exam_cell", "coordinator"].includes(profile.role)) {
       supabase
         .from("result_sheets")
         .select("id, status, exams ( name ), classes ( name )")
@@ -315,15 +346,19 @@ const Overview = () => {
         </Card>
       ) : null}
 
-      {!stats ? null : ["admin", "hod", "principal"].includes(profile.role) ? (
+      {!stats ? null : ["admin", "hod", "principal", "exam_cell", "coordinator"].includes(profile.role) ? (
         <section className="mt-8">
           <div className="flex items-center justify-between gap-4">
             <p className="text-xs font-medium text-(--muted-foreground)">Recently updated result sheets</p>
-            {profile.role === "admin" && (
+            {profile.role === "admin" || profile.role === "exam_cell" ? (
               <Link to="/app/sheets" className="text-xs text-(--primary) hover:underline">
                 Manage results
               </Link>
-            )}
+            ) : profile.role === "coordinator" ? (
+              <Link to="/app/archive" className="text-xs text-(--primary) hover:underline">
+                Open result archive
+              </Link>
+            ) : null}
           </div>
           <div className="mt-3 space-y-2">
             {recent.length === 0 && <Empty>No result sheets yet.</Empty>}

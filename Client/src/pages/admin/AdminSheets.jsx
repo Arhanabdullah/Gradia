@@ -15,7 +15,7 @@ const AdminSheets = () => {
   const [busyId, setBusyId] = useState(null);
 
   const load = async () => {
-    const [examsRes, sheetsRes, subjectsRes, marksRes, studentsRes, enrollmentsRes, submissionsRes] =
+    const [examsRes, sheetsRes, subjectsRes, marksRes, studentsRes, enrollmentsRes, submissionsRes, componentsRes] =
       await Promise.all([
         supabase
           .from("exams")
@@ -28,7 +28,7 @@ const AdminSheets = () => {
         supabase
           .from("exam_subjects")
           .select("id, exam_id, subject_id, subjects ( code, name )"),
-        supabase.from("marks").select("exam_id, subject_id, student_id"),
+        supabase.from("marks").select("exam_id, subject_id, student_id, assessment_component_id"),
         supabase.from("profiles").select("id, class_id").eq("role", "student").eq("is_active", true),
         supabase
           .from("student_enrollments")
@@ -37,6 +37,9 @@ const AdminSheets = () => {
         supabase
           .from("exam_submissions")
           .select("id, exam_id, subject_id, status, reviewed_at, review_remarks"),
+        supabase
+          .from("assessment_components")
+          .select("id, exam_subject_id, is_optional"),
       ]);
 
     const failure =
@@ -46,7 +49,8 @@ const AdminSheets = () => {
       marksRes.error ||
       studentsRes.error ||
       enrollmentsRes.error ||
-      submissionsRes.error;
+      submissionsRes.error ||
+      componentsRes.error;
     if (failure) {
       setLoadError("Could not load results. Check your connection and refresh the page.");
     } else {
@@ -60,6 +64,7 @@ const AdminSheets = () => {
     const activeStudents = studentsRes.data ?? [];
     const activeEnrollments = enrollmentsRes.data ?? [];
     const submissionRows = submissionsRes.data ?? [];
+    const componentRows = componentsRes.data ?? [];
 
     setExams(examRows);
     setSheets(sheetRows);
@@ -87,9 +92,62 @@ const AdminSheets = () => {
       subjectsByExam[subject.exam_id] = (subjectsByExam[subject.exam_id] ?? 0) + 1;
     });
 
-    const marksByExam = {};
+    // A subject with assessment components needs one mark per active student
+    // for each non-optional component. Subjects without configured components
+    // keep the legacy rule of one mark per student.
+    const componentsByExamSubject = {};
+    componentRows.forEach((row) => {
+      if (!componentsByExamSubject[row.exam_subject_id]) {
+        componentsByExamSubject[row.exam_subject_id] = { required: 0, requiredIds: new Set() };
+      }
+      const bucket = componentsByExamSubject[row.exam_subject_id];
+      if (!row.is_optional) {
+        bucket.required += 1;
+        bucket.requiredIds.add(row.id);
+      }
+    });
+
+    const subjectKey = (examId, subjectId) => `${examId}:${subjectId}`;
+    const subjectInfo = {};
+    const subjectProgress = {};
+    subjectRows.forEach((subject) => {
+      const key = subjectKey(subject.exam_id, subject.subject_id);
+      const bucket = componentsByExamSubject[subject.id] ?? { required: 0, requiredIds: new Set() };
+      const hasRequired = bucket.required > 0;
+      subjectInfo[key] = {
+        hasRequired,
+        required: hasRequired ? bucket.required : 1,
+        requiredIds: bucket.requiredIds,
+      };
+      subjectProgress[key] = { key, exam_id: subject.exam_id, entered: 0, students: new Set() };
+    });
+
+    const requiredSlotsByExam = {};
+    subjectRows.forEach((subject) => {
+      const info = subjectInfo[subjectKey(subject.exam_id, subject.subject_id)];
+      requiredSlotsByExam[subject.exam_id] =
+        (requiredSlotsByExam[subject.exam_id] ?? 0) + info.required;
+    });
+
     markRows.forEach((mark) => {
-      marksByExam[mark.exam_id] = (marksByExam[mark.exam_id] ?? 0) + 1;
+      const key = subjectKey(mark.exam_id, mark.subject_id);
+      const progress = subjectProgress[key];
+      const info = subjectInfo[key];
+      if (!progress || !info) return;
+      if (info.hasRequired) {
+        if (mark.assessment_component_id && info.requiredIds.has(mark.assessment_component_id)) {
+          progress.entered += 1;
+        }
+      } else {
+        progress.students.add(mark.student_id);
+      }
+    });
+
+    const enteredByExam = {};
+    Object.values(subjectProgress).forEach((progress) => {
+      const info = subjectInfo[progress.key];
+      const count = info.hasRequired ? progress.entered : progress.students.size;
+      enteredByExam[progress.exam_id] = (enteredByExam[progress.exam_id] ?? 0) + count;
     });
 
     const submissionsByExam = {};
@@ -109,8 +167,9 @@ const AdminSheets = () => {
     examRows.forEach((exam) => {
       const subjectCount = subjectsByExam[exam.id] ?? 0;
       const studentCount = activeByClass[exam.class_id] ?? 0;
-      const total = studentCount * subjectCount;
-      const entered = marksByExam[exam.id] ?? 0;
+      const requiredPerStudent = requiredSlotsByExam[exam.id] ?? 0;
+      const total = studentCount * requiredPerStudent;
+      const entered = enteredByExam[exam.id] ?? 0;
       const submissions = submissionsByExam[exam.id] ?? { total: 0, approved: 0, pending: 0, returned: 0, missing: 0 };
       const submissionsOutstanding = Math.max(subjectCount - submissions.total, 0);
       map[exam.id] = {

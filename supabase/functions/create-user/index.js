@@ -16,7 +16,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-const allowedRoles = new Set(["student", "teacher", "hod", "principal", "admin"]);
+const allowedRoles = new Set([
+  "student",
+  "teacher",
+  "hod",
+  "principal",
+  "admin",
+  "coordinator",
+  "exam_cell",
+]);
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUuid = (value) => uuidPattern.test(value);
 
@@ -63,6 +71,7 @@ Deno.serve(async (req) => {
     const username = String(body.username ?? "").trim() || email.split("@")[0];
     const role = String(body.role ?? "student").toLowerCase();
     const studentId = String(body.student_id ?? "").trim();
+    const registrationNo = String(body.registration_no ?? "").trim();
     const teacherId = String(body.teacher_id ?? "").trim();
     const departmentId = String(body.department_id ?? "").trim();
     const degreeId = String(body.degree_id ?? "").trim();
@@ -153,6 +162,17 @@ Deno.serve(async (req) => {
       const { data } = await admin.from("profiles").select("id").eq("student_id", studentId).maybeSingle();
       if (data) return json({ error: "This Student ID is already in use" }, 409);
     }
+    if (registrationNo) {
+      if (registrationNo.length > 60) {
+        return json({ error: "Registration number must be 60 characters or fewer" }, 400);
+      }
+      const { data } = await admin
+        .from("profiles")
+        .select("id")
+        .ilike("registration_no", registrationNo)
+        .maybeSingle();
+      if (data) return json({ error: "This registration number is already in use" }, 409);
+    }
     if (teacherId) {
       const { data } = await admin.from("profiles").select("id").eq("teacher_id", teacherId).maybeSingle();
       if (data) return json({ error: "This Teacher ID is already in use" }, 409);
@@ -185,6 +205,7 @@ Deno.serve(async (req) => {
       name,
       role,
       student_id: role === "student" ? studentId : null,
+      registration_no: role === "student" ? registrationNo || null : null,
       teacher_id: role === "teacher" ? teacherId : null,
       department_id:
         role === "student" || (role === "hod" && hodType === "department") ? departmentId : null,
@@ -197,12 +218,25 @@ Deno.serve(async (req) => {
       hod_subject_id: role === "hod" && hodType === "subject" ? hodSubjectId : null,
     };
 
-    const { data: updated, error: updateError } = await admin
+    let { data: updated, error: updateError } = await admin
       .from("profiles")
       .update(patch)
       .eq("id", userId)
       .select("id")
       .maybeSingle();
+
+    // The registration_no column arrives with the academic grading migration.
+    // On a project that has not applied it yet, retry without the column so
+    // account creation keeps working.
+    if (updateError && updateError.code === "42703" && "registration_no" in patch) {
+      const { registration_no: _ignored, ...fallbackPatch } = patch;
+      ({ data: updated, error: updateError } = await admin
+        .from("profiles")
+        .update(fallbackPatch)
+        .eq("id", userId)
+        .select("id")
+        .maybeSingle());
+    }
 
     if (updateError || !updated) {
       console.error("create-user: profile update failed", updateError?.message);

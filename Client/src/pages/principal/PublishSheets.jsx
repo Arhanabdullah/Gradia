@@ -10,7 +10,7 @@ import DashboardHeader from "../../components/dashboard/DashboardHeader";
 const axis = { ...chartAxis, tick: { ...chartAxis.tick, fontSize: 11 } };
 
 const PublishSheets = () => {
-  const [toPublish, setToPublish] = useState([]); // hod_approved, plus legacy principal_signed
+  const [toPublish, setToPublish] = useState([]); // hod_approved or exam_approved, plus legacy principal_signed
   const [history, setHistory] = useState([]);
   const [perf, setPerf] = useState(null); // null = still loading, [] = nothing published
   const [loadError, setLoadError] = useState(null);
@@ -24,12 +24,12 @@ const PublishSheets = () => {
       supabase
         .from("result_sheets")
         .select(select)
-        .in("status", ["hod_approved", "principal_signed"])
+        .in("status", ["hod_approved", "exam_approved", "principal_signed"])
         .order("updated_at", { ascending: true }),
       supabase
         .from("result_sheets")
         .select(select)
-        .in("status", ["published", "hod_rejected", "compiled"])
+        .in("status", ["published", "hod_rejected", "exam_rejected", "compiled"])
         .order("updated_at", { ascending: false })
         .limit(10),
       supabase.from("result_sheets").select("id, class_id, classes ( name )").eq("status", "published"),
@@ -117,7 +117,7 @@ const PublishSheets = () => {
 
   return (
     <>
-      <DashboardHeader title="Publish results" subtitle="Publish results approved by the HOD. Students are notified when a sheet is published." />
+      <DashboardHeader title="Publish results" subtitle="Publish results approved by the HOD or the Exam Cell. Students are notified when a sheet is published." />
 
       {loadError ? (
         <p className="mt-6 rounded-lg border border-(--danger)/40 bg-(--danger-subtle) px-4 py-3 text-xs text-(--danger)">
@@ -136,7 +136,7 @@ const PublishSheets = () => {
               <BarChart data={perf} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
                 <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="2 4" vertical={false} />
                 <XAxis dataKey="label" {...axis} dy={8} />
-                <YAxis {...axis} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} width={35} />
+                <YAxis {...axis} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} width={55} />
                 <Tooltip cursor={{ fill: "color-mix(in srgb, var(--primary) 6%, transparent)" }} {...chartTooltip} />
                 <Bar dataKey="value" fill="var(--primary)" radius={[6, 6, 0, 0]} barSize={26} />
               </BarChart>
@@ -148,10 +148,10 @@ const PublishSheets = () => {
       )}
 
       <section className="mt-6">
-        <p className="text-xs font-medium text-(--muted-foreground)">Approved by HOD, ready to publish</p>
+        <p className="text-xs font-medium text-(--muted-foreground)">Approved, ready to publish</p>
         <div className="mt-3 space-y-3">
           {toPublish.length === 0 && (
-            <Empty>Nothing ready to publish. Sheets appear here after the HOD approves a compiled sheet.</Empty>
+            <Empty>Nothing ready to publish. Sheets appear here after the HOD or the Exam Cell approves a compiled sheet.</Empty>
           )}
           {toPublish.map((s) =>
             row(

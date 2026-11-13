@@ -144,7 +144,7 @@ export function groupHasPendingPublication(group) {
     (row) => row.status === "submitted" || row.status === "under_review",
   );
   const sheetPending = groupSheets(group).some((sheet) =>
-    ["compiled", "hod_approved", "principal_signed"].includes(sheet.status),
+    ["compiled", "hod_approved", "exam_approved", "principal_signed"].includes(sheet.status),
   );
   return marksPending || sheetPending;
 }
