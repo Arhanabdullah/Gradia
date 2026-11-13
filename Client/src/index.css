@@ -1,6 +1,25 @@
 /* Hallmark · v2.3.0 · redesign: professional-genz · theme: gunpowder/cyan · faces: Instrument Serif + Plus Jakarta Sans */
-@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400..800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
+
+/* Font fallback optimization: reduce CLS by matching fallback metrics */
+@font-face {
+  font-family: "Instrument Serif Fallback";
+  src: local("Georgia"), local("Times New Roman"), local("serif");
+  size-adjust: 95%;
+  ascent-override: 90%;
+  descent-override: 20%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Plus Jakarta Sans Fallback";
+  src: local("system-ui"), local("-apple-system"), local("BlinkMacSystemFont"), local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Arial"), local("sans-serif");
+  size-adjust: 100%;
+  ascent-override: 100%;
+  descent-override: 25%;
+  line-gap-override: 0%;
+}
 
 :root {
   /* Light · Gunpowder & Cyan: pale base, gunpowder ink, cyan accent, white-shade secondary */
@@ -40,6 +59,8 @@
   --danger-subtle: rgba(239, 68, 68, 0.1);
   --success: #10b981;
   --success-subtle: rgba(16, 185, 129, 0.1);
+  --sidebar-hover: rgba(14, 116, 144, 0.12);
+  --sidebar-active: rgba(14, 116, 144, 0.18);
 }
 
 .dark {
@@ -70,8 +91,8 @@
   --ambient-secondary: 200, 210, 220;
   --ambient-primary-alpha: 0.04;
   --ambient-secondary-alpha: 0.02;
-  --sidebar-hover: rgba(255, 255, 255, 0.05);
-  --sidebar-active: rgba(255, 255, 255, 0.1);
+  --sidebar-hover: rgba(255, 255, 255, 0.08);
+  --sidebar-active: rgba(255, 255, 255, 0.15);
   --danger: #f87171;
   --danger-subtle: rgba(248, 113, 113, 0.1);
   --success: #34d399;
@@ -136,7 +157,7 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-family: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", system-ui, sans-serif;
   transition:
     background-color 300ms ease,
     color 300ms ease;
@@ -160,12 +181,12 @@ body {
 }
 
 .font-editorial {
-  font-family: "Instrument Serif", Georgia, serif;
+  font-family: "Instrument Serif", "Instrument Serif Fallback", Georgia, serif;
   font-weight: 400;
 }
 
 .font-ui {
-  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-family: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", system-ui, sans-serif;
 }
 
 .tabular {
@@ -312,4 +333,54 @@ body {
 .page-content {
   position: relative;
   z-index: 1;
+}
+
+/* Hallmark · Custom scrollbar — thin, token-coloured, respects reduced motion */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--border) 60%, transparent) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--border) 60%, transparent);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background 120ms ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--muted-foreground) 50%, transparent);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *::-webkit-scrollbar-thumb {
+    transition: none;
+  }
+}
+
+/* Dark mode scrollbar adjustments */
+.dark * {
+  scrollbar-color: color-mix(in srgb, var(--border) 50%, transparent) transparent;
+}
+
+.dark *::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--muted-foreground) 40%, transparent);
 }
