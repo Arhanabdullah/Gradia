@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { callRpc } from "../../lib/db";
 import { Button, Card, Empty, Field, Select, StatusChip, inputClass } from "../../components/ui";
 import { statusLabel } from "../../lib/status";
+import { resultKindLabel } from "../../lib/exams";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
 
 const STATUS_FILTERS = [
@@ -37,6 +38,12 @@ const readinessLine = (readiness) => {
   if (readiness.ungraded > 0) parts.push(`${readiness.ungraded} ungraded`);
   if (readiness.missing_marks > 0) parts.push(`${readiness.missing_marks} missing marks`);
   if (readiness.missing_credits > 0) parts.push(`${readiness.missing_credits} missing credits`);
+  if (readiness.missing_components > 0) {
+    parts.push(`${readiness.missing_components} subjects without components`);
+  }
+  if (readiness.missing_component_marks > 0) {
+    parts.push(`${readiness.missing_component_marks} missing component marks`);
+  }
   if (readiness.withheld > 0) parts.push(`${readiness.withheld} withheld`);
   parts.push(readiness.ready ? "Ready" : "Not ready");
   return parts.join(", ");
@@ -61,7 +68,7 @@ const ResultApproval = () => {
         supabase
           .from("result_sheets")
           .select(
-            "id, exam_id, class_id, status, compiled_by, hod_reviewed_by, hod_remarks, exam_approved_by, exam_approved_at, exam_remarks, published_at, updated_at, exams ( name, academic_year ), classes ( name )",
+            "id, exam_id, class_id, status, result_kind, compiled_by, hod_reviewed_by, hod_remarks, exam_approved_by, exam_approved_at, exam_remarks, published_at, updated_at, exams ( name, academic_year ), classes ( name )",
           )
           .order("updated_at", { ascending: false }),
         supabase
@@ -198,8 +205,9 @@ const ResultApproval = () => {
                       {sheet.exams?.name ?? "Examination"}, {sheet.classes?.name ?? "Class"}
                     </p>
                     <p className="mt-0.5 text-xs text-(--muted-foreground)">
-                      {sheet.exams?.academic_year ? `${sheet.exams.academic_year}, ` : ""}
-                      Updated {timestamp(sheet.updated_at)}
+                      {resultKindLabel(sheet.result_kind)}
+                      {sheet.exams?.academic_year ? `, ${sheet.exams.academic_year}` : ""}, updated{" "}
+                      {timestamp(sheet.updated_at)}
                     </p>
                   </div>
                   <StatusChip status={sheet.status} />
@@ -247,7 +255,9 @@ const ResultApproval = () => {
                       {busyId === sheet.id ? "Publishing" : "Publish results"}
                     </Button>
                     <p className="text-[11px] text-(--muted-foreground)">
-                      Publishing freezes this version and notifies students.
+                      {sheet.result_kind === "semester"
+                        ? "Publishing freezes this version, makes the grade card available and notifies students."
+                        : "Publishing freezes this version and notifies students. Internal assessments do not issue a grade card."}
                     </p>
                   </div>
                 ) : null}

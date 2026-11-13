@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { callRpc } from "../../lib/db";
 import { Button, Card, Empty, StatusChip, inputClass } from "../../components/ui";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
-import { subjectLabel } from "../../lib/exams";
+import { subjectLabel, resultKindLabel } from "../../lib/exams";
 
 function stamp(value) {
   if (!value) return "";
@@ -32,7 +32,7 @@ const ReviewSheets = () => {
     setLoading(true);
     setError(null);
     const sheetSelect =
-      "id, status, updated_at, hod_remarks, exams ( name, academic_year ), classes ( name, department )";
+      "id, status, result_kind, updated_at, hod_remarks, exams ( name, academic_year ), classes ( name, department )";
     const markSelect =
       "id, exam_id, subject_id, class_id, status, submitted_at, reviewed_at, review_remarks, " +
       "exams ( name, academic_year ), subjects ( name, code ), classes ( name )";
@@ -229,7 +229,7 @@ const ReviewSheets = () => {
                     </span>
                   </p>
                   <p className="mt-0.5 text-xs text-(--muted-foreground)">
-                    Compiled {stamp(s.updated_at)}
+                    {resultKindLabel(s.result_kind)}, compiled {stamp(s.updated_at)}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -297,6 +297,7 @@ const ReviewSheets = () => {
                   {s.exams?.name}
                   <span className="text-(--muted-foreground)">
                     {", "}{s.classes?.name}{s.exams?.academic_year ? `, ${s.exams.academic_year}` : ""}
+                    {`, ${resultKindLabel(s.result_kind).toLowerCase()}`}
                   </span>
                 </p>
                 {s.hod_remarks ? (

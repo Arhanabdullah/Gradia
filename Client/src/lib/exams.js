@@ -69,6 +69,34 @@ export function examTypeLabel(type) {
   return EXAM_TYPE_LABEL[type] ?? type ?? "Examination";
 }
 
+// ---------- official result classification ----------
+// An examination either produces an internal assessment (dashboard only) or
+// an official semester result (the only kind that can issue a grade card).
+// `auto` follows the examination type; the database resolves the same way.
+export const RESULT_KINDS = [
+  { id: "auto", label: "Follow the examination type" },
+  { id: "internal", label: "Internal assessment" },
+  { id: "semester", label: "Semester result" },
+];
+
+export const SEMESTER_EXAM_TYPES = ["semester", "final", "major"];
+
+export function resolvedResultKind(exam) {
+  if (!exam) return "internal";
+  if (exam.result_kind === "internal" || exam.result_kind === "semester") return exam.result_kind;
+  return SEMESTER_EXAM_TYPES.includes(exam.exam_type) ? "semester" : "internal";
+}
+
+export function resultKindLabel(kind) {
+  return kind === "semester" ? "Semester result" : "Internal assessment";
+}
+
+// A published sheet stores the kind it was compiled as. Only a semester sheet
+// is an official result; internal assessments never print a grade card.
+export function isSemesterSheet(sheet) {
+  return sheet?.result_kind === "semester";
+}
+
 export function examStatusLabel(status) {
   return EXAM_STATUS_LABEL[status] ?? status ?? "Draft";
 }

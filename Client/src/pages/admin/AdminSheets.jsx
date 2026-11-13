@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { callRpc } from "../../lib/db";
 import { Button, Card, Empty, StatusChip } from "../../components/ui";
 import { statusLabel } from "../../lib/status";
+import { resolvedResultKind, resultKindLabel } from "../../lib/exams";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
 
 const AdminSheets = () => {
@@ -19,11 +20,11 @@ const AdminSheets = () => {
       await Promise.all([
         supabase
           .from("exams")
-          .select("id, name, academic_year, class_id, classes ( name )")
+          .select("id, name, academic_year, class_id, exam_type, result_kind, classes ( name )")
           .order("created_at", { ascending: false }),
         supabase
           .from("result_sheets")
-          .select("id, status, exam_id, updated_at, exams ( name, academic_year ), classes ( name )")
+          .select("id, status, result_kind, exam_id, updated_at, exams ( name, academic_year ), classes ( name )")
           .order("updated_at", { ascending: false }),
         supabase
           .from("exam_subjects")
@@ -96,7 +97,10 @@ const AdminSheets = () => {
     // for each non-optional component. Subjects without configured components
     // keep the legacy rule of one mark per student.
     const componentsByExamSubject = {};
+    const componentCountByExamSubject = {};
     componentRows.forEach((row) => {
+      componentCountByExamSubject[row.exam_subject_id] =
+        (componentCountByExamSubject[row.exam_subject_id] ?? 0) + 1;
       if (!componentsByExamSubject[row.exam_subject_id]) {
         componentsByExamSubject[row.exam_subject_id] = { required: 0, requiredIds: new Set() };
       }
@@ -172,6 +176,22 @@ const AdminSheets = () => {
       const entered = enteredByExam[exam.id] ?? 0;
       const submissions = submissionsByExam[exam.id] ?? { total: 0, approved: 0, pending: 0, returned: 0, missing: 0 };
       const submissionsOutstanding = Math.max(subjectCount - submissions.total, 0);
+      const resultKind = resolvedResultKind(exam);
+      // A semester result cannot compile until every marked subject has a
+      // configured structure. The database enforces the same rule.
+      const missingStructure =
+        resultKind === "semester"
+          ? subjectRows
+              .filter(
+                (subject) =>
+                  subject.exam_id === exam.id &&
+                  (componentCountByExamSubject[subject.id] ?? 0) === 0 &&
+                  markRows.some(
+                    (mark) => mark.exam_id === exam.id && mark.subject_id === subject.subject_id,
+                  ),
+              )
+              .map((subject) => subject.subjects?.code ?? "subject")
+          : [];
       map[exam.id] = {
         total,
         entered,
@@ -179,6 +199,8 @@ const AdminSheets = () => {
         students: studentCount,
         submissions,
         submissionsOutstanding,
+        resultKind,
+        missingStructure,
       };
     });
     setExpected(map);
@@ -216,18 +238,24 @@ const AdminSheets = () => {
       students: 0,
       submissions: { total: 0, approved: 0, pending: 0, returned: 0, missing: 0 },
       submissionsOutstanding: 0,
+      resultKind: resolvedResultKind(exam),
+      missingStructure: [],
     };
     const complete = info.total > 0 && info.entered >= info.total;
     const submissionsReady =
       info.subjects > 0 &&
       info.submissionsOutstanding === 0 &&
       info.submissions.approved === info.subjects;
+    const structureReady =
+      info.resultKind !== "semester" || info.missingStructure.length === 0;
 
     return {
       info,
       complete,
       submissionsReady,
-      ready: info.subjects > 0 && info.students > 0 && complete && submissionsReady,
+      structureReady,
+      ready:
+        info.subjects > 0 && info.students > 0 && complete && submissionsReady && structureReady,
     };
   };
 
@@ -246,7 +274,7 @@ const AdminSheets = () => {
             : exams.length === 0 && <Empty>No examinations yet. Create one on the exams page.</Empty>}
           {!loading &&
             exams.map((exam) => {
-              const { info, complete, submissionsReady, ready } = readiness(exam);
+              const { info, complete, submissionsReady, structureReady, ready } = readiness(exam);
               const hasSheet = sheets.some((sheet) => sheet.exam_id === exam.id);
               const statusLine = hasSheet
                 ? "A result sheet already exists for this examination."
@@ -254,11 +282,13 @@ const AdminSheets = () => {
                   ? "Ready to compile."
                   : info.students === 0 || info.subjects === 0
                     ? "No active students or scheduled subjects in this class."
-                    : !complete
-                      ? "Marks are still incomplete."
-                      : !submissionsReady
-                        ? "Marks are still awaiting approval."
-                        : "Not ready to compile.";
+                    : !structureReady
+                      ? `Configure assessment components for ${info.missingStructure.join(", ")} before compiling.`
+                      : !complete
+                        ? "Marks are still incomplete."
+                        : !submissionsReady
+                          ? "Marks are still awaiting approval."
+                          : "Not ready to compile.";
               return (
                 <Card key={exam.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                   <div className="min-w-0">
@@ -267,6 +297,7 @@ const AdminSheets = () => {
                       <span className="text-(--muted-foreground)">
                         {", "}{exam.classes?.name}
                         {exam.academic_year ? `, ${exam.academic_year}` : ""}
+                        {`, ${resultKindLabel(info.resultKind).toLowerCase()}`}
                       </span>
                     </p>
                     <p className="mt-0.5 text-xs text-(--muted-foreground)">
@@ -322,7 +353,8 @@ const AdminSheets = () => {
                     {sheet.exams?.name}, {sheet.classes?.name}
                   </p>
                   <p className="text-xs text-(--muted-foreground) tabular-nums">
-                    Updated {new Date(sheet.updated_at).toLocaleDateString()}
+                    {resultKindLabel(sheet.result_kind)}, updated{" "}
+                    {new Date(sheet.updated_at).toLocaleDateString()}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

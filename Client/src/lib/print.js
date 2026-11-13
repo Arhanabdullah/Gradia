@@ -46,6 +46,14 @@ const decimalText = (value, places = 2) => {
 const bandRange = (band) => `${numberText(band.min_percent)} - ${numberText(band.max_percent)}`;
 
 /**
+ * Only an official semester result issues a grade card. Internal assessments
+ * stay on the dashboard and never produce a printable document.
+ */
+export function canPrintGradeCard(sheet) {
+  return sheet?.result_kind === "semester";
+}
+
+/**
  * Renders a university grade card in a new window and opens the print dialog.
  * Used by the student result page and the coordinator archive so the printed
  * layout stays identical. The card follows the credit-weighted model:
@@ -62,6 +70,11 @@ export function printResultDocument({
   bands = [],
   publishedAt = null,
 }) {
+  if (!canPrintGradeCard(sheet)) {
+    alert("Only a published semester result can be printed as a grade card.");
+    return;
+  }
+
   const win = window.open("", "_blank", "width=880,height=960");
   if (!win) {
     alert("Popup blocked. Please allow popups for this site to download results.");

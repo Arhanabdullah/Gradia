@@ -4,6 +4,7 @@ import { callRpc } from "../../lib/db";
 import { Button, Card, Empty, StatusChip } from "../../components/ui";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { chartAxis, chartTooltip } from "../../components/charts/ChartsConfig";
+import { resultKindLabel } from "../../lib/exams";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
 
 // chartAxis config reused, with the tick size raised to the 11px text floor
@@ -19,7 +20,7 @@ const PublishSheets = () => {
 
   const load = async () => {
     setLoadError(null);
-    const select = "id, status, updated_at, exams ( name, academic_year ), classes ( name )";
+    const select = "id, status, result_kind, updated_at, exams ( name, academic_year ), classes ( name )";
     const [{ data: publish, error: publishError }, { data: past, error: pastError }, { data: published, error: publishedError }] = await Promise.all([
       supabase
         .from("result_sheets")
@@ -104,7 +105,7 @@ const PublishSheets = () => {
             {s.exams?.name} <span className="text-(--muted-foreground)">{s.classes?.name}{s.exams?.academic_year ? `, ${s.exams.academic_year}` : ""}</span>
           </p>
           <p className="text-xs text-(--muted-foreground)">
-            Updated {new Date(s.updated_at).toLocaleString()}
+            {resultKindLabel(s.result_kind)}, updated {new Date(s.updated_at).toLocaleString()}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -117,7 +118,10 @@ const PublishSheets = () => {
 
   return (
     <>
-      <DashboardHeader title="Publish results" subtitle="Publish results approved by the HOD or the Exam Cell. Students are notified when a sheet is published." />
+      <DashboardHeader
+        title="Publish results"
+        subtitle="Publish HOD-approved internal assessments and Exam Cell approved semester results. Students are notified when a sheet is published."
+      />
 
       {loadError ? (
         <p className="mt-6 rounded-lg border border-(--danger)/40 bg-(--danger-subtle) px-4 py-3 text-xs text-(--danger)">
@@ -153,14 +157,24 @@ const PublishSheets = () => {
           {toPublish.length === 0 && (
             <Empty>Nothing ready to publish. Sheets appear here after the HOD or the Exam Cell approves a compiled sheet.</Empty>
           )}
-          {toPublish.map((s) =>
-            row(
+          {toPublish.map((s) => {
+            // A semester result is an official document: the Exam Cell must
+            // approve it first, so the Principal only publishes at that stage.
+            const awaitingExamCell =
+              s.result_kind === "semester" && s.status !== "exam_approved";
+            return row(
               s,
-              <Button variant="success" onClick={() => publish(s)} disabled={busyId === s.id}>
-                {busyId === s.id ? "Publishing…" : "Publish"}
-              </Button>,
-            ),
-          )}
+              awaitingExamCell ? (
+                <span className="text-[11px] text-(--muted-foreground)">
+                  Awaiting Exam Cell approval
+                </span>
+              ) : (
+                <Button variant="success" onClick={() => publish(s)} disabled={busyId === s.id}>
+                  {busyId === s.id ? "Publishing…" : "Publish"}
+                </Button>
+              ),
+            );
+          })}
         </div>
       </section>
 

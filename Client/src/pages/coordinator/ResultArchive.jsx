@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Button, Card, Empty, Field, SearchField, Select } from "../../components/ui";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
-import { printReportDocument, printResultDocument } from "../../lib/print";
+import { canPrintGradeCard, printReportDocument, printResultDocument } from "../../lib/print";
 import { resultCodeLabel } from "../../lib/status";
+import { isSemesterSheet, resultKindLabel } from "../../lib/exams";
 
 const metric = (value, suffix = "") =>
   value === null || value === undefined ? "Not recorded" : `${value}${suffix}`;
@@ -28,7 +29,7 @@ const ResultArchive = () => {
       supabase
         .from("result_sheets")
         .select(
-          "id, published_at, exam_id, class_id, exams ( name, academic_year ), classes ( name, department, academic_year, semester, section )",
+          "id, published_at, result_kind, exam_id, class_id, exams ( name, academic_year ), classes ( name, department, academic_year, semester, section )",
         )
         .eq("status", "published")
         .order("published_at", { ascending: false }),
@@ -125,6 +126,7 @@ const ResultArchive = () => {
   }, [selectedId]);
 
   const selectedSheet = sheets.find((sheet) => sheet.id === selectedId) ?? null;
+  const semesterSheet = isSemesterSheet(selectedSheet);
   const summaryByStudent = useMemo(
     () => new Map(summaries.map((row) => [row.student_id, row])),
     [summaries],
@@ -190,6 +192,10 @@ const ResultArchive = () => {
 
   const printStudent = (student) => {
     if (!selectedSheet) return;
+    if (!canPrintGradeCard(selectedSheet)) {
+      alert("Only a published semester result can be printed as a grade card.");
+      return;
+    }
     printResultDocument({
       institution,
       sheet: selectedSheet,
@@ -212,6 +218,19 @@ const ResultArchive = () => {
 
   const printClassSummary = () => {
     if (!selectedSheet) return;
+    // SGPA, CGPA, backlogs and promotion only exist for an official semester
+    // result; an internal assessment prints just its marks.
+    const semesterColumns = ["SGPA", "CGPA", "Backlogs", "Promotion"];
+    const columns = [
+      "Student",
+      "Username",
+      "Total",
+      "Max",
+      "Percentage",
+      ...(semesterSheet ? semesterColumns : []),
+      "Grade",
+      "Result code",
+    ];
     printReportDocument({
       institution,
       title: "Published result summary",
@@ -219,45 +238,38 @@ const ResultArchive = () => {
         selectedSheet.exams?.name ?? "Examination",
         selectedSheet.exams?.academic_year,
         selectedSheet.classes?.name,
+        resultKindLabel(selectedSheet.result_kind),
       ]
         .filter(Boolean)
         .join(", "),
       sections: [
         {
           heading: "Student results",
-          columns: [
-            "Student",
-            "Username",
-            "Total",
-            "Max",
-            "Percentage",
-            "SGPA",
-            "CGPA",
-            "Grade",
-            "Result code",
-            "Backlogs",
-            "Promotion",
-          ],
+          columns,
           rows: visibleStudents.map((student) => [
             student.name,
             student.username,
             student.total,
             student.max,
             metric(student.percentage, "%"),
-            metric(student.summary?.sgpa),
-            metric(student.summary?.cgpa),
+            ...(semesterSheet
+              ? [
+                  metric(student.summary?.sgpa),
+                  metric(student.summary?.cgpa),
+                  metric(student.summary?.backlog_count),
+                  student.summary?.promotion_eligible == null
+                    ? "Not recorded"
+                    : student.summary.promotion_eligible
+                      ? "Eligible"
+                      : "Not eligible",
+                ]
+              : []),
             student.summary?.overall_grade ?? "Not recorded",
             student.summary?.result_code
               ? resultCodeLabel[student.summary.result_code] ?? student.summary.result_code
               : student.summary?.is_pass === false
                 ? "Fail"
                 : "Pass",
-            metric(student.summary?.backlog_count),
-            student.summary?.promotion_eligible == null
-              ? "Not recorded"
-              : student.summary.promotion_eligible
-                ? "Eligible"
-                : "Not eligible",
           ]),
         },
       ],
@@ -308,6 +320,7 @@ const ResultArchive = () => {
                 <option key={sheet.id} value={sheet.id}>
                   {sheet.exams?.name ?? "Examination"}, {sheet.classes?.name ?? "Class"}
                   {sheet.published_at ? ` (${new Date(sheet.published_at).toLocaleDateString()})` : ""}
+                  {isSemesterSheet(sheet) ? "" : ", internal"}
                 </option>
               ))}
             </Select>
@@ -343,8 +356,14 @@ const ResultArchive = () => {
               </p>
               <p className="mt-0.5 text-xs text-(--muted-foreground)">
                 {selectedSheet?.exams?.academic_year ? `${selectedSheet.exams.academic_year}, ` : ""}
-                Published {selectedSheet?.published_at ? new Date(selectedSheet.published_at).toLocaleDateString() : "date not recorded"}
+                {resultKindLabel(selectedSheet?.result_kind)}, published{" "}
+                {selectedSheet?.published_at ? new Date(selectedSheet.published_at).toLocaleDateString() : "date not recorded"}
               </p>
+              {semesterSheet ? null : (
+                <p className="mt-1 text-[11px] text-(--muted-foreground)">
+                  Internal assessment. No grade card is issued for this sheet.
+                </p>
+              )}
             </div>
             <Button variant="subtle" onClick={printClassSummary} disabled={visibleStudents.length === 0}>
               Print class summary
@@ -363,11 +382,17 @@ const ResultArchive = () => {
                     <th className="px-3 py-2 font-medium text-(--muted-foreground)">Student</th>
                     <th className="px-3 py-2 font-medium text-(--muted-foreground)">Total</th>
                     <th className="px-3 py-2 font-medium text-(--muted-foreground)">Percentage</th>
-                    <th className="px-3 py-2 font-medium text-(--muted-foreground)">SGPA</th>
-                    <th className="px-3 py-2 font-medium text-(--muted-foreground)">CGPA</th>
+                    {semesterSheet ? (
+                      <>
+                        <th className="px-3 py-2 font-medium text-(--muted-foreground)">SGPA</th>
+                        <th className="px-3 py-2 font-medium text-(--muted-foreground)">CGPA</th>
+                      </>
+                    ) : null}
                     <th className="px-3 py-2 font-medium text-(--muted-foreground)">Grade</th>
                     <th className="px-3 py-2 font-medium text-(--muted-foreground)">Result code</th>
-                    <th className="px-3 py-2 font-medium text-(--muted-foreground)">Backlogs</th>
+                    {semesterSheet ? (
+                      <th className="px-3 py-2 font-medium text-(--muted-foreground)">Backlogs</th>
+                    ) : null}
                     <th className="px-3 py-2 font-medium text-(--muted-foreground)" />
                   </tr>
                 </thead>
@@ -380,8 +405,12 @@ const ResultArchive = () => {
                       </td>
                       <td className="px-3 py-2 text-(--foreground)">{student.total} of {student.max}</td>
                       <td className="px-3 py-2 text-(--foreground)">{metric(student.percentage, "%")}</td>
-                      <td className="px-3 py-2 text-(--muted-foreground)">{metric(student.summary?.sgpa)}</td>
-                      <td className="px-3 py-2 text-(--muted-foreground)">{metric(student.summary?.cgpa)}</td>
+                      {semesterSheet ? (
+                        <>
+                          <td className="px-3 py-2 text-(--muted-foreground)">{metric(student.summary?.sgpa)}</td>
+                          <td className="px-3 py-2 text-(--muted-foreground)">{metric(student.summary?.cgpa)}</td>
+                        </>
+                      ) : null}
                       <td className="px-3 py-2 text-(--primary)">{student.summary?.overall_grade ?? "Not recorded"}</td>
                       <td className="px-3 py-2 text-(--muted-foreground)">
                         {student.summary?.result_code
@@ -390,13 +419,19 @@ const ResultArchive = () => {
                             ? "Fail"
                             : "Pass"}
                       </td>
-                      <td className="px-3 py-2 text-(--muted-foreground)">
-                        {metric(student.summary?.backlog_count)}
-                      </td>
+                      {semesterSheet ? (
+                        <td className="px-3 py-2 text-(--muted-foreground)">
+                          {metric(student.summary?.backlog_count)}
+                        </td>
+                      ) : null}
                       <td className="px-3 py-2 text-right">
-                        <Button variant="subtle" onClick={() => printStudent(student)}>
-                          Print
-                        </Button>
+                        {semesterSheet ? (
+                          <Button variant="subtle" onClick={() => printStudent(student)}>
+                            Print
+                          </Button>
+                        ) : (
+                          <span className="text-[11px] text-(--muted-foreground)">No grade card</span>
+                        )}
                       </td>
                     </tr>
                   ))}

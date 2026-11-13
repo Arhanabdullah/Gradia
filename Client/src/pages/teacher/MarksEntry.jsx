@@ -15,6 +15,7 @@ import {
   submissionStatusLabel,
   timeRange,
 } from "../../lib/exams";
+import { componentOptionLabel } from "../../lib/assessment";
 
 const LOCKED_STATUSES = ["submitted", "under_review", "approved"];
 
@@ -323,7 +324,9 @@ const MarksEntry = () => {
 
     supabase
       .from("assessment_components")
-      .select("id, name, component_type, max_marks, pass_marks, weight_percent, display_order, is_optional")
+      .select(
+        "id, name, component_type, max_marks, pass_marks, weight_percent, aggregation, group_code, scale_from, scale_to, display_order, is_optional, is_external",
+      )
       .eq("exam_subject_id", examSubject.id)
       .order("display_order")
       .then(({ data, error: componentError }) => {
@@ -750,8 +753,7 @@ const MarksEntry = () => {
                 >
                   {components.map((row) => (
                     <option key={row.id} value={row.id}>
-                      {row.name}, max {row.max_marks}
-                      {row.weight_percent != null ? `, weight ${row.weight_percent}%` : ""}
+                      {componentOptionLabel(row)}
                     </option>
                   ))}
                 </Select>
