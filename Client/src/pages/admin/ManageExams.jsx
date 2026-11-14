@@ -24,17 +24,23 @@ const GROUP_SELECT = `
   departments ( id, name ),
   courses ( id, name, degree_id ),
   exams (
-    id, class_id, name, academic_year, status, exam_type, starts_on, ends_on,
+    id, class_id, name, academic_year, status, exam_type, result_kind, starts_on, ends_on,
     classes ( id, name, department, academic_year, semester, section, course_id, degree_id, courses ( id, name, department_id, degree_id ) ),
     exam_subjects (
-      id, subject_id, exam_date, start_time, end_time, duration_minutes,
+      id, subject_id, assessment_template_id, exam_date, start_time, end_time, duration_minutes,
       max_marks, pass_marks, teacher_id, room, instructions, allow_overlap,
-      subjects ( id, name, code, max_marks )
+      subjects ( id, name, code, max_marks, subject_type, assessment_template_id ),
+      assessment_components (
+        id, exam_subject_id, name, code, component_type, max_marks, pass_marks,
+        weight_percent, aggregation, group_code, scale_from, scale_to, display_order,
+        is_optional, is_external, is_conducted, exam_date, start_time, end_time,
+        duration_minutes, room, teacher_id, allow_overlap
+      )
     ),
     exam_submissions (
       id, exam_id, subject_id, status, submitted_at, reviewed_at, approved_at, review_remarks
     ),
-    result_sheets ( id, status )
+    result_sheets ( id, status, result_kind )
   )
 `;
 
@@ -102,6 +108,8 @@ export default function ManageExams() {
   const [degrees, setDegrees] = useState([]);
   const [courses, setCourses] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [templates, setTemplates] = useState([]);
+  const [templateComponents, setTemplateComponents] = useState([]);
   const [classSubjects, setClassSubjects] = useState([]);
   const [teacherAssignments, setTeacherAssignments] = useState([]);
   const [teachers, setTeachers] = useState([]);
@@ -115,17 +123,19 @@ export default function ManageExams() {
   const load = async () => {
     setLoading(true);
     setLoadError("");
-    const [groupsRes, classesRes, departmentsRes, degreesRes, coursesRes, subjectsRes, classSubjectsRes, assignmentsRes, teachersRes] =
+    const [groupsRes, classesRes, departmentsRes, degreesRes, coursesRes, subjectsRes, classSubjectsRes, assignmentsRes, teachersRes, templatesRes, templateComponentsRes] =
       await Promise.all([
         supabase.from("exam_groups").select(GROUP_SELECT).order("created_at", { ascending: false }),
         supabase.from("classes").select("id, name, department, academic_year, semester, section, course_id, degree_id").order("name"),
         supabase.from("departments").select("id, name").order("name"),
         supabase.from("degrees").select("id, name").order("name"),
         supabase.from("courses").select("id, name, department_id, degree_id, code").order("name"),
-        supabase.from("subjects").select("id, name, code, max_marks, department_id").order("code"),
+        supabase.from("subjects").select("id, name, code, max_marks, department_id, subject_type, assessment_template_id").order("code"),
         supabase.from("class_subjects").select("id, class_id, subject_id"),
         supabase.from("teacher_assignments").select("id, class_id, subject_id, teacher_id"),
         supabase.from("profiles").select("id, name, teacher_id, username").eq("role", "teacher").eq("is_active", true).order("name"),
+        supabase.from("assessment_templates").select("id, name, subject_type, mode, total_marks, is_default, is_active, created_at").order("created_at"),
+        supabase.from("assessment_template_components").select("id, template_id, name, code, component_type, max_marks, weight_percent, aggregation, group_code, scale_from, scale_to, display_order, is_optional, is_external").order("display_order"),
       ]);
 
     const failure =
@@ -152,6 +162,8 @@ export default function ManageExams() {
     setClassSubjects(classSubjectsRes.data ?? []);
     setTeacherAssignments(assignmentsRes.data ?? []);
     setTeachers(teachersRes.data ?? []);
+    setTemplates(templatesRes.error ? [] : (templatesRes.data ?? []));
+    setTemplateComponents(templateComponentsRes.error ? [] : (templateComponentsRes.data ?? []));
     setLoading(false);
   };
 
@@ -159,7 +171,8 @@ export default function ManageExams() {
     load();
   }, []);
 
-  const canCreate = profile?.role === "admin" || profile?.role === "teacher";
+  const canCreate =
+    profile?.role === "admin" || profile?.role === "teacher" || profile?.role === "exam_cell";
 
   const uniqueClasses = useMemo(() => {
     const map = new Map();
@@ -380,6 +393,8 @@ export default function ManageExams() {
           classSubjects={classSubjects}
           teacherAssignments={teacherAssignments}
           teachers={teachers}
+          templates={templates}
+          templateComponents={templateComponents}
           onCreated={() => {
             setShowForm(false);
             setNotice("Examination scheduled.");
@@ -606,7 +621,16 @@ export default function ManageExams() {
               group={group}
               teachers={teachers}
               degrees={degrees}
-              canManage={profile?.role === "admin" || (profile?.role === "teacher" && group.created_by === profile.id)}
+              subjects={subjects}
+              classSubjects={classSubjects}
+              templates={templates}
+              templateComponents={templateComponents}
+              canManage={
+                profile?.role === "admin" ||
+                profile?.role === "exam_cell" ||
+                (profile?.role === "teacher" && group.created_by === profile.id)
+              }
+              canEditSubjects={profile?.role === "admin" || profile?.role === "exam_cell"}
               onChanged={load}
               onNotify={setNotice}
             />

@@ -47,6 +47,7 @@ const NAV_BY_ROLE = {
   ],
   exam_cell: [
     { to: "/app", label: "Overview", end: true },
+    { to: "/app/exams", label: "Exams" },
     { to: "/app/config", label: "Result configuration" },
     { to: "/app/assessment", label: "Assessment setup" },
     { to: "/app/approval", label: "Result approval" },

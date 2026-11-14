@@ -325,7 +325,7 @@ const MarksEntry = () => {
     supabase
       .from("assessment_components")
       .select(
-        "id, name, component_type, max_marks, pass_marks, weight_percent, aggregation, group_code, scale_from, scale_to, display_order, is_optional, is_external",
+        "id, name, component_type, max_marks, pass_marks, weight_percent, aggregation, group_code, scale_from, scale_to, display_order, is_optional, is_external, is_conducted",
       )
       .eq("exam_subject_id", examSubject.id)
       .order("display_order")
@@ -335,7 +335,8 @@ const MarksEntry = () => {
           setError(componentError.message);
           return;
         }
-        const rows = data ?? [];
+        // Papers switched off for this semester are not marked at all.
+        const rows = (data ?? []).filter((row) => row.is_conducted !== false);
         setComponents(rows);
         setComponentId((current) =>
           rows.some((row) => row.id === current) ? current : rows[0]?.id ?? "",

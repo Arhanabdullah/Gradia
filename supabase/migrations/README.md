@@ -132,6 +132,7 @@ to the `principal` role; only the intermediate approval stage was removed.
 | `202611140001_academic_grading_engine.sql` | Credit-weighted SGPA/CGPA (`recalculate_result_sheet`), result codes `P/XP/X/F/RW`, promotion rules, `subjects.subject_type`, `subjects.credit_hours` backfill, `profiles.registration_no`, `grade_band_for()` gap-tolerant lookup, readiness gate (`result_sheet_readiness` / `assert_result_sheet_ready`), Exam Cell approval and publish gates, config audit triggers |
 | `202611150001_central_assessment_structure.sql` | `assessment_templates` + `assessment_template_components` materialised into `assessment_components`; `subjects.assessment_template_id` / `exam_subjects.assessment_template_id`; `exams.result_kind` and `result_sheets.result_kind` so only End-Semester sheets produce a printable grade card |
 | `202611160001_read_policy_fastpaths.sql` | Rewrites the `SELECT` policies on `subjects`, `profiles`, `student_enrollments` and `audit_logs` so the role-wide check is an InitPlan instead of a per-row call (Exam Cell subject scan 910 ms -> 5 ms on 792 rows) |
+| `202611170001_component_papers.sql` | One schedulable paper per assessment component (`is_conducted`, `exam_date`, `start_time`, `end_time`, `duration_minutes`, `room`, `teacher_id`, `instructions`, `allow_overlap`); practical-only labs; `add_exam_subject` / `remove_exam_subject`; `update_assessment_component_schedule`; Exam Cell access to examination scheduling |
 
 `202611160001` only reorders how the existing predicates are evaluated: the scoped
 helpers (`can_view_subject`, `can_view_profile`, `is_class_hod`, `teaches_class`) still
@@ -139,6 +140,28 @@ decide every non-monitor case, and the admin/principal branch is the same early 
 those helpers already take. Row counts were compared per role before and after. Keep the
 `(select …)` wrapper when editing these policies; without it the planner falls back to
 one helper call per row.
+
+### Component papers
+
+A semester examination now schedules each assessment component as its own paper, so a
+theory subject carries IA1, IA2, Quiz, Assignment, Project and the End Semester paper,
+and a practical subject carries its practical papers only. The structure still comes from
+the central templates; the papers only add scheduling and a conducted switch.
+
+- A paper switched off (`is_conducted = false`) is not marked, is excluded from
+  `assessment_component_total`, and the subject percentage is normalised over the papers
+  that were conducted. The structure must still total 100 configured marks.
+- `submit_exam_marks` counts only conducted papers, `result_sheet_readiness` reports
+  `missing_conducted`, and `skip_non_conducted_component_item` keeps a skipped paper out
+  of the compiled snapshot even if a stray mark exists.
+- Switching a paper off after marks were entered is rejected; a published examination
+  cannot be re-scheduled at all.
+- Practical subjects (`subjects.subject_type = 'lab'` or an `LS` code) are rejected from
+  internal and theory examinations by both `create_exam_group` and `add_exam_subject`.
+- `add_exam_subject` / `remove_exam_subject` and `update_assessment_component_schedule`
+  act group-wide, so every class in a department examination stays in step. Admin and
+  Exam Cell can change a subject list; a teacher can only re-schedule papers for subjects
+  they teach.
 
 ## Known sequencing deferrals
 

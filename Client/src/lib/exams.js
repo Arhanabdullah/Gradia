@@ -5,7 +5,7 @@
 // a group as one examination and reads its per-class rows from `group.exams`.
 
 export const EXAM_TYPES = [
-  { id: "class_test", label: "Class test", teachers: true },
+  { id: "class_test", label: "Quiz", teachers: true },
   { id: "unit_test", label: "Unit test", teachers: true },
   { id: "internal_assessment", label: "Internal assessment", teachers: true },
   { id: "mid_term", label: "Mid-term", teachers: false },
@@ -56,7 +56,7 @@ export const MARK_STATUSES = [
 
 export function examTypesForRole(role) {
   if (role === "teacher") return EXAM_TYPES.filter((type) => type.teachers);
-  if (role === "admin") return EXAM_TYPES;
+  if (role === "admin" || role === "exam_cell") return EXAM_TYPES;
   return [];
 }
 
@@ -230,6 +230,49 @@ export function batchKey(klass) {
 export function subjectLabel(subject) {
   if (!subject) return "Subject";
   return subject.code ? `${subject.code} ${subject.name}` : subject.name;
+}
+
+// ---------- practical subjects and component papers ----------
+// A practical subject is either typed as a lab or carries an LS code. The
+// database resolves the same way (`public.is_practical_subject`), so the
+// client only hides options the server would reject.
+export function isPracticalSubject(subject) {
+  if (!subject) return false;
+  if (subject.subject_type === "lab") return true;
+  return /^LS[0-9]/i.test(subject.code ?? "");
+}
+
+export function subjectFamily(subject) {
+  return isPracticalSubject(subject) ? "lab" : (subject?.subject_type ?? "theory");
+}
+
+// A semester examination carries one schedulable paper per assessment
+// component. Internal examinations keep the legacy single subject paper.
+export function isComponentPaperExam(exam) {
+  return resolvedResultKind(exam) === "semester";
+}
+
+export function examSubjectComponents(examSubject) {
+  return examSubject?.assessment_components ?? [];
+}
+
+export function conductedComponents(examSubject) {
+  return examSubjectComponents(examSubject).filter((row) => row.is_conducted !== false);
+}
+
+// Practical subjects never sit in an internal assessment. A practical
+// examination takes practical subjects only. A semester examination takes
+// both, but a practical subject only carries its practical papers.
+export function subjectAllowedInExam(subject, examType) {
+  const practical = isPracticalSubject(subject);
+  if (examType === "practical") return practical;
+  if (SEMESTER_EXAM_TYPES.includes(examType)) return true;
+  return !practical;
+}
+
+export function componentPaperLabel(component) {
+  if (!component) return "Paper";
+  return component.name ?? component.code ?? "Paper";
 }
 
 export function teacherLabel(teacher) {

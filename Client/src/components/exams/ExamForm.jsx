@@ -3,9 +3,13 @@ import { Button, Card, Field, Select, inputClass } from "../ui";
 import { callRpc } from "../../lib/db";
 import {
   REGULAR_EXAM_TYPES,
+  SEMESTER_EXAM_TYPES,
   examTypesForRole,
   derivedBatch,
   batchKey,
+  isPracticalSubject,
+  subjectAllowedInExam,
+  subjectFamily,
   subjectLabel,
   teacherLabel,
 } from "../../lib/exams";
@@ -23,6 +27,11 @@ function degreeOfClass(klass, courseById) {
   return klass?.degree_id ?? course?.degree_id ?? "";
 }
 
+function templateFamilyMatches(template, family) {
+  if (!template) return false;
+  return template.subject_type === family || (family === "project" && template.subject_type === "theory");
+}
+
 export default function ExamForm({
   profile,
   classes,
@@ -33,6 +42,8 @@ export default function ExamForm({
   classSubjects,
   teacherAssignments,
   teachers,
+  templates = [],
+  templateComponents = [],
   onCreated,
   onCancel,
 }) {
@@ -66,6 +77,38 @@ export default function ExamForm({
   );
   const teacherName = useMemo(() => new Map(teachers.map((teacher) => [teacher.id, teacherLabel(teacher)])), [teachers]);
   const subjectById = useMemo(() => new Map(subjects.map((subject) => [subject.id, subject])), [subjects]);
+
+  const componentMode = SEMESTER_EXAM_TYPES.includes(form.exam_type);
+  const practicalOnly = form.exam_type === "practical";
+
+  const activeTemplates = useMemo(() => templates.filter((template) => template.is_active !== false), [templates]);
+
+  const templateForSubject = (subject) => {
+    const family = subjectFamily(subject);
+    const own = activeTemplates.find(
+      (template) => template.id === subject?.assessment_template_id && templateFamilyMatches(template, family),
+    );
+    if (own) return own;
+
+    const defaults = activeTemplates
+      .filter((template) => template.is_default && template.subject_type === family)
+      .sort((a, b) => String(a.created_at ?? "").localeCompare(String(b.created_at ?? "")));
+    if (defaults.length) return defaults[0];
+
+    return (
+      activeTemplates
+        .filter((template) => template.is_default && template.subject_type === "theory")
+        .sort((a, b) => String(a.created_at ?? "").localeCompare(String(b.created_at ?? "")))[0] ?? null
+    );
+  };
+
+  const componentsFor = (subject) => {
+    const template = templateForSubject(subject);
+    if (!template) return [];
+    return templateComponents
+      .filter((component) => component.template_id === template.id)
+      .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+  };
 
   const myClassIds = useMemo(() => {
     if (!isTeacher) return null;
@@ -158,6 +201,7 @@ export default function ExamForm({
     return shared
       .map((subjectId) => subjectById.get(subjectId))
       .filter(Boolean)
+      .filter((subject) => subjectAllowedInExam(subject, form.exam_type))
       .filter((subject) => {
         if (!isTeacher) return true;
         return selectedClassIds.every((classId) =>
@@ -170,7 +214,7 @@ export default function ExamForm({
         );
       })
       .sort((a, b) => (a.code ?? "").localeCompare(b.code ?? ""));
-  }, [selectedClassIds, classSubjects, subjectById, isTeacher, teacherAssignments, profile]);
+  }, [selectedClassIds, classSubjects, subjectById, form.exam_type, isTeacher, teacherAssignments, profile]);
 
   const defaultTeacher = (subjectId) => {
     const assignment = teacherAssignments.find(
@@ -191,13 +235,49 @@ export default function ExamForm({
       room: "",
       instructions: "",
       allow_overlap: false,
+      components: {},
     };
   };
 
-  const rowFor = (subject) => ({ ...defaultRow(subject), ...(rows[subject.id] ?? {}) });
+  const rowFor = (subject) => {
+    const base = defaultRow(subject);
+    const saved = rows[subject.id] ?? {};
+    if (!componentMode) return { ...base, ...saved };
+
+    const componentDefaults = {};
+    componentsFor(subject).forEach((component) => {
+      componentDefaults[component.code] = {
+        is_conducted: true,
+        exam_date: base.exam_date || "",
+        start_time: "",
+        end_time: "",
+        room: "",
+        teacher_id: base.teacher_id || "",
+        allow_overlap: false,
+      };
+    });
+    return {
+      ...base,
+      ...saved,
+      components: { ...componentDefaults, ...(saved.components ?? {}) },
+    };
+  };
 
   const updateRow = (subjectId, patch) => {
     setRows((current) => ({ ...current, [subjectId]: { ...current[subjectId], ...patch } }));
+  };
+
+  const updateComponent = (subjectId, code, patch) => {
+    setRows((current) => ({
+      ...current,
+      [subjectId]: {
+        ...current[subjectId],
+        components: {
+          ...(current[subjectId]?.components ?? {}),
+          [code]: { ...(current[subjectId]?.components?.[code] ?? {}), ...patch },
+        },
+      },
+    }));
   };
 
   const update = (patch) => setForm((current) => ({ ...current, ...patch }));
@@ -225,6 +305,16 @@ export default function ExamForm({
     });
   };
 
+  const papersFor = (subject) => {
+    if (!componentMode) return [];
+    const row = rowFor(subject);
+    return componentsFor(subject).map((component) => ({
+      subject,
+      component,
+      row: row.components[component.code] ?? {},
+    }));
+  };
+
   const validate = () => {
     const problems = [];
     if (!form.name.trim()) problems.push("Give the examination a name.");
@@ -245,7 +335,61 @@ export default function ExamForm({
     if (form.starts_on && form.ends_on && form.ends_on < form.starts_on) {
       problems.push("The end date cannot be before the start date.");
     }
-    if (eligibleSubjects.length === 0) problems.push("No subject is offered by every selected class.");
+    if (eligibleSubjects.length === 0) {
+      problems.push(
+        practicalOnly
+          ? "No practical subject is offered by every selected class."
+          : "No subject is offered by every selected class.",
+      );
+    }
+
+    if (componentMode) {
+      eligibleSubjects.forEach((subject) => {
+        const row = rowFor(subject);
+        const components = componentsFor(subject);
+        if (components.length === 0) {
+          problems.push(`${subjectLabel(subject)}: no assessment structure is available for this subject.`);
+          return;
+        }
+        const conducted = components.filter((component) => row.components[component.code]?.is_conducted !== false);
+        if (conducted.length === 0) {
+          problems.push(`${subjectLabel(subject)}: conduct at least one paper.`);
+        }
+      });
+
+      const papers = eligibleSubjects
+        .flatMap((subject) => papersFor(subject))
+        .filter(({ row }) => row.is_conducted !== false);
+
+      papers.forEach(({ subject, component, row }) => {
+        if (row.start_time && row.end_time && row.end_time <= row.start_time) {
+          problems.push(`${subjectLabel(subject)} ${component.name}: the end time must be after the start time.`);
+        }
+        if (row.exam_date && form.starts_on && row.exam_date < form.starts_on) {
+          problems.push(`${subjectLabel(subject)} ${component.name}: the paper is before the examination start date.`);
+        }
+        if (row.exam_date && form.ends_on && row.exam_date > form.ends_on) {
+          problems.push(`${subjectLabel(subject)} ${component.name}: the paper is after the examination end date.`);
+        }
+      });
+
+      const scheduled = papers
+        .filter(({ row }) => row.exam_date && row.start_time && row.end_time && !row.allow_overlap);
+      for (let first = 0; first < scheduled.length; first += 1) {
+        for (let second = first + 1; second < scheduled.length; second += 1) {
+          const left = scheduled[first];
+          const right = scheduled[second];
+          if (left.row.exam_date !== right.row.exam_date) continue;
+          if (left.row.start_time < right.row.end_time && left.row.end_time > right.row.start_time) {
+            problems.push(
+              `${subjectLabel(left.subject)} ${left.component.name} overlaps ${subjectLabel(right.subject)} ${right.component.name}. Change a time or allow the overlap.`,
+            );
+          }
+        }
+      }
+
+      return [...new Set(problems)];
+    }
 
     eligibleSubjects.forEach((subject) => {
       const row = rowFor(subject);
@@ -298,6 +442,37 @@ export default function ExamForm({
 
     const payload = eligibleSubjects.map((subject) => {
       const row = rowFor(subject);
+
+      if (componentMode) {
+        const template = templateForSubject(subject);
+        return {
+          subject_id: subject.id,
+          exam_date: null,
+          start_time: null,
+          end_time: null,
+          max_marks: Number(template?.total_marks) || 100,
+          pass_marks: null,
+          teacher_id: row.teacher_id || null,
+          room: null,
+          instructions: row.instructions || "",
+          allow_overlap: false,
+          is_optional: false,
+          components: componentsFor(subject).map((component) => {
+            const paper = row.components[component.code] ?? {};
+            return {
+              code: component.code,
+              is_conducted: paper.is_conducted !== false,
+              exam_date: paper.exam_date || null,
+              start_time: paper.start_time || null,
+              end_time: paper.end_time || null,
+              room: paper.room || null,
+              teacher_id: paper.teacher_id || null,
+              allow_overlap: Boolean(paper.allow_overlap),
+            };
+          }),
+        };
+      }
+
       return {
         subject_id: subject.id,
         exam_date: row.exam_date || null,
@@ -396,6 +571,14 @@ export default function ExamForm({
             </Select>
           </Field>
         </div>
+
+        <p className="rounded-lg border border-(--border-subtle) bg-(--surface-secondary)/40 px-3 py-2 text-[11px] text-(--muted-foreground)">
+          {componentMode
+            ? "A semester examination carries one schedulable paper per assessment component. Theory subjects show IA1, IA2, Quiz, Assignment, Project and the End Semester paper; practical subjects show their practical papers only."
+            : practicalOnly
+              ? "A practical examination takes practical subjects only and does not carry internal assessment papers."
+              : "Practical subjects are excluded from internal assessments. Use a practical examination or a semester examination for labs."}
+        </p>
 
         <div>
           <p className="text-xs font-medium text-(--muted)">Scope</p>
@@ -543,9 +726,13 @@ export default function ExamForm({
         <section>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-sm font-medium text-(--foreground)">Subject schedule</p>
+              <p className="text-sm font-medium text-(--foreground)">
+                {componentMode ? "Component papers" : "Subject schedule"}
+              </p>
               <p className="mt-0.5 text-xs text-(--muted-foreground)">
-                Different dates and times are allowed per subject. Overlaps within one class are rejected.
+                {componentMode
+                  ? "Each component is scheduled separately. Switch off a paper that is not conducted this semester."
+                  : "Different dates and times are allowed per subject. Overlaps within one class are rejected."}
               </p>
             </div>
             <p className="text-xs text-(--muted-foreground) tabular-nums">
@@ -559,12 +746,144 @@ export default function ExamForm({
             </p>
           ) : eligibleSubjects.length === 0 ? (
             <p className="mt-3 rounded-lg border border-dashed border-(--border) px-4 py-4 text-xs text-(--muted-foreground)">
-              No subject is offered by every selected class. Choose classes that share subjects.
+              {practicalOnly
+                ? "No practical subject is offered by every selected class."
+                : "No eligible subject is offered by every selected class. Practical subjects cannot be added to an internal assessment."}
             </p>
           ) : (
             <div className="mt-3 space-y-3">
               {eligibleSubjects.map((subject) => {
                 const row = rowFor(subject);
+                const practical = isPracticalSubject(subject);
+
+                if (componentMode) {
+                  const template = templateForSubject(subject);
+                  return (
+                    <div key={subject.id} className="rounded-xl border border-(--border-subtle) p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-medium text-(--foreground)">{subjectLabel(subject)}</p>
+                        <span className="text-xs text-(--muted-foreground) tabular-nums">
+                          {practical ? "Practical" : "Theory"}
+                          {template ? `, ${template.name}` : ", no structure"}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 overflow-x-auto">
+                        <table className="min-w-full text-left text-xs">
+                          <thead>
+                            <tr className="border-b border-(--border-subtle)">
+                              <th className="px-2 py-1.5 font-medium text-(--muted-foreground)">Paper</th>
+                              <th className="px-2 py-1.5 font-medium text-(--muted-foreground)">Conducted</th>
+                              <th className="px-2 py-1.5 font-medium text-(--muted-foreground)">Date</th>
+                              <th className="px-2 py-1.5 font-medium text-(--muted-foreground)">Start</th>
+                              <th className="px-2 py-1.5 font-medium text-(--muted-foreground)">End</th>
+                              <th className="px-2 py-1.5 font-medium text-(--muted-foreground)">Room</th>
+                              <th className="px-2 py-1.5 font-medium text-(--muted-foreground)">Invigilator</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {componentsFor(subject).map((component) => {
+                              const paper = row.components[component.code] ?? {};
+                              return (
+                                <tr key={component.id ?? component.code} className="border-b border-(--border-subtle)/60 last:border-b-0">
+                                  <td className="px-2 py-1.5 text-(--foreground)">
+                                    {component.name}
+                                    <span className="ml-1 text-[11px] text-(--muted-foreground)">
+                                      {component.aggregation === "scaled"
+                                        ? `${component.scale_from} to ${component.scale_to}`
+                                        : `max ${component.max_marks}`}
+                                    </span>
+                                  </td>
+                                  <td className="px-2 py-1.5">
+                                    <input
+                                      type="checkbox"
+                                      checked={paper.is_conducted !== false}
+                                      onChange={(event) =>
+                                        updateComponent(subject.id, component.code, { is_conducted: event.target.checked })
+                                      }
+                                      aria-label={`Conduct ${component.name} for ${subjectLabel(subject)}`}
+                                    />
+                                  </td>
+                                  <td className="px-2 py-1.5">
+                                    <input
+                                      type="date"
+                                      className={`${inputClass} w-36`}
+                                      value={paper.exam_date ?? ""}
+                                      min={form.starts_on || undefined}
+                                      max={form.ends_on || undefined}
+                                      disabled={paper.is_conducted === false}
+                                      onChange={(event) =>
+                                        updateComponent(subject.id, component.code, { exam_date: event.target.value })
+                                      }
+                                      aria-label={`${component.name} date for ${subjectLabel(subject)}`}
+                                    />
+                                  </td>
+                                  <td className="px-2 py-1.5">
+                                    <input
+                                      type="time"
+                                      className={`${inputClass} w-24`}
+                                      value={paper.start_time ?? ""}
+                                      disabled={paper.is_conducted === false}
+                                      onChange={(event) =>
+                                        updateComponent(subject.id, component.code, { start_time: event.target.value })
+                                      }
+                                      aria-label={`${component.name} start for ${subjectLabel(subject)}`}
+                                    />
+                                  </td>
+                                  <td className="px-2 py-1.5">
+                                    <input
+                                      type="time"
+                                      className={`${inputClass} w-24`}
+                                      value={paper.end_time ?? ""}
+                                      disabled={paper.is_conducted === false}
+                                      onChange={(event) =>
+                                        updateComponent(subject.id, component.code, { end_time: event.target.value })
+                                      }
+                                      aria-label={`${component.name} end for ${subjectLabel(subject)}`}
+                                    />
+                                  </td>
+                                  <td className="px-2 py-1.5">
+                                    <input
+                                      className={`${inputClass} w-32`}
+                                      value={paper.room ?? ""}
+                                      disabled={paper.is_conducted === false}
+                                      onChange={(event) =>
+                                        updateComponent(subject.id, component.code, { room: event.target.value })
+                                      }
+                                      placeholder="Room"
+                                      aria-label={`${component.name} room for ${subjectLabel(subject)}`}
+                                    />
+                                  </td>
+                                  <td className="px-2 py-1.5">
+                                    <Select
+                                      value={paper.teacher_id ?? ""}
+                                      disabled={paper.is_conducted === false}
+                                      onChange={(event) =>
+                                        updateComponent(subject.id, component.code, { teacher_id: event.target.value })
+                                      }
+                                      aria-label={`${component.name} invigilator for ${subjectLabel(subject)}`}
+                                    >
+                                      <option value="">Use assigned teacher</option>
+                                      {teachers.map((teacher) => (
+                                        <option key={teacher.id} value={teacher.id}>{teacherLabel(teacher)}</option>
+                                      ))}
+                                    </Select>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {row.teacher_id ? (
+                        <p className="mt-1 text-[11px] text-(--muted-foreground)">
+                          Subject teacher: {teacherName.get(row.teacher_id) ?? "Selected teacher"}
+                        </p>
+                      ) : null}
+                    </div>
+                  );
+                }
+
                 return (
                   <div key={subject.id} className="rounded-xl border border-(--border-subtle) p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
