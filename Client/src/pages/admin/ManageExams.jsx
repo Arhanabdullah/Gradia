@@ -171,6 +171,23 @@ export default function ManageExams() {
     load();
   }, []);
 
+  // A paper or subject change is fully reflected in the `exam_groups` query, so
+  // refresh just that one instead of re-running the full eleven-query load. The
+  // cards stay on screen while it runs, which avoids the skeleton flash after
+  // every save.
+  const refreshGroups = async () => {
+    const { data, error } = await supabase
+      .from("exam_groups")
+      .select(GROUP_SELECT)
+      .order("created_at", { ascending: false });
+    if (error) {
+      setLoadError("Could not refresh examinations. Check your connection and refresh the page.");
+      return;
+    }
+    setLoadError("");
+    setGroups(data ?? []);
+  };
+
   const canCreate =
     profile?.role === "admin" || profile?.role === "teacher" || profile?.role === "exam_cell";
 
@@ -631,7 +648,7 @@ export default function ManageExams() {
                 (profile?.role === "teacher" && group.created_by === profile.id)
               }
               canEditSubjects={profile?.role === "admin" || profile?.role === "exam_cell"}
-              onChanged={load}
+              onChanged={refreshGroups}
               onNotify={setNotice}
             />
           ))}

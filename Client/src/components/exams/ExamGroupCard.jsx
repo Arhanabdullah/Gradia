@@ -378,7 +378,7 @@ export default function ExamGroupCard({
                       {subject.assessment_template_id
                         ? `, ${templateName.get(subject.assessment_template_id) ?? "assessment structure"}`
                         : ""}
-                      {` , max ${subject.max_marks}`}
+                      {`, max ${subject.max_marks}`}
                       {subject.pass_marks != null ? `, pass ${subject.pass_marks}` : ""}
                     </p>
                   </div>
