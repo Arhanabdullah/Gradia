@@ -9,11 +9,10 @@ export const EXAM_TYPES = [
   { id: "unit_test", label: "Unit test", teachers: true },
   { id: "internal_assessment", label: "Internal assessment", teachers: true },
   { id: "mid_term", label: "Mid-term", teachers: false },
-  { id: "semester", label: "Semester", teachers: false },
+  { id: "semester", label: "End-Semester", teachers: false },
   { id: "practical", label: "Practical", teachers: true },
   { id: "assignment", label: "Assignment", teachers: true },
   { id: "major", label: "Major", teachers: false },
-  { id: "final", label: "Final", teachers: false },
 ];
 
 // Legacy rows created before exam types existed carry `standard`.

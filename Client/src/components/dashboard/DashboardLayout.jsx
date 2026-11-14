@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import { Outlet, useLocation, Navigate } from "react-router-dom";
 import DashboardSidebar from "./DashboardSidebar";
 import { useAuth } from "../../context/AuthContext";
 import { Button } from "../ui";
+import ErrorBoundary from "../ErrorBoundary";
 
 const NAV_BY_ROLE = {
   admin: [
@@ -89,7 +91,19 @@ const DashboardLayout = () => {
       <DashboardSidebar items={NAV_BY_ROLE[profile.role] ?? []} />
       <main className="relative z-10 flex-1 overflow-y-auto p-6">
         <div className="mx-auto max-w-5xl">
-          <Outlet />
+          <ErrorBoundary key={location.pathname}>
+            <Suspense
+              fallback={
+                <div className="mt-6 space-y-3" aria-hidden="true">
+                  {[0, 1, 2].map((key) => (
+                    <div key={key} className="glass-inner h-40 motion-safe:animate-pulse rounded-xl" />
+                  ))}
+                </div>
+              }
+            >
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
         </div>
       </main>
     </div>

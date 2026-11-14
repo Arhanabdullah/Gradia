@@ -1,7 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Button, Card, Empty, Field, SearchField, Select, inputClass } from "../../components/ui";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
+
+// The catalogue has hundreds of subjects. Rendering every row with controlled
+// inputs at once froze the tab, so the table is paged and each row is memoised.
+const SUBJECT_PAGE_SIZE = 25;
+const EMPTY_SUBJECT_DRAFT = {};
 
 const DEFAULT_FORMAT = {
   title: "Grade Card",
@@ -31,6 +36,51 @@ const numberOrNull = (value) => {
   return Number.isNaN(numeric) ? null : numeric;
 };
 
+// Memoised so typing in one subject only re-renders that row, not the page.
+const SubjectRow = memo(function SubjectRow({ row, draft, saving, onChange, onSave }) {
+  return (
+    <tr className="border-b border-(--border-subtle)/60 last:border-b-0">
+      <td className="px-3 py-2 text-(--foreground)">{row.code}</td>
+      <td className="px-3 py-2 text-(--foreground)">{row.name}</td>
+      <td className="px-3 py-2 text-(--muted-foreground)">{row.departments?.name ?? "Not assigned"}</td>
+      <td className="px-3 py-2">
+        <Select
+          value={draft.subject_type ?? "theory"}
+          onChange={(event) => onChange(row.id, "subject_type", event.target.value)}
+          aria-label={`Subject type for ${row.code}`}
+        >
+          <option value="theory">Theory</option>
+          <option value="lab">Lab</option>
+          <option value="project">Project</option>
+        </Select>
+      </td>
+      <td className="px-3 py-2">
+        <input
+          type="number"
+          className={`${inputClass} w-28`}
+          value={draft.max_marks ?? ""}
+          onChange={(event) => onChange(row.id, "max_marks", event.target.value)}
+          aria-label={`Full marks for ${row.code}`}
+        />
+      </td>
+      <td className="px-3 py-2">
+        <input
+          type="number"
+          className={`${inputClass} w-28`}
+          value={draft.credit_hours ?? ""}
+          onChange={(event) => onChange(row.id, "credit_hours", event.target.value)}
+          aria-label={`Credit hours for ${row.code}`}
+        />
+      </td>
+      <td className="px-3 py-2 text-right">
+        <Button variant="subtle" onClick={() => onSave(row.id, draft)} disabled={saving}>
+          Save
+        </Button>
+      </td>
+    </tr>
+  );
+});
+
 const ResultConfig = () => {
   const [schemes, setSchemes] = useState([]);
   const [bands, setBands] = useState([]);
@@ -52,11 +102,13 @@ const ResultConfig = () => {
   const [subjectDrafts, setSubjectDrafts] = useState({});
   const [newScheme, setNewScheme] = useState("");
   const [subjectSearch, setSubjectSearch] = useState("");
+  const [subjectPage, setSubjectPage] = useState(1);
   const [bulkCredit, setBulkCredit] = useState("");
   const [bulkType, setBulkType] = useState("any");
   const [bulkScope, setBulkScope] = useState("missing");
 
   const [loading, setLoading] = useState(true);
+  const [subjectsLoading, setSubjectsLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -161,11 +213,28 @@ const ResultConfig = () => {
         setSchemeId(active);
         applySchemeConfig(schemeRows, active);
         await loadBands(active);
-        await loadSubjects();
       } catch (err) {
         if (!cancelled) setError(err.message);
       } finally {
         if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // The subject catalogue is the slowest query on a large institution, so it
+  // loads separately: the grading configuration is usable while it arrives.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await loadSubjects();
+      } catch (err) {
+        if (!cancelled) setError(err.message);
+      } finally {
+        if (!cancelled) setSubjectsLoading(false);
       }
     })();
     return () => {
@@ -406,8 +475,7 @@ const ResultConfig = () => {
     }
   };
 
-  const saveSubject = async (id) => {
-    const draft = subjectDrafts[id];
+  const saveSubject = useCallback(async (id, draft) => {
     const max = numberOrNull(draft?.max_marks);
     const credit = numberOrNull(draft?.credit_hours);
     const subjectType = draft?.subject_type ?? "theory";
@@ -432,22 +500,51 @@ const ResultConfig = () => {
         .update({ max_marks: max, credit_hours: credit, subject_type: subjectType })
         .eq("id", id);
       if (updateError) throw new Error(updateError.message);
-      await loadSubjects();
+      // Patch the saved row locally instead of re-downloading every subject,
+      // which would also discard unsaved edits in the other rows.
+      setSubjects((current) =>
+        current.map((row) =>
+          row.id === id
+            ? { ...row, max_marks: max, credit_hours: credit, subject_type: subjectType }
+            : row,
+        ),
+      );
+      setSubjectDrafts((current) => ({
+        ...current,
+        [id]: {
+          max_marks: String(max),
+          credit_hours: credit === null ? "" : String(credit),
+          subject_type: subjectType,
+        },
+      }));
       setMessage("Subject configuration saved.");
     } catch (err) {
       setError(err.message);
     } finally {
       setBusy("");
     }
-  };
+  }, []);
 
-  const visibleSubjects = subjects.filter((row) => {
+  const visibleSubjects = useMemo(() => {
     const needle = subjectSearch.trim().toLowerCase();
-    if (!needle) return true;
-    return [row.code, row.name, row.departments?.name]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(needle));
-  });
+    if (!needle) return subjects;
+    return subjects.filter((row) =>
+      [row.code, row.name, row.departments?.name]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(needle)),
+    );
+  }, [subjects, subjectSearch]);
+
+  const subjectPageCount = Math.max(1, Math.ceil(visibleSubjects.length / SUBJECT_PAGE_SIZE));
+  const currentSubjectPage = Math.min(subjectPage, subjectPageCount);
+  const pagedSubjects = useMemo(
+    () =>
+      visibleSubjects.slice(
+        (currentSubjectPage - 1) * SUBJECT_PAGE_SIZE,
+        currentSubjectPage * SUBJECT_PAGE_SIZE,
+      ),
+    [visibleSubjects, currentSubjectPage],
+  );
 
   const subjectsMissingCredits = useMemo(
     () => subjects.filter((row) => row.credit_hours == null).length,
@@ -483,7 +580,18 @@ const ResultConfig = () => {
       if (bulkScope === "missing") query = query.is("credit_hours", null);
       const { error: updateError } = await query;
       if (updateError) throw new Error(updateError.message);
-      await loadSubjects();
+      // Apply the change locally so the 773-row catalogue is not re-downloaded.
+      const updatedIds = new Set(bulkMatches.map((row) => row.id));
+      setSubjects((current) =>
+        current.map((row) => (updatedIds.has(row.id) ? { ...row, credit_hours: credit } : row)),
+      );
+      setSubjectDrafts((current) => {
+        const next = { ...current };
+        for (const row of bulkMatches) {
+          next[row.id] = { ...next[row.id], credit_hours: String(credit) };
+        }
+        return next;
+      });
       setMessage(
         `Credit hours set for ${bulkMatches.length} subject${bulkMatches.length === 1 ? "" : "s"}.`,
       );
@@ -500,8 +608,9 @@ const ResultConfig = () => {
   const setBandValue = (id, key, value) =>
     setBandDrafts((current) => ({ ...current, [id]: { ...current[id], [key]: value } }));
 
-  const setSubjectValue = (id, key, value) =>
+  const setSubjectValue = useCallback((id, key, value) => {
     setSubjectDrafts((current) => ({ ...current, [id]: { ...current[id], [key]: value } }));
+  }, []);
 
   return (
     <>
@@ -867,7 +976,10 @@ const ResultConfig = () => {
               <SearchField
                 label="Search subjects"
                 value={subjectSearch}
-                onChange={setSubjectSearch}
+                onChange={(value) => {
+                  setSubjectSearch(value);
+                  setSubjectPage(1);
+                }}
                 placeholder="Code, subject or department"
               />
             </div>
@@ -918,79 +1030,77 @@ const ResultConfig = () => {
                 </Button>
               </div>
               <p className="mt-2 text-xs text-(--muted-foreground)">
-                {subjectsMissingCredits === 0
-                  ? "Every subject has credit hours."
-                  : `${subjectsMissingCredits} of ${subjects.length} subjects still need credit hours.`}{" "}
+                {subjectsLoading
+                  ? "Loading the subject catalogue."
+                  : subjectsMissingCredits === 0
+                    ? "Every subject has credit hours."
+                    : `${subjectsMissingCredits} of ${subjects.length} subjects still need credit hours.`}{" "}
                 Results cannot be approved until every subject on a sheet has credits.
               </p>
             </div>
 
-            {visibleSubjects.length === 0 ? (
+            {subjectsLoading ? (
+              <div className="mt-3 space-y-2" aria-hidden="true">
+                {[0, 1, 2, 3].map((key) => (
+                  <div key={key} className="glass-inner h-10 motion-safe:animate-pulse rounded-lg" />
+                ))}
+              </div>
+            ) : visibleSubjects.length === 0 ? (
               <div className="mt-3">
                 <Empty>No subjects match this search.</Empty>
               </div>
             ) : (
-              <div className="mt-3 overflow-x-auto rounded-xl border border-(--border-subtle)">
-                <table className="min-w-full text-left text-xs tabular-nums">
-                  <thead className="bg-(--surface-secondary)">
-                    <tr className="border-b border-(--border-subtle)">
-                      {["Code", "Subject", "Department", "Type", "Full marks", "Credit hours", ""].map((label) => (
-                        <th key={label} className="px-3 py-2 font-medium text-(--muted-foreground)">{label}</th>
+              <>
+                <div className="mt-3 overflow-x-auto rounded-xl border border-(--border-subtle)">
+                  <table className="min-w-full text-left text-xs tabular-nums">
+                    <thead className="bg-(--surface-secondary)">
+                      <tr className="border-b border-(--border-subtle)">
+                        {["Code", "Subject", "Department", "Type", "Full marks", "Credit hours", ""].map((label) => (
+                          <th key={label} className="px-3 py-2 font-medium text-(--muted-foreground)">{label}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagedSubjects.map((row) => (
+                        <SubjectRow
+                          key={row.id}
+                          row={row}
+                          draft={subjectDrafts[row.id] ?? EMPTY_SUBJECT_DRAFT}
+                          saving={busy === `subject-${row.id}`}
+                          onChange={setSubjectValue}
+                          onSave={saveSubject}
+                        />
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleSubjects.map((row) => {
-                      const draft = subjectDrafts[row.id] ?? {};
-                      return (
-                        <tr key={row.id} className="border-b border-(--border-subtle)/60 last:border-b-0">
-                          <td className="px-3 py-2 text-(--foreground)">{row.code}</td>
-                          <td className="px-3 py-2 text-(--foreground)">{row.name}</td>
-                          <td className="px-3 py-2 text-(--muted-foreground)">{row.departments?.name ?? "Not assigned"}</td>
-                          <td className="px-3 py-2">
-                            <Select
-                              value={draft.subject_type ?? "theory"}
-                              onChange={(event) => setSubjectValue(row.id, "subject_type", event.target.value)}
-                              aria-label={`Subject type for ${row.code}`}
-                            >
-                              <option value="theory">Theory</option>
-                              <option value="lab">Lab</option>
-                              <option value="project">Project</option>
-                            </Select>
-                          </td>
-                          <td className="px-3 py-2">
-                            <input
-                              type="number"
-                              className={`${inputClass} w-28`}
-                              value={draft.max_marks ?? ""}
-                              onChange={(event) => setSubjectValue(row.id, "max_marks", event.target.value)}
-                              aria-label={`Full marks for ${row.code}`}
-                            />
-                          </td>
-                          <td className="px-3 py-2">
-                            <input
-                              type="number"
-                              className={`${inputClass} w-28`}
-                              value={draft.credit_hours ?? ""}
-                              onChange={(event) => setSubjectValue(row.id, "credit_hours", event.target.value)}
-                              aria-label={`Credit hours for ${row.code}`}
-                            />
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            <Button
-                              variant="subtle"
-                              onClick={() => saveSubject(row.id)}
-                              disabled={busy === `subject-${row.id}`}
-                            >
-                              Save
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs tabular-nums text-(--muted-foreground)">
+                    Showing {(currentSubjectPage - 1) * SUBJECT_PAGE_SIZE + 1} to{" "}
+                    {Math.min(currentSubjectPage * SUBJECT_PAGE_SIZE, visibleSubjects.length)} of{" "}
+                    {visibleSubjects.length} subject{visibleSubjects.length === 1 ? "" : "s"}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="subtle"
+                      onClick={() => setSubjectPage((page) => Math.max(1, page - 1))}
+                      disabled={currentSubjectPage <= 1}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-xs tabular-nums text-(--muted-foreground)">
+                      Page {currentSubjectPage} of {subjectPageCount}
+                    </span>
+                    <Button
+                      variant="subtle"
+                      onClick={() => setSubjectPage((page) => Math.min(subjectPageCount, page + 1))}
+                      disabled={currentSubjectPage >= subjectPageCount}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </>
             )}
           </Card>
         </>

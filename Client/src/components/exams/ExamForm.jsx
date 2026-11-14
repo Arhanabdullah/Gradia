@@ -376,7 +376,7 @@ export default function ExamForm({
               className={inputClass}
               value={form.name}
               onChange={(event) => update({ name: event.target.value })}
-              placeholder="Mid-term 2026"
+              placeholder="Enter exam name"
               required
             />
           </Field>

@@ -1,28 +1,30 @@
-import { Routes, Route } from "react-router-dom";
+import { lazy } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import { useAuth } from "./context/AuthContext";
-import { Navigate } from "react-router-dom";
 
-import Overview from "./pages/Overview";
-import UsersDirectory from "./pages/UsersDirectory";
-import ManageUsers from "./pages/admin/ManageUsers";
-import ManageClasses from "./pages/admin/ManageClasses";
-import ManageExams from "./pages/admin/ManageExams";
-import AdminSheets from "./pages/admin/AdminSheets";
-import MarksEntry from "./pages/teacher/MarksEntry";
-import Attendance from "./pages/teacher/Attendance";
-import ReviewSheets from "./pages/hod/ReviewSheets";
-import PublishSheets from "./pages/principal/PublishSheets";
-import MyResults from "./pages/student/MyResults";
-import Notifications from "./pages/student/Notifications";
-import CoordinatorReports from "./pages/coordinator/CoordinatorReports";
-import ResultArchive from "./pages/coordinator/ResultArchive";
-import ResultConfig from "./pages/exam_cell/ResultConfig";
-import AssessmentSetup from "./pages/exam_cell/AssessmentSetup";
-import ResultApproval from "./pages/exam_cell/ResultApproval";
+// Dashboard screens are code-split so the shell paints before every page (and
+// its charts) is downloaded. Each screen fetches its own chunk on demand.
+const Overview = lazy(() => import("./pages/Overview"));
+const UsersDirectory = lazy(() => import("./pages/UsersDirectory"));
+const ManageUsers = lazy(() => import("./pages/admin/ManageUsers"));
+const ManageClasses = lazy(() => import("./pages/admin/ManageClasses"));
+const ManageExams = lazy(() => import("./pages/admin/ManageExams"));
+const AdminSheets = lazy(() => import("./pages/admin/AdminSheets"));
+const MarksEntry = lazy(() => import("./pages/teacher/MarksEntry"));
+const Attendance = lazy(() => import("./pages/teacher/Attendance"));
+const ReviewSheets = lazy(() => import("./pages/hod/ReviewSheets"));
+const PublishSheets = lazy(() => import("./pages/principal/PublishSheets"));
+const MyResults = lazy(() => import("./pages/student/MyResults"));
+const Notifications = lazy(() => import("./pages/student/Notifications"));
+const CoordinatorReports = lazy(() => import("./pages/coordinator/CoordinatorReports"));
+const ResultArchive = lazy(() => import("./pages/coordinator/ResultArchive"));
+const ResultConfig = lazy(() => import("./pages/exam_cell/ResultConfig"));
+const AssessmentSetup = lazy(() => import("./pages/exam_cell/AssessmentSetup"));
+const ResultApproval = lazy(() => import("./pages/exam_cell/ResultApproval"));
 
 const RequireRole = ({ role, roles, children }) => {
   const { profile } = useAuth();

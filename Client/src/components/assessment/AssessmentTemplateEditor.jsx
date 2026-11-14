@@ -515,7 +515,7 @@ const AssessmentTemplateEditor = ({
                           "External",
                           "",
                         ].map((label) => (
-                          <th key={label} className="px-3 py-2 font-medium text-(--muted-foreground)">
+                          <th key={label} className="px-15 py-2 font-medium text-(--muted-foreground)">
                             {label}
                           </th>
                         ))}

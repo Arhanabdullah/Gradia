@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
 import { StatCard, Empty, Card, StatusChip } from "../components/ui";
 import AttendanceSummary from "../components/AttendanceSummary";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
 import { Link } from "react-router-dom";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { chartAxis, chartTooltip } from "../components/charts/ChartsConfig";
+
+const ResultPipelineChart = lazy(() => import("../components/charts/ResultPipelineChart"));
 
 const STATUS_SHORT = {
   compiled: "Compiled",
@@ -83,64 +83,110 @@ const countQuery = async (table, eq) => {
 };
 
 const loadCounts = async (role, profile) => {
-  if (role === "admin")
+  if (role === "admin") {
+    const [students, teachers, hods, principals, classes, subjects, published, awaiting] =
+      await Promise.all([
+        countQuery("profiles", { role: "student" }),
+        countQuery("profiles", { role: "teacher" }),
+        countQuery("profiles", { role: "hod" }),
+        countQuery("profiles", { role: "principal" }),
+        countQuery("classes"),
+        countQuery("subjects"),
+        countQuery("result_sheets", { status: "published" }),
+        countQuery("result_sheets", { status: "compiled" }),
+      ]);
     return [
-      { label: "Students", value: await countQuery("profiles", { role: "student" }) },
-      { label: "Faculty & staff", value: (await countQuery("profiles", { role: "teacher" }))
-        + (await countQuery("profiles", { role: "hod" }))
-        + (await countQuery("profiles", { role: "principal" })) },
-      { label: "Classes", value: await countQuery("classes") },
-      { label: "Subjects", value: await countQuery("subjects") },
-      { label: "Results published", value: await countQuery("result_sheets", { status: "published" }) },
-      { label: "Awaiting HOD review", value: await countQuery("result_sheets", { status: "compiled" }) },
+      { label: "Students", value: students },
+      { label: "Faculty & staff", value: teachers + hods + principals },
+      { label: "Classes", value: classes },
+      { label: "Subjects", value: subjects },
+      { label: "Results published", value: published },
+      { label: "Awaiting HOD review", value: awaiting },
     ];
-  if (role === "teacher")
+  }
+  if (role === "teacher") {
+    const [subjects, marks] = await Promise.all([
+      countQuery("teacher_assignments", { teacher_id: profile.id }),
+      countQuery("marks", { entered_by: profile.id }),
+    ]);
     return [
-      { label: "My subjects", value: await countQuery("teacher_assignments", { teacher_id: profile.id }) },
-      { label: "Marks entered by me", value: await countQuery("marks", { entered_by: profile.id }) },
+      { label: "My subjects", value: subjects },
+      { label: "Marks entered by me", value: marks },
     ];
-  if (role === "hod")
+  }
+  if (role === "hod") {
+    const [awaiting, sentBack, published] = await Promise.all([
+      countQuery("result_sheets", { status: "compiled" }),
+      countQuery("result_sheets", { status: "hod_rejected" }),
+      countQuery("result_sheets", { status: "published" }),
+    ]);
     return [
-      { label: "Awaiting my review", value: await countQuery("result_sheets", { status: "compiled" }) },
-      { label: "Sent back by me", value: await countQuery("result_sheets", { status: "hod_rejected" }) },
-      { label: "Published", value: await countQuery("result_sheets", { status: "published" }) },
+      { label: "Awaiting my review", value: awaiting },
+      { label: "Sent back by me", value: sentBack },
+      { label: "Published", value: published },
     ];
-  if (role === "principal")
+  }
+  if (role === "principal") {
+    const [awaiting, hodApproved, signed, examApproved, published] = await Promise.all([
+      countQuery("result_sheets", { status: "compiled" }),
+      countQuery("result_sheets", { status: "hod_approved" }),
+      countQuery("result_sheets", { status: "principal_signed" }),
+      countQuery("result_sheets", { status: "exam_approved" }),
+      countQuery("result_sheets", { status: "published" }),
+    ]);
     return [
-      { label: "Awaiting HOD approval", value: await countQuery("result_sheets", { status: "compiled" }) },
-      {
-        label: "Ready to publish",
-        value: (await countQuery("result_sheets", { status: "hod_approved" }))
-          + (await countQuery("result_sheets", { status: "principal_signed" }))
-          + (await countQuery("result_sheets", { status: "exam_approved" })),
-      },
-      { label: "Published", value: await countQuery("result_sheets", { status: "published" }) },
+      { label: "Awaiting HOD approval", value: awaiting },
+      { label: "Ready to publish", value: hodApproved + signed + examApproved },
+      { label: "Published", value: published },
     ];
-  if (role === "coordinator")
+  }
+  if (role === "coordinator") {
+    const [students, teachers, classes, subjects, published, attendance] = await Promise.all([
+      countQuery("profiles", { role: "student" }),
+      countQuery("profiles", { role: "teacher" }),
+      countQuery("classes"),
+      countQuery("subjects"),
+      countQuery("result_sheets", { status: "published" }),
+      countQuery("attendance"),
+    ]);
     return [
-      { label: "Students", value: await countQuery("profiles", { role: "student" }) },
-      { label: "Teachers", value: await countQuery("profiles", { role: "teacher" }) },
-      { label: "Classes", value: await countQuery("classes") },
-      { label: "Subjects", value: await countQuery("subjects") },
-      { label: "Results published", value: await countQuery("result_sheets", { status: "published" }) },
-      { label: "Attendance records", value: await countQuery("attendance") },
+      { label: "Students", value: students },
+      { label: "Teachers", value: teachers },
+      { label: "Classes", value: classes },
+      { label: "Subjects", value: subjects },
+      { label: "Results published", value: published },
+      { label: "Attendance records", value: attendance },
     ];
-  if (role === "exam_cell")
+  }
+  if (role === "exam_cell") {
+    const [awaitingExam, approved, published, awaitingHod, schemes, components] = await Promise.all([
+      countQuery("result_sheets", { status: "hod_approved" }),
+      countQuery("result_sheets", { status: "exam_approved" }),
+      countQuery("result_sheets", { status: "published" }),
+      countQuery("result_sheets", { status: "compiled" }),
+      countQuery("grading_schemes"),
+      countQuery("assessment_components"),
+    ]);
     return [
-      { label: "Awaiting Exam Cell approval", value: await countQuery("result_sheets", { status: "hod_approved" }) },
-      { label: "Approved by Exam Cell", value: await countQuery("result_sheets", { status: "exam_approved" }) },
-      { label: "Published", value: await countQuery("result_sheets", { status: "published" }) },
-      { label: "Awaiting HOD review", value: await countQuery("result_sheets", { status: "compiled" }) },
-      { label: "Grading schemes", value: await countQuery("grading_schemes") },
-      { label: "Assessment components", value: await countQuery("assessment_components") },
+      { label: "Awaiting Exam Cell approval", value: awaitingExam },
+      { label: "Approved by Exam Cell", value: approved },
+      { label: "Published", value: published },
+      { label: "Awaiting HOD review", value: awaitingHod },
+      { label: "Grading schemes", value: schemes },
+      { label: "Assessment components", value: components },
     ];
+  }
   // student
+  const [subjectsInClass, unread] = await Promise.all([
+    profile.class_id
+      ? countQuery("class_subjects", { class_id: profile.class_id })
+      : Promise.resolve(0),
+    countQuery("notifications", { user_id: profile.id, is_read: false }),
+  ]);
   return [
     { label: "Class", value: profile.classes?.name ?? "Not assigned yet" },
-    ...(profile.class_id
-      ? [{ label: "Subjects in class", value: await countQuery("class_subjects", { class_id: profile.class_id }) }]
-      : []),
-    { label: "Unread notifications", value: await countQuery("notifications", { user_id: profile.id, is_read: false }) },
+    ...(profile.class_id ? [{ label: "Subjects in class", value: subjectsInClass }] : []),
+    { label: "Unread notifications", value: unread },
   ];
 };
 
@@ -332,17 +378,9 @@ const Overview = () => {
             <p className="text-xs font-medium text-(--foreground)">{chart.title}</p>
             <p className="mt-0.5 text-xs text-(--muted-foreground)">{chart.subtitle}</p>
           </div>
-          <div className="h-55 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chart.data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
-                <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="2 4" vertical={false} />
-                <XAxis dataKey="label" {...chartAxis} tick={{ ...chartAxis.tick, fontSize: 11 }} dy={8} />
-                <YAxis {...chartAxis} tick={{ ...chartAxis.tick, fontSize: 11 }} allowDecimals={false} width={30} />
-                <Tooltip cursor={{ fill: "var(--primary)", fillOpacity: 0.06 }} {...chartTooltip} />
-                <Bar dataKey="value" fill="var(--primary)" radius={[6, 6, 0, 0]} barSize={26} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <Suspense fallback={<div className="h-55 w-full" aria-hidden="true" />}>
+            <ResultPipelineChart data={chart.data} />
+          </Suspense>
         </Card>
       ) : null}
 
