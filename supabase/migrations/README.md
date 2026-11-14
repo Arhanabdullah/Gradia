@@ -125,6 +125,21 @@ the attendance table itself does not reference degrees.
 the enum value in place for backward compatibility. The publishing permission still belongs
 to the `principal` role; only the intermediate approval stage was removed.
 
+## Grading engine, assessment structure and read paths
+
+| File | Changes |
+|---|---|
+| `202611140001_academic_grading_engine.sql` | Credit-weighted SGPA/CGPA (`recalculate_result_sheet`), result codes `P/XP/X/F/RW`, promotion rules, `subjects.subject_type`, `subjects.credit_hours` backfill, `profiles.registration_no`, `grade_band_for()` gap-tolerant lookup, readiness gate (`result_sheet_readiness` / `assert_result_sheet_ready`), Exam Cell approval and publish gates, config audit triggers |
+| `202611150001_central_assessment_structure.sql` | `assessment_templates` + `assessment_template_components` materialised into `assessment_components`; `subjects.assessment_template_id` / `exam_subjects.assessment_template_id`; `exams.result_kind` and `result_sheets.result_kind` so only End-Semester sheets produce a printable grade card |
+| `202611160001_read_policy_fastpaths.sql` | Rewrites the `SELECT` policies on `subjects`, `profiles`, `student_enrollments` and `audit_logs` so the role-wide check is an InitPlan instead of a per-row call (Exam Cell subject scan 910 ms -> 5 ms on 792 rows) |
+
+`202611160001` only reorders how the existing predicates are evaluated: the scoped
+helpers (`can_view_subject`, `can_view_profile`, `is_class_hod`, `teaches_class`) still
+decide every non-monitor case, and the admin/principal branch is the same early return
+those helpers already take. Row counts were compared per role before and after. Keep the
+`(select …)` wrapper when editing these policies; without it the planner falls back to
+one helper call per row.
+
 ## Known sequencing deferrals
 
 Two legacy constraints are intentionally kept through Phase 2 because current UI code
