@@ -840,7 +840,7 @@ function QuickActions({ paper, canSchedule, onOpenSchedule }) {
         >
           <span className="block text-sm font-medium text-(--foreground)">Update {classwork.name}</span>
           <span className="mt-0.5 block text-[11px] text-(--muted-foreground)">
-            Classwork, mark conducted
+            {canSchedule ? "Classwork, mark conducted" : "Read only for your role"}
           </span>
         </button>
       ) : null}
