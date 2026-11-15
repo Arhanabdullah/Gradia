@@ -5,6 +5,7 @@ import DashboardHeader from "../../components/dashboard/DashboardHeader";
 import ImportButton from "../../components/import/ImportButton";
 import ExamForm from "../../components/exams/ExamForm";
 import ExamGroupCard from "../../components/exams/ExamGroupCard";
+import ExamWorkspace from "../../components/exams/ExamWorkspace";
 import { useAuth } from "../../context/AuthContext";
 import {
   EXAM_STATUSES,
@@ -18,7 +19,10 @@ import {
   teacherLabel,
 } from "../../lib/exams";
 
-const GROUP_SELECT = `
+// `schedule_mode` arrives with 202611180001. Until that migration is applied the
+// column is absent, so the queries retry without it and the client falls back to
+// inferring classwork from the component code (see lib/exams.js).
+const groupSelect = (withScheduleMode = true) => `
   id, name, exam_type, scope, academic_year, starts_on, ends_on, instructions,
   status, created_by, department_id, course_id,
   departments ( id, name ),
@@ -33,7 +37,7 @@ const GROUP_SELECT = `
       assessment_components (
         id, exam_subject_id, name, code, component_type, max_marks, pass_marks,
         weight_percent, aggregation, group_code, scale_from, scale_to, display_order,
-        is_optional, is_external, is_conducted, exam_date, start_time, end_time,
+        is_optional, is_external, is_conducted, ${withScheduleMode ? "schedule_mode, " : ""}exam_date, start_time, end_time,
         duration_minutes, room, teacher_id, allow_overlap
       )
     ),
@@ -43,6 +47,20 @@ const GROUP_SELECT = `
     result_sheets ( id, status, result_kind )
   )
 `;
+
+const templateComponentSelect = (withScheduleMode = true) =>
+  `id, template_id, name, code, component_type, max_marks, weight_percent, aggregation, group_code, scale_from, scale_to, display_order, is_optional, is_external${
+    withScheduleMode ? ", schedule_mode" : ""
+  }`;
+
+// Retries a select without `schedule_mode` when the column does not exist yet.
+async function selectWithScheduleModeFallback(makeQuery) {
+  const first = await makeQuery(true);
+  if (first.error && /schedule_mode/i.test(first.error.message ?? "")) {
+    return makeQuery(false);
+  }
+  return first;
+}
 
 const TABS = [
   { id: "all", label: "All" },
@@ -72,6 +90,7 @@ const EMPTY_FILTERS = {
   course: "",
   batch: "",
   classId: "",
+  semester: "",
   subjectId: "",
   teacherId: "",
   date: "",
@@ -125,7 +144,9 @@ export default function ManageExams() {
     setLoadError("");
     const [groupsRes, classesRes, departmentsRes, degreesRes, coursesRes, subjectsRes, classSubjectsRes, assignmentsRes, teachersRes, templatesRes, templateComponentsRes] =
       await Promise.all([
-        supabase.from("exam_groups").select(GROUP_SELECT).order("created_at", { ascending: false }),
+        selectWithScheduleModeFallback((withMode) =>
+          supabase.from("exam_groups").select(groupSelect(withMode)).order("created_at", { ascending: false }),
+        ),
         supabase.from("classes").select("id, name, department, academic_year, semester, section, course_id, degree_id").order("name"),
         supabase.from("departments").select("id, name").order("name"),
         supabase.from("degrees").select("id, name").order("name"),
@@ -135,7 +156,9 @@ export default function ManageExams() {
         supabase.from("teacher_assignments").select("id, class_id, subject_id, teacher_id"),
         supabase.from("profiles").select("id, name, teacher_id, username").eq("role", "teacher").eq("is_active", true).order("name"),
         supabase.from("assessment_templates").select("id, name, subject_type, mode, total_marks, is_default, is_active, created_at").order("created_at"),
-        supabase.from("assessment_template_components").select("id, template_id, name, code, component_type, max_marks, weight_percent, aggregation, group_code, scale_from, scale_to, display_order, is_optional, is_external").order("display_order"),
+        selectWithScheduleModeFallback((withMode) =>
+          supabase.from("assessment_template_components").select(templateComponentSelect(withMode)).order("display_order"),
+        ),
       ]);
 
     const failure =
@@ -176,10 +199,9 @@ export default function ManageExams() {
   // cards stay on screen while it runs, which avoids the skeleton flash after
   // every save.
   const refreshGroups = async () => {
-    const { data, error } = await supabase
-      .from("exam_groups")
-      .select(GROUP_SELECT)
-      .order("created_at", { ascending: false });
+    const { data, error } = await selectWithScheduleModeFallback((withMode) =>
+      supabase.from("exam_groups").select(groupSelect(withMode)).order("created_at", { ascending: false }),
+    );
     if (error) {
       setLoadError("Could not refresh examinations. Check your connection and refresh the page.");
       return;
@@ -214,16 +236,24 @@ export default function ManageExams() {
       uniqueClasses.filter(
         (klass) =>
           (!filters.year || klass.academic_year === filters.year) &&
+          (!filters.semester || String(klass.semester ?? "") === filters.semester) &&
           (!filters.department || courseById.get(klass.course_id)?.department_id === filters.department) &&
           (!filters.degree || degreeOfClass(klass, courseById) === filters.degree) &&
           (!filters.course || klass.course_id === filters.course) &&
           (!filters.batch || batchKey(klass) === filters.batch),
       ),
-    [uniqueClasses, filters.year, filters.department, filters.degree, filters.course, filters.batch, courseById],
+    [uniqueClasses, filters.year, filters.semester, filters.department, filters.degree, filters.course, filters.batch, courseById],
   );
 
   const yearOptions = useMemo(
     () => [...new Set(uniqueClasses.map((klass) => klass.academic_year).filter(Boolean))].sort(),
+    [uniqueClasses],
+  );
+  const semesterOptions = useMemo(
+    () =>
+      [...new Set(uniqueClasses.map((klass) => klass.semester).filter((value) => value != null))]
+        .map(String)
+        .sort((a, b) => Number(a) - Number(b)),
     [uniqueClasses],
   );
   const departmentOptions = useMemo(() => {
@@ -259,6 +289,7 @@ export default function ManageExams() {
   const setFilter = (patch) => setFilters((current) => ({ ...current, ...patch }));
   const resetAfter = (level, value) => {
     if (level === "year") setFilters((current) => ({ ...current, year: value, batch: "", classId: "" }));
+    if (level === "semester") setFilters((current) => ({ ...current, semester: value, classId: "", subjectId: "" }));
     if (level === "department") {
       setFilters((current) => ({ ...current, department: value, degree: "", course: "", batch: "", classId: "" }));
     }
@@ -319,6 +350,12 @@ export default function ManageExams() {
           return false;
         }
         if (filters.batch && !groupClasses.some((klass) => batchKey(klass) === filters.batch)) return false;
+        if (
+          filters.semester &&
+          !groupClasses.some((klass) => String(klass.semester ?? "") === filters.semester)
+        ) {
+          return false;
+        }
         if (filters.classId && !groupClasses.some((klass) => klass.id === filters.classId)) return false;
         if (filters.subjectId && !groupSubjects.some((subject) => subject.subject_id === filters.subjectId)) {
           return false;
@@ -378,7 +415,35 @@ export default function ManageExams() {
     <>
       <DashboardHeader title={title} subtitle={subtitle} />
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+      <ExamWorkspace
+        profile={profile}
+        groups={visibleGroups}
+        filters={filters}
+        onFilter={setFilter}
+        onResetAfter={resetAfter}
+        yearOptions={yearOptions}
+        semesterOptions={semesterOptions}
+        filterClasses={filterClasses}
+        subjects={uniqueSubjects}
+        classSubjects={classSubjects}
+        teachers={teachers}
+        teacherAssignments={teacherAssignments}
+        canCreate={canCreate}
+        loading={loading}
+        loadError={loadError}
+        onSchedule={() => setShowForm(true)}
+        onChanged={refreshGroups}
+        onNotify={setNotice}
+      />
+
+      <div className="mt-8 border-t border-(--border-subtle) pt-6">
+        <h3 className="text-sm font-semibold tracking-tight text-(--foreground)">All examination records</h3>
+        <p className="mt-1 text-xs text-(--muted-foreground)">
+          Filter, import and edit every scheduled examination, including subjects and papers.
+        </p>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-(--muted-foreground)">
           {visibleGroups.length} of {groups.length} examination{groups.length === 1 ? "" : "s"}
         </p>
@@ -488,6 +553,19 @@ export default function ManageExams() {
               <option value="">Any year</option>
               {yearOptions.map((year) => (
                 <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-(--muted)">Semester</span>
+            <select
+              className={`${inputClass} mt-1.5`}
+              value={filters.semester}
+              onChange={(event) => resetAfter("semester", event.target.value)}
+            >
+              <option value="">Any semester</option>
+              {semesterOptions.map((semester) => (
+                <option key={semester} value={semester}>Semester {semester}</option>
               ))}
             </select>
           </label>

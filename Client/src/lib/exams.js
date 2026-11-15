@@ -116,6 +116,25 @@ export function formatClock(value) {
   return value.slice(0, 5);
 }
 
+// Date helpers for the examination calendar. Dates are stored as plain
+// `YYYY-MM-DD`, so they are parsed at local midnight to avoid a day shift.
+export function parseDate(value) {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function dateKey(year, month, day) {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+// Earliest paper first; undated papers sort last.
+export function comparePapers(a, b) {
+  const left = `${a?.date || "9999-12-31"} ${a?.start || "99:99"}`;
+  const right = `${b?.date || "9999-12-31"} ${b?.start || "99:99"}`;
+  return left.localeCompare(right);
+}
+
 export function timeRange(start, end) {
   if (!start && !end) return "Time not set";
   if (!start) return `Until ${formatClock(end)}`;
@@ -273,6 +292,51 @@ export function subjectAllowedInExam(subject, examType) {
 export function componentPaperLabel(component) {
   if (!component) return "Paper";
   return component.name ?? component.code ?? "Paper";
+}
+
+// "IA 1, CS201 Data Structures" for calendar chips and the upcoming list.
+export function paperTitle(paper) {
+  if (!paper) return "Paper";
+  const subject = paper.subjectCode ? `${paper.subjectCode} ${paper.subjectName}` : paper.subjectName;
+  return paper.component?.name ? `${paper.component.name}, ${subject}` : subject;
+}
+
+// ---------- formal papers and classwork ----------
+// A component is classwork when the structure says so, with a code fallback
+// for rows created before the schedule mode existed. Classwork is marked but
+// never invigilated, so it has no date, room or invigilator.
+export const CLASSWORK_CODES = new Set(["QUIZ", "ASSIGNMENT", "PROJECT", "PRACTICAL_RECORD"]);
+
+export function isClassworkComponent(component) {
+  if (!component) return false;
+  if (component.schedule_mode) return component.schedule_mode === "classwork";
+  return CLASSWORK_CODES.has(String(component.code ?? "").toUpperCase());
+}
+
+export function isFormalComponent(component) {
+  return !isClassworkComponent(component);
+}
+
+// Minutes a paper runs for, from the stored duration or the clock range.
+export function componentDuration(component) {
+  if (!component) return null;
+  if (component.duration_minutes != null) return Number(component.duration_minutes);
+  if (component.start_time && component.end_time) {
+    const [sh, sm] = component.start_time.split(":").map(Number);
+    const [eh, em] = component.end_time.split(":").map(Number);
+    const minutes = eh * 60 + em - (sh * 60 + sm);
+    return minutes > 0 ? minutes : null;
+  }
+  return null;
+}
+
+export function addMinutesToClock(start, minutes) {
+  if (!start || !Number.isFinite(Number(minutes))) return "";
+  const [hours, mins] = start.split(":").map(Number);
+  const total = (hours * 60 + mins + Number(minutes)) % (24 * 60);
+  const nextHours = String(Math.floor(total / 60)).padStart(2, "0");
+  const nextMins = String(total % 60).padStart(2, "0");
+  return `${nextHours}:${nextMins}`;
 }
 
 export function teacherLabel(teacher) {

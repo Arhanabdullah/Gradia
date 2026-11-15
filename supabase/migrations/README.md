@@ -133,6 +133,8 @@ to the `principal` role; only the intermediate approval stage was removed.
 | `202611150001_central_assessment_structure.sql` | `assessment_templates` + `assessment_template_components` materialised into `assessment_components`; `subjects.assessment_template_id` / `exam_subjects.assessment_template_id`; `exams.result_kind` and `result_sheets.result_kind` so only End-Semester sheets produce a printable grade card |
 | `202611160001_read_policy_fastpaths.sql` | Rewrites the `SELECT` policies on `subjects`, `profiles`, `student_enrollments` and `audit_logs` so the role-wide check is an InitPlan instead of a per-row call (Exam Cell subject scan 910 ms -> 5 ms on 792 rows) |
 | `202611170001_component_papers.sql` | One schedulable paper per assessment component (`is_conducted`, `exam_date`, `start_time`, `end_time`, `duration_minutes`, `room`, `teacher_id`, `instructions`, `allow_overlap`); practical-only labs; `add_exam_subject` / `remove_exam_subject`; `update_assessment_component_schedule`; Exam Cell access to examination scheduling |
+| `202611180001_paper_schedule_mode.sql` | `schedule_mode` (`formal` / `classwork`) on `assessment_template_components` and `assessment_components`; classwork trigger clears scheduling fields; `update_assessment_component_schedule` accepts `duration_minutes`, rejects schedules on classwork and derives `end_time` |
+| `202611180002_retire_legacy_exam_groups.sql` | Destructive, guarded cleanup of the five empty legacy internal groups (`IA 1`, `IA 2`, `Quiz`, `Assignment`, `Project`) plus cancelled groups, after writing a full backup to `audit_logs` |
 
 `202611160001` only reorders how the existing predicates are evaluated: the scoped
 helpers (`can_view_subject`, `can_view_profile`, `is_class_hod`, `teaches_class`) still
@@ -162,6 +164,36 @@ the central templates; the papers only add scheduling and a conducted switch.
   act group-wide, so every class in a department examination stays in step. Admin and
   Exam Cell can change a subject list; a teacher can only re-schedule papers for subjects
   they teach.
+
+### Formal papers and classwork
+
+`202611180001` splits the papers of a subject into two kinds, configured once in the
+assessment structure and copied to every exam subject by `materialize_assessment_template`:
+
+- **formal** — an invigilated paper with a date, start time, duration, room and invigilator.
+  This covers IA1, IA2, ESA, the practical exam and the viva.
+- **classwork** — a marked activity with no date, room or invigilator: quiz, assignment,
+  project and the practical record. A trigger clears those columns on any classwork row,
+  and `update_assessment_component_schedule` raises `check_violation` if a caller tries to
+  schedule one. The conducted toggle still works, so a skipped activity stays out of the
+  subject total.
+
+`update_assessment_component_schedule` now takes `duration_minutes` for formal papers and
+derives `end_time` from the start time plus the duration. A missing or zero duration on a
+formal paper is rejected. Scheduling still acts group-wide by component code and still
+refuses to switch off a paper that already has marks.
+
+`202611180002` is **destructive** and must run only after `202611180001`. It removes the
+five standalone legacy internal groups and any cancelled groups, but only when the group
+has no result sheet, marks or marks submission. Before deleting, it writes the group, its
+exams, subjects and components into `audit_logs` (`exam_group.legacy_cleanup`). Re-running
+is a no-op. Back up `exam_groups`, `exams`, `exam_subjects` and `assessment_components`
+before applying it to a database that holds real data.
+
+The client degrades gracefully while `202611180001` is unapplied: `ManageExams.jsx`
+retries its `schedule_mode` selects without the column, and `isClassworkComponent()` falls
+back to the classwork component codes. Saving a formal paper still needs the migration,
+because the older RPC ignores `duration_minutes`.
 
 ## Known sequencing deferrals
 
@@ -226,6 +258,12 @@ select count(*) from public.profiles p
 where p.role = 'student' and p.class_id is not null
   and not exists (select 1 from public.student_enrollments e
                   where e.student_id = p.id and e.class_id = p.class_id);
+
+-- classwork papers must not carry scheduling fields (after 202611180001)
+select count(*) from public.assessment_components
+where schedule_mode = 'classwork'
+  and (exam_date is not null or start_time is not null
+       or room is not null or teacher_id is not null);
 ```
 
 Row-count sanity (should match the legacy counts):

@@ -32,12 +32,20 @@ export const COMPONENT_TYPES = [
   { id: "overall", label: "Overall" },
 ];
 
+// How a paper is run. Formal papers are invigilated; classwork is marked in
+// class and never carries a date, room or invigilator.
+export const SCHEDULE_MODES = [
+  { id: "formal", label: "Formal paper" },
+  { id: "classwork", label: "Classwork" },
+];
+
 const labelOf = (rows, id, fallback = "") => rows.find((row) => row.id === id)?.label ?? fallback;
 
 export const subjectTypeLabel = (id) => labelOf(SUBJECT_TYPES, id, id ?? "");
 export const templateModeLabel = (id) => labelOf(TEMPLATE_MODES, id, id ?? "");
 export const aggregationLabel = (id) => labelOf(AGGREGATIONS, id, id ?? "");
 export const componentTypeLabel = (id) => labelOf(COMPONENT_TYPES, id, id ?? "");
+export const scheduleModeLabel = (id) => labelOf(SCHEDULE_MODES, id, id ?? "");
 
 // Compact number text for marks and weights: 20, 12.5, 7.25.
 export function numberText(value, fallback = "") {
