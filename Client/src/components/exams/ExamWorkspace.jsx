@@ -17,6 +17,7 @@ import {
   examTypeLabel,
   formatClock,
   formatExamDate,
+  groupIsPublished,
   isClassworkComponent,
   isPracticalSubject,
   paperTitle,
@@ -932,6 +933,7 @@ export default function ExamWorkspace({
   loading,
   loadError,
   onSchedule,
+  onEditSchedule,
   onChanged,
   onNotify,
 }) {
@@ -1117,7 +1119,16 @@ export default function ExamWorkspace({
           </select>
         </label>
         {canCreate ? (
-          <div className="flex items-end">
+          <div className="flex flex-wrap items-end gap-2">
+            {paper?.group &&
+            !groupIsPublished(paper.group) &&
+            (profile?.role === "admin" ||
+              profile?.role === "exam_cell" ||
+              (profile?.role === "teacher" && paper.group.created_by === profile?.id)) ? (
+              <Button type="button" variant="subtle" onClick={() => onEditSchedule(paper.group)}>
+                Edit schedule
+              </Button>
+            ) : null}
             <Button type="button" className="w-full xl:w-auto" onClick={onSchedule}>
               Schedule exam
             </Button>

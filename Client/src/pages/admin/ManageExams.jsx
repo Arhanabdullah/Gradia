@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { Button, inputClass } from "../../components/ui";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
 import ImportButton from "../../components/import/ImportButton";
-import ExamForm from "../../components/exams/ExamForm";
+import ClassExamScheduler from "../../components/exams/ClassExamScheduler";
 import ExamGroupCard from "../../components/exams/ExamGroupCard";
 import ExamWorkspace from "../../components/exams/ExamWorkspace";
 import { useAuth } from "../../context/AuthContext";
@@ -138,6 +138,7 @@ export default function ManageExams() {
   const [tab, setTab] = useState("all");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [showForm, setShowForm] = useState(false);
+  const [editGroup, setEditGroup] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -151,7 +152,7 @@ export default function ManageExams() {
         supabase.from("departments").select("id, name").order("name"),
         supabase.from("degrees").select("id, name").order("name"),
         supabase.from("courses").select("id, name, department_id, degree_id, code").order("name"),
-        supabase.from("subjects").select("id, name, code, max_marks, department_id, subject_type, assessment_template_id").order("code"),
+        supabase.from("subjects").select("id, name, code, max_marks, credit_hours, department_id, subject_type, assessment_template_id").order("code"),
         supabase.from("class_subjects").select("id, class_id, subject_id"),
         supabase.from("teacher_assignments").select("id, class_id, subject_id, teacher_id"),
         supabase.from("profiles").select("id, name, teacher_id, username").eq("role", "teacher").eq("is_active", true).order("name"),
@@ -431,7 +432,14 @@ export default function ManageExams() {
         canCreate={canCreate}
         loading={loading}
         loadError={loadError}
-        onSchedule={() => setShowForm(true)}
+        onSchedule={() => {
+          setEditGroup(null);
+          setShowForm(true);
+        }}
+        onEditSchedule={(target) => {
+          setShowForm(false);
+          setEditGroup(target);
+        }}
         onChanged={refreshGroups}
         onNotify={setNotice}
       />
@@ -451,7 +459,13 @@ export default function ManageExams() {
           <ImportButton moduleId="exams" onComplete={load} />
           <ImportButton moduleId="exam_subjects" label="Import subject schedules" onComplete={load} />
           {canCreate ? (
-            <Button type="button" onClick={() => setShowForm((value) => !value)}>
+            <Button
+              type="button"
+              onClick={() => {
+                setEditGroup(null);
+                setShowForm((value) => !value);
+              }}
+            >
               {showForm ? "Hide form" : "Schedule examination"}
             </Button>
           ) : null}
@@ -464,8 +478,12 @@ export default function ManageExams() {
         </p>
       ) : null}
 
-      {showForm ? (
-        <ExamForm
+      {showForm || editGroup ? (
+        <ClassExamScheduler
+          key={editGroup?.id ?? "new"}
+          mode={editGroup ? "edit" : "create"}
+          group={editGroup}
+          groups={groups}
           profile={profile}
           classes={classes}
           departments={departments}
@@ -477,12 +495,18 @@ export default function ManageExams() {
           teachers={teachers}
           templates={templates}
           templateComponents={templateComponents}
-          onCreated={() => {
+          onSaved={() => {
+            const wasEditing = Boolean(editGroup);
             setShowForm(false);
-            setNotice("Examination scheduled.");
+            setEditGroup(null);
+            setNotice(wasEditing ? "Schedule updated." : "Examination scheduled.");
             load();
           }}
-          onCancel={() => setShowForm(false)}
+          onCancel={() => {
+            setShowForm(false);
+            setEditGroup(null);
+          }}
+          onNotify={setNotice}
         />
       ) : null}
 
@@ -726,6 +750,10 @@ export default function ManageExams() {
                 (profile?.role === "teacher" && group.created_by === profile.id)
               }
               canEditSubjects={profile?.role === "admin" || profile?.role === "exam_cell"}
+              onEditSchedule={(target) => {
+                setShowForm(false);
+                setEditGroup(target);
+              }}
               onChanged={refreshGroups}
               onNotify={setNotice}
             />

@@ -135,6 +135,7 @@ to the `principal` role; only the intermediate approval stage was removed.
 | `202611170001_component_papers.sql` | One schedulable paper per assessment component (`is_conducted`, `exam_date`, `start_time`, `end_time`, `duration_minutes`, `room`, `teacher_id`, `instructions`, `allow_overlap`); practical-only labs; `add_exam_subject` / `remove_exam_subject`; `update_assessment_component_schedule`; Exam Cell access to examination scheduling |
 | `202611180001_paper_schedule_mode.sql` | `schedule_mode` (`formal` / `classwork`) on `assessment_template_components` and `assessment_components`; classwork trigger clears scheduling fields; `update_assessment_component_schedule` accepts `duration_minutes`, rejects schedules on classwork and derives `end_time` |
 | `202611180002_retire_legacy_exam_groups.sql` | Destructive, guarded cleanup of the five empty legacy internal groups (`IA 1`, `IA 2`, `Quiz`, `Assignment`, `Project`) plus cancelled groups, after writing a full backup to `audit_logs` |
+| `202611190001_schedule_conflict_guards.sql` | Extends `validate_assessment_component_schedule` with cross-group room and invigilator collision checks; adds the `schedule_conflicts()` read RPC the class scheduler calls before saving |
 
 `202611160001` only reorders how the existing predicates are evaluated: the scoped
 helpers (`can_view_subject`, `can_view_profile`, `is_class_hod`, `teaches_class`) still
@@ -194,6 +195,23 @@ The client degrades gracefully while `202611180001` is unapplied: `ManageExams.j
 retries its `schedule_mode` selects without the column, and `isClassworkComponent()` falls
 back to the classwork component codes. Saving a formal paper still needs the migration,
 because the older RPC ignores `duration_minutes`.
+
+### Schedule conflict guards
+
+`202611190001` keeps every paper inside one class free of clashes and stops two classes
+from sharing a room or an invigilator at the same time:
+
+- `validate_assessment_component_schedule` still rejects a class overlap inside the same
+  examination group, then also rejects a formal paper in a **different** group that
+  overlaps it in the same room or with the same invigilator. Same-group propagation is
+  skipped on purpose: `update_assessment_component_schedule` applies a paper group-wide, so
+  checking siblings would reject the very rows it is about to write.
+- `schedule_conflicts(p_exam_date, p_start_time, p_end_time, p_room, p_teacher_id,
+  p_class_id, p_exam_group_id, p_exclude_component_id)` returns the clashing papers for a
+  proposed slot. It is the authoritative pre-flight check for callers whose RLS view hides
+  other classes. The class scheduler validates locally against the papers it can read so
+  the form gives instant feedback; the trigger remains the final guard on every write.
+- A paper with `allow_overlap` is exempt, matching the existing same-group behaviour.
 
 ## Known sequencing deferrals
 

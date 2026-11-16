@@ -63,6 +63,7 @@ export default function ExamGroupCard({
   classSubjects = [],
   templates = [],
   onChanged,
+  onEditSchedule,
   onNotify,
 }) {
   const [drafts, setDrafts] = useState({});
@@ -320,6 +321,11 @@ export default function ExamGroupCard({
             <Button type="button" variant="subtle" onClick={changeStatus} disabled={statusBusy || status === group.status}>
               {statusBusy ? "Updating…" : "Update status"}
             </Button>
+            {onEditSchedule ? (
+              <Button type="button" variant="subtle" onClick={() => onEditSchedule(group)}>
+                Edit schedule
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>
