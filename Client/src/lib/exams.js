@@ -4,16 +4,50 @@
 // point at it. `exam_groups` is the scheduling container, so every screen treats
 // a group as one examination and reads its per-class rows from `group.exams`.
 
+// Database examination types. These are the values stored in `exam_groups` and
+// `exams`, and the grading engine, RLS helpers and triggers key off them, so the
+// stored taxonomy is kept intact. The interface exposes the seven activity types
+// below and maps them onto these values.
 export const EXAM_TYPES = [
   { id: "class_test", label: "Quiz", teachers: true },
-  { id: "unit_test", label: "Unit test", teachers: true },
-  { id: "internal_assessment", label: "Internal assessment", teachers: true },
-  { id: "mid_term", label: "Mid-term", teachers: false },
-  { id: "semester", label: "End-Semester", teachers: false },
+  { id: "unit_test", label: "IA1", teachers: true },
+  { id: "internal_assessment", label: "Viva", teachers: true },
+  { id: "mid_term", label: "IA2", teachers: false },
+  { id: "semester", label: "ESA", teachers: false },
   { id: "practical", label: "Practical", teachers: true },
-  { id: "assignment", label: "Assignment", teachers: true },
-  { id: "major", label: "Major", teachers: false },
+  { id: "assignment", label: "Project", teachers: true },
+  { id: "major", label: "ESA", teachers: false },
 ];
+
+// The seven activity types shown everywhere in the UI. Project and Quiz are
+// classwork: they are marked in class and never need a room or an invigilator.
+// Each one maps to a stored examination type, so no schema change is required.
+export const ACTIVITY_TYPES = [
+  { id: "ia1", label: "IA1", examType: "unit_test", teachers: true, classwork: false },
+  { id: "ia2", label: "IA2", examType: "mid_term", teachers: false, classwork: false },
+  { id: "esa", label: "ESA", examType: "semester", teachers: false, classwork: false },
+  { id: "project", label: "Project", examType: "assignment", teachers: true, classwork: true },
+  { id: "practical", label: "Practical", examType: "practical", teachers: true, classwork: false },
+  { id: "viva", label: "Viva", examType: "internal_assessment", teachers: true, classwork: false },
+  { id: "quiz", label: "Quiz", examType: "class_test", teachers: true, classwork: true },
+];
+
+export const ACTIVITY_TYPE_LABEL = Object.fromEntries(
+  ACTIVITY_TYPES.map((type) => [type.id, type.label]),
+);
+
+const EXAM_TYPE_TO_ACTIVITY = {
+  class_test: "quiz",
+  unit_test: "ia1",
+  internal_assessment: "viva",
+  mid_term: "ia2",
+  semester: "esa",
+  final: "esa",
+  major: "esa",
+  practical: "practical",
+  assignment: "project",
+  standard: "ia1",
+};
 
 // Legacy rows created before exam types existed carry `standard`.
 export const LEGACY_EXAM_TYPE = "standard";
@@ -23,7 +57,45 @@ export const REGULAR_EXAM_TYPES = EXAM_TYPES.filter((type) => type.teachers).map
 export const EXAM_TYPE_LABEL = {
   ...Object.fromEntries(EXAM_TYPES.map((type) => [type.id, type.label])),
   [LEGACY_EXAM_TYPE]: "Examination",
+  final: "ESA",
 };
+
+// Maps a stored examination type (or an activity id) to one of the seven
+// activity types. Unknown legacy values fall back to IA1.
+export function activityForExamType(type) {
+  if (!type) return "";
+  if (ACTIVITY_TYPE_LABEL[type]) return type;
+  return EXAM_TYPE_TO_ACTIVITY[type] ?? "ia1";
+}
+
+// Maps an activity id back to the stored examination type used by the RPCs.
+export function examTypeForActivity(activity) {
+  return ACTIVITY_TYPES.find((type) => type.id === activity)?.examType ?? "unit_test";
+}
+
+export function activityLabel(activity) {
+  return ACTIVITY_TYPE_LABEL[activity] ?? ACTIVITY_TYPE_LABEL[activityForExamType(activity)] ?? "Examination";
+}
+
+export function activityIsClasswork(activity) {
+  return ACTIVITY_TYPES.find((type) => type.id === activity)?.classwork ?? false;
+}
+
+// A paper's activity type: the component code wins, then the examination type.
+export function activityForComponent(component, examType) {
+  const code = String(component?.code ?? "").toUpperCase();
+  if (code) {
+    if (code.startsWith("IA1") || code === "IA-1") return "ia1";
+    if (code.startsWith("IA2") || code === "IA-2") return "ia2";
+    if (code.startsWith("ESA")) return "esa";
+    if (code.startsWith("PROJECT")) return "project";
+    if (code.startsWith("QUIZ")) return "quiz";
+    if (code.startsWith("VIVA")) return "viva";
+    if (code.startsWith("PRACTICAL")) return "practical";
+    if (code.startsWith("ASSIGNMENT")) return "project";
+  }
+  return activityForExamType(examType);
+}
 
 export const EXAM_STATUSES = [
   { id: "draft", label: "Draft" },
@@ -55,8 +127,8 @@ export const MARK_STATUSES = [
 ];
 
 export function examTypesForRole(role) {
-  if (role === "teacher") return EXAM_TYPES.filter((type) => type.teachers);
-  if (role === "admin" || role === "exam_cell") return EXAM_TYPES;
+  if (role === "teacher") return ACTIVITY_TYPES.filter((type) => type.teachers);
+  if (role === "admin" || role === "exam_cell") return ACTIVITY_TYPES;
   return [];
 }
 
@@ -65,7 +137,11 @@ export function isRegularExamType(type) {
 }
 
 export function examTypeLabel(type) {
-  return EXAM_TYPE_LABEL[type] ?? type ?? "Examination";
+  if (!type) return "Examination";
+  if (ACTIVITY_TYPE_LABEL[type]) return ACTIVITY_TYPE_LABEL[type];
+  const activity = EXAM_TYPE_TO_ACTIVITY[type];
+  if (activity) return ACTIVITY_TYPE_LABEL[activity];
+  return EXAM_TYPE_LABEL[type] ?? type;
 }
 
 // ---------- official result classification ----------
@@ -343,4 +419,128 @@ export function teacherLabel(teacher) {
   if (!teacher) return "";
   const identifier = teacher.teacher_id || teacher.username;
   return identifier ? `${teacher.name} (${identifier})` : teacher.name;
+}
+
+// ---------- paper flattening ----------
+// One schedulable paper per row: a semester subject contributes one row per
+// assessment component, everything else contributes its single subject paper.
+export function flattenPapers(groups) {
+  const list = [];
+  (groups ?? []).forEach((group) => {
+    (group.exams ?? []).forEach((exam) => {
+      (exam.exam_subjects ?? []).forEach((examSubject) => {
+        const components = examSubject.assessment_components ?? [];
+        if (resolvedResultKind(exam) === "semester" && components.length > 0) {
+          components.forEach((component) => {
+            list.push(makePaper(group, exam, examSubject, component));
+          });
+          return;
+        }
+        list.push(makePaper(group, exam, examSubject, null));
+      });
+    });
+  });
+  return list;
+}
+
+export function makePaper(group, exam, examSubject, component) {
+  const subject = examSubject.subjects ?? {};
+  const klass = exam.classes ?? {};
+  return {
+    key: component?.id ?? examSubject.id,
+    group,
+    exam,
+    examId: exam.id,
+    examSubject,
+    component,
+    subject,
+    subjectId: examSubject.subject_id,
+    subjectName: subject.name ?? "Subject",
+    subjectCode: subject.code ?? "",
+    subjectType: subject.subject_type ?? "theory",
+    classId: exam.class_id,
+    className: klass.name ?? "Class",
+    courseId: klass.course_id ?? group.course_id ?? "",
+    courseName: klass.courses?.name ?? group.courses?.name ?? "",
+    departmentId: klass.courses?.department_id ?? group.department_id ?? "",
+    degreeId: klass.degree_id ?? "",
+    semester: klass.semester ?? null,
+    academicYear: klass.academic_year ?? exam.academic_year ?? group.academic_year ?? "",
+    // The filter compares this stable key; `batch` stays the display label.
+    batchKey: batchKey(klass),
+    batch: derivedBatch(klass),
+    examType: group.exam_type,
+    examName: group.name,
+    activity: activityForComponent(component, group.exam_type),
+    componentType: component?.component_type ?? group.exam_type,
+    classwork: isClassworkComponent(component),
+    conducted: component ? component.is_conducted !== false : true,
+    date: component?.exam_date ?? examSubject.exam_date ?? "",
+    start: component?.start_time ?? examSubject.start_time ?? "",
+    end: component?.end_time ?? examSubject.end_time ?? "",
+    duration: component?.duration_minutes ?? examSubject.duration_minutes ?? null,
+    room: component?.room ?? examSubject.room ?? "",
+    // Only a component paper has its own invigilator. A single-paper exam
+    // keeps the subject's assigned teacher, which is the legacy equivalent.
+    teacherId: component ? component.teacher_id ?? "" : examSubject.teacher_id ?? "",
+    maxMarks: component?.max_marks ?? examSubject.max_marks ?? null,
+    weight: component?.weight_percent ?? null,
+    status: group.status,
+    resultKind: resolvedResultKind(exam),
+    submission: (exam.exam_submissions ?? []).find(
+      (row) => row.subject_id === examSubject.subject_id,
+    ) ?? null,
+    sheets: exam.result_sheets ?? [],
+  };
+}
+
+// ---------- records filters ----------
+// One predicate keeps the calendar, the records table and the status counts in
+// step. `filters.type` holds an activity id (IA1, ESA, Quiz, ...) and each paper
+// resolves its own activity from its component code or examination type.
+export function paperMatchesFilters(paper, filters) {
+  if (!paper) return false;
+  if (!filters) return true;
+  if (filters.degree && paper.degreeId !== filters.degree) return false;
+  if (filters.department && paper.departmentId !== filters.department) return false;
+  if (filters.course && paper.courseId !== filters.course) return false;
+  if (filters.year && paper.academicYear !== filters.year) return false;
+  if (filters.batch && paper.batchKey !== filters.batch) return false;
+  if (filters.classId && paper.classId !== filters.classId) return false;
+  if (filters.semester && String(paper.semester ?? "") !== filters.semester) return false;
+  if (filters.subjectId && paper.subjectId !== filters.subjectId) return false;
+  if (filters.teacherId && paper.teacherId !== filters.teacherId) return false;
+  if (filters.type && paper.activity !== filters.type) return false;
+  if (filters.status && paper.status !== filters.status) return false;
+  if (filters.date && paper.date !== filters.date) return false;
+
+  const needle = (filters.query ?? "").trim().toLowerCase();
+  if (needle) {
+    const haystack = [
+      paper.examName,
+      paper.subjectName,
+      paper.subjectCode,
+      paper.component?.name,
+      paper.className,
+      paper.courseName,
+      paper.academicYear,
+      paper.batch,
+    ]
+      .join(" ")
+      .toLowerCase();
+    if (!haystack.includes(needle)) return false;
+  }
+
+  return true;
+}
+
+// Status tabs read the same group-level workflow helpers as the rest of the app,
+// so a paper is only ever as far along as the sheet it belongs to.
+export function paperMatchesTab(paper, tab) {
+  if (!tab || tab === "all") return true;
+  const group = paper?.group;
+  if (tab === "pending_marks") return groupHasPendingMarks(group);
+  if (tab === "pending_publication") return groupHasPendingPublication(group);
+  if (tab === "published") return groupIsPublished(group);
+  return groupTimeBucket(group) === tab;
 }

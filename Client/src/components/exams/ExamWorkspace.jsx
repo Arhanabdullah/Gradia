@@ -15,14 +15,14 @@ import {
   comparePapers,
   dateKey,
   examTypeLabel,
+  flattenPapers,
   formatClock,
   formatExamDate,
-  groupIsPublished,
   isClassworkComponent,
   isPracticalSubject,
+  paperMatchesFilters,
   paperTitle,
   parseDate,
-  resolvedResultKind,
   resultKindLabel,
   submissionStatusLabel,
   teacherLabel,
@@ -920,20 +920,10 @@ export default function ExamWorkspace({
   profile,
   groups,
   filters,
-  onFilter,
-  onResetAfter,
-  yearOptions,
-  semesterOptions,
-  filterClasses,
-  subjects,
-  classSubjects,
   teachers,
   teacherAssignments,
-  canCreate,
   loading,
   loadError,
-  onSchedule,
-  onEditSchedule,
   onChanged,
   onNotify,
 }) {
@@ -951,7 +941,7 @@ export default function ExamWorkspace({
   const [marksState, setMarksState] = useState({ loading: false, error: "", rows: [] });
 
   const papers = useMemo(
-    () => flattenPapers(groups).filter((row) => matchesPaperFilters(row, filters)),
+    () => flattenPapers(groups).filter((row) => paperMatchesFilters(row, filters)),
     [groups, filters],
   );
 
@@ -1051,91 +1041,8 @@ export default function ExamWorkspace({
     };
   }, [tab, paper, marksNonce]);
 
-  const subjectOptions = useMemo(() => {
-    if (!filters.classId) return subjects;
-    const offered = new Set(
-      classSubjects
-        .filter((row) => row.class_id === filters.classId)
-        .map((row) => row.subject_id),
-    );
-    return subjects.filter((subject) => offered.has(subject.id));
-  }, [subjects, classSubjects, filters.classId]);
-
   return (
     <section className="mt-5" aria-label="Examination workspace">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
-        <label className="block">
-          <span className="text-xs font-medium text-(--muted)">Academic year</span>
-          <select
-            className={`${inputClass} mt-1.5`}
-            value={filters.year}
-            onChange={(event) => onResetAfter("year", event.target.value)}
-          >
-            <option value="">Any year</option>
-            {yearOptions.map((year) => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
-        </label>
-        <label className="block">
-          <span className="text-xs font-medium text-(--muted)">Semester</span>
-          <select
-            className={`${inputClass} mt-1.5`}
-            value={filters.semester}
-            onChange={(event) => onFilter({ semester: event.target.value, classId: "", subjectId: "" })}
-          >
-            <option value="">Any semester</option>
-            {semesterOptions.map((semester) => (
-              <option key={semester} value={semester}>Semester {semester}</option>
-            ))}
-          </select>
-        </label>
-        <label className="block">
-          <span className="text-xs font-medium text-(--muted)">Class</span>
-          <select
-            className={`${inputClass} mt-1.5`}
-            value={filters.classId}
-            onChange={(event) => onFilter({ classId: event.target.value, subjectId: "" })}
-          >
-            <option value="">Any class</option>
-            {filterClasses.map((klass) => (
-              <option key={klass.id} value={klass.id}>{klass.name}</option>
-            ))}
-          </select>
-        </label>
-        <label className="block">
-          <span className="text-xs font-medium text-(--muted)">Subject</span>
-          <select
-            className={`${inputClass} mt-1.5`}
-            value={filters.subjectId}
-            onChange={(event) => onFilter({ subjectId: event.target.value })}
-          >
-            <option value="">Any subject</option>
-            {subjectOptions.map((subject) => (
-              <option key={subject.id} value={subject.id}>
-                {subject.code ? `${subject.code} ${subject.name}` : subject.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        {canCreate ? (
-          <div className="flex flex-wrap items-end gap-2">
-            {paper?.group &&
-            !groupIsPublished(paper.group) &&
-            (profile?.role === "admin" ||
-              profile?.role === "exam_cell" ||
-              (profile?.role === "teacher" && paper.group.created_by === profile?.id)) ? (
-              <Button type="button" variant="subtle" onClick={() => onEditSchedule(paper.group)}>
-                Edit schedule
-              </Button>
-            ) : null}
-            <Button type="button" className="w-full xl:w-auto" onClick={onSchedule}>
-              Schedule exam
-            </Button>
-          </div>
-        ) : null}
-      </div>
-
       {loadError ? (
         <div className="mt-3 rounded-lg border border-dashed border-(--danger)/40 px-4 py-3">
           <p className="text-xs text-(--danger)">{loadError}</p>
@@ -1255,93 +1162,3 @@ export default function ExamWorkspace({
   );
 }
 
-// ---------- data shaping ----------
-// The page filters groups, but a group keeps every subject it contains. The
-// workspace shows one paper at a time, so it filters the flattened papers by
-// the same controls to avoid showing a subject the user filtered out.
-function matchesPaperFilters(paper, filters) {
-  if (!filters) return true;
-  if (filters.year && paper.academicYear !== filters.year) return false;
-  if (filters.semester && String(paper.semester ?? "") !== filters.semester) return false;
-  if (filters.classId && paper.classId !== filters.classId) return false;
-  if (filters.subjectId && paper.subjectId !== filters.subjectId) return false;
-  if (filters.teacherId && paper.examSubject?.teacher_id !== filters.teacherId) return false;
-  if (filters.date && paper.date !== filters.date) return false;
-  if (filters.type && paper.examType !== filters.type) return false;
-  if (filters.status && paper.status !== filters.status) return false;
-  if (filters.query) {
-    const haystack = [
-      paper.subjectName,
-      paper.subjectCode,
-      paper.className,
-      paper.examName,
-      paper.component?.name,
-    ]
-      .join(" ")
-      .toLowerCase();
-    if (!haystack.includes(filters.query.trim().toLowerCase())) return false;
-  }
-  return true;
-}
-
-function flattenPapers(groups) {
-  const list = [];
-  groups.forEach((group) => {
-    (group.exams ?? []).forEach((exam) => {
-      (exam.exam_subjects ?? []).forEach((examSubject) => {
-        const components = examSubject.assessment_components ?? [];
-        if (resolvedResultKind(exam) === "semester" && components.length > 0) {
-          components.forEach((component) => {
-            list.push(makePaper(group, exam, examSubject, component));
-          });
-          return;
-        }
-        list.push(makePaper(group, exam, examSubject, null));
-      });
-    });
-  });
-  return list;
-}
-
-function makePaper(group, exam, examSubject, component) {
-  const subject = examSubject.subjects ?? {};
-  const klass = exam.classes ?? {};
-  return {
-    key: component?.id ?? examSubject.id,
-    group,
-    exam,
-    examId: exam.id,
-    examSubject,
-    component,
-    subject,
-    subjectId: examSubject.subject_id,
-    subjectName: subject.name ?? "Subject",
-    subjectCode: subject.code ?? "",
-    subjectType: subject.subject_type ?? "theory",
-    classId: exam.class_id,
-    className: klass.name ?? "Class",
-    semester: klass.semester ?? null,
-    academicYear: klass.academic_year ?? exam.academic_year ?? group.academic_year ?? "",
-    examType: group.exam_type,
-    examName: group.name,
-    componentType: component?.component_type ?? group.exam_type,
-    classwork: isClassworkComponent(component),
-    conducted: component ? component.is_conducted !== false : true,
-    date: component?.exam_date ?? examSubject.exam_date ?? "",
-    start: component?.start_time ?? examSubject.start_time ?? "",
-    end: component?.end_time ?? examSubject.end_time ?? "",
-    duration: component?.duration_minutes ?? examSubject.duration_minutes ?? null,
-    room: component?.room ?? examSubject.room ?? "",
-    // Only a component paper has its own invigilator. A single-paper exam
-    // keeps the subject's assigned teacher, which is the legacy equivalent.
-    teacherId: component ? component.teacher_id ?? "" : examSubject.teacher_id ?? "",
-    maxMarks: component?.max_marks ?? examSubject.max_marks ?? null,
-    weight: component?.weight_percent ?? null,
-    status: group.status,
-    resultKind: resolvedResultKind(exam),
-    submission: (exam.exam_submissions ?? []).find(
-      (row) => row.subject_id === examSubject.subject_id,
-    ) ?? null,
-    sheets: exam.result_sheets ?? [],
-  };
-}

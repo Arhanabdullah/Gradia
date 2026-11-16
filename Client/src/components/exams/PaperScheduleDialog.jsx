@@ -12,19 +12,30 @@ import {
 const checkboxClass =
   "size-4 rounded border-(--border) accent-(--primary) focus-visible:outline-2 focus-visible:outline-(--primary) focus-visible:outline-offset-2";
 
-// Schedules one paper of one subject. Formal papers collect date, start time,
-// duration, room and invigilator. Classwork only collects the conducted flag,
-// because it has no date, room or invigilator by design.
+// Schedules one paper. A component paper (IA1, ESA, ...) saves through the
+// component RPC; a single-paper subject saves through the subject RPC. Formal
+// papers collect date, start time, duration, room and invigilator. Classwork
+// only collects the conducted flag, because it has no date, room or invigilator
+// by design.
 export default function PaperScheduleDialog({ paper, teachers = [], onClose, onSaved, onNotify }) {
-  const component = paper?.component;
+  const component = paper?.component ?? null;
+  const examSubject = paper?.examSubject ?? null;
   const classwork = isClassworkComponent(component);
+  const paperName = component?.name ?? "Subject paper";
+  const source = component ?? examSubject;
+  // A component falls back to the subject paper's date and clock so the dialog
+  // opens with the same schedule the records table shows. Room and invigilator
+  // are not inherited: an empty component field must stay empty rather than
+  // silently assigning the subject teacher as the invigilator on save.
+  const sourceDate = component?.exam_date || examSubject?.exam_date || "";
+  const sourceStart = component?.start_time || examSubject?.start_time || "";
   const [form, setForm] = useState({
-    exam_date: component?.exam_date ?? "",
-    start_time: component?.start_time ? component.start_time.slice(0, 5) : "",
-    duration_minutes: component?.duration_minutes ?? "",
-    room: component?.room ?? "",
-    teacher_id: component?.teacher_id ?? "",
-    is_conducted: component?.is_conducted !== false,
+    exam_date: sourceDate,
+    start_time: sourceStart ? sourceStart.slice(0, 5) : "",
+    duration_minutes: component?.duration_minutes ?? examSubject?.duration_minutes ?? "",
+    room: component ? component.room ?? "" : examSubject?.room ?? "",
+    teacher_id: component ? component.teacher_id ?? "" : examSubject?.teacher_id ?? "",
+    is_conducted: component ? component.is_conducted !== false : true,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -42,11 +53,11 @@ export default function PaperScheduleDialog({ paper, teachers = [], onClose, onS
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onClose, saving]);
 
-  if (!paper || !component) return null;
+  if (!paper || !source) return null;
 
   const set = (patch) => setForm((current) => ({ ...current, ...patch }));
   const endPreview = form.start_time
-    ? addMinutesToClock(form.start_time, form.duration_minutes || componentDuration(component) || 0)
+    ? addMinutesToClock(form.start_time, form.duration_minutes || componentDuration(source) || 0)
     : "";
 
   const save = async () => {
@@ -59,27 +70,43 @@ export default function PaperScheduleDialog({ paper, teachers = [], onClose, onS
       return;
     }
 
-    const patch = classwork
-      ? { is_conducted: form.is_conducted }
-      : {
-          is_conducted: form.is_conducted,
-          exam_date: form.exam_date,
-          start_time: form.start_time,
-          duration_minutes: form.duration_minutes,
-          room: form.room,
-          teacher_id: form.teacher_id,
-        };
-
     try {
-      await callRpc("update_assessment_component_schedule", {
-        p_component_id: component.id,
-        p_patch: patch,
-      });
+      if (component) {
+        const patch = classwork
+          ? { is_conducted: form.is_conducted }
+          : {
+              is_conducted: form.is_conducted,
+              exam_date: form.exam_date,
+              start_time: form.start_time,
+              duration_minutes: form.duration_minutes,
+              room: form.room,
+              teacher_id: form.teacher_id,
+            };
+        await callRpc("update_assessment_component_schedule", {
+          p_component_id: component.id,
+          p_patch: patch,
+        });
+      } else {
+        // A single-paper subject stores one clock range; the database derives
+        // its duration from the start and end time.
+        await callRpc("update_exam_subject_schedule", {
+          p_exam_subject_id: examSubject.id,
+          p_exam_date: form.exam_date || null,
+          p_start_time: form.start_time || null,
+          p_end_time: addMinutesToClock(form.start_time, form.duration_minutes) || null,
+          p_max_marks: examSubject.max_marks ?? null,
+          p_pass_marks: examSubject.pass_marks ?? null,
+          p_teacher_id: form.teacher_id || null,
+          p_instructions: examSubject.instructions ?? null,
+          p_room: form.room || null,
+          p_allow_overlap: Boolean(examSubject.allow_overlap),
+        });
+      }
       onSaved?.();
       onNotify?.(
         classwork
-          ? `${component.name} updated for ${paper.subjectName}.`
-          : `${component.name} saved for ${paper.subjectName}.`,
+          ? `${paperName} updated for ${paper.subjectName}.`
+          : `${paperName} saved for ${paper.subjectName}.`,
       );
       onClose();
     } catch (err) {
@@ -110,7 +137,7 @@ export default function PaperScheduleDialog({ paper, teachers = [], onClose, onS
               {paper.semester ? `, semester ${paper.semester}` : ""}
             </p>
             <h3 id="paper-dialog-title" className="mt-1 text-lg font-semibold tracking-tight text-(--foreground)">
-              {classwork ? "Update" : "Schedule"} {component.name}
+              {classwork ? "Update" : "Schedule"} {paperName}
             </h3>
             <p className="mt-1 text-xs text-(--muted-foreground)">
               {paper.subjectCode ? `${paper.subjectCode} ` : ""}
@@ -122,20 +149,24 @@ export default function PaperScheduleDialog({ paper, teachers = [], onClose, onS
           </Button>
         </div>
 
-        <label className="mt-4 flex items-center gap-2 text-sm text-(--foreground)">
-          <input
-            type="checkbox"
-            className={checkboxClass}
-            checked={form.is_conducted}
-            onChange={(event) => set({ is_conducted: event.target.checked })}
-          />
-          Conducted
-        </label>
-        <p className="mt-1 text-xs text-(--muted-foreground)">
-          {form.is_conducted
-            ? "This paper counts towards the subject total."
-            : "Skipped papers are left out of the subject total and the compiled result."}
-        </p>
+        {component ? (
+          <>
+            <label className="mt-4 flex items-center gap-2 text-sm text-(--foreground)">
+              <input
+                type="checkbox"
+                className={checkboxClass}
+                checked={form.is_conducted}
+                onChange={(event) => set({ is_conducted: event.target.checked })}
+              />
+              Conducted
+            </label>
+            <p className="mt-1 text-xs text-(--muted-foreground)">
+              {form.is_conducted
+                ? "This paper counts towards the subject total."
+                : "Skipped papers are left out of the subject total and the compiled result."}
+            </p>
+          </>
+        ) : null}
 
         {classwork ? (
           <p className="mt-4 rounded-lg border border-dashed border-(--border) px-3.5 py-3 text-xs text-(--muted-foreground)">

@@ -4,9 +4,12 @@ import { callRpc } from "../../lib/db";
 import { supabase } from "../../lib/supabase";
 import {
   SEMESTER_EXAM_TYPES,
+  activityForExamType,
+  activityIsClasswork,
   addMinutesToClock,
   componentDuration,
   derivedBatch,
+  examTypeForActivity,
   examTypesForRole,
   isClassworkComponent,
   isFormalComponent,
@@ -211,10 +214,12 @@ export default function ClassExamScheduler({
     name: group?.name ?? "",
     exam_type: group?.exam_type ?? (isTeacher ? "class_test" : "semester"),
     status: group?.status ?? "draft",
+    scope: group?.scope ?? "class",
     degree_id: groupClass ? degreeOfClass(groupClass, courseById) : "",
     department_id: group?.department_id ?? (groupClass ? departmentOfClass(groupClass, courseById) : ""),
     course_id: group?.course_id ?? groupClass?.course_id ?? "",
     academic_year: group?.academic_year ?? groupClass?.academic_year ?? "",
+    semester: groupClass?.semester != null ? String(groupClass.semester) : "",
     class_id: groupClass?.id ?? "",
     starts_on: group?.starts_on ?? "",
     ends_on: group?.ends_on ?? "",
@@ -245,6 +250,9 @@ export default function ClassExamScheduler({
   const [notice, setNotice] = useState("");
 
   const componentMode = SEMESTER_EXAM_TYPES.includes(form.exam_type);
+  const activity = activityForExamType(form.exam_type);
+  const classworkActivity = !componentMode && activityIsClasswork(activity);
+  const scope = form.scope;
 
   const myClassIds = useMemo(() => {
     if (!isTeacher) return null;
@@ -300,6 +308,20 @@ export default function ClassExamScheduler({
     return [...new Set(years)].sort();
   }, [scopedClasses, form.degree_id, form.department_id, form.course_id, courseById]);
 
+  const semesterOptions = useMemo(() => {
+    const semesters = scopedClasses
+      .filter(
+        (klass) =>
+          (!form.degree_id || degreeOfClass(klass, courseById) === form.degree_id) &&
+          (!form.department_id || departmentOfClass(klass, courseById) === form.department_id) &&
+          (!form.course_id || klass.course_id === form.course_id) &&
+          (!form.academic_year || klass.academic_year === form.academic_year),
+      )
+      .map((klass) => klass.semester)
+      .filter((value) => value != null);
+    return [...new Set(semesters)].map(String).sort((a, b) => Number(a) - Number(b));
+  }, [scopedClasses, form.degree_id, form.department_id, form.course_id, form.academic_year, courseById]);
+
   const classOptions = useMemo(
     () =>
       scopedClasses.filter(
@@ -307,14 +329,24 @@ export default function ClassExamScheduler({
           (!form.degree_id || degreeOfClass(klass, courseById) === form.degree_id) &&
           (!form.department_id || departmentOfClass(klass, courseById) === form.department_id) &&
           (!form.course_id || klass.course_id === form.course_id) &&
-          (!form.academic_year || klass.academic_year === form.academic_year),
+          (!form.academic_year || klass.academic_year === form.academic_year) &&
+          (!form.semester || String(klass.semester ?? "") === form.semester),
       ),
-    [scopedClasses, form.degree_id, form.department_id, form.course_id, form.academic_year, courseById],
+    [scopedClasses, form.degree_id, form.department_id, form.course_id, form.academic_year, form.semester, courseById],
   );
 
   const selectedClass = classOptions.find((klass) => klass.id === form.class_id)
     ?? scopedClasses.find((klass) => klass.id === form.class_id)
     ?? null;
+
+  // Department scope schedules one paper across every class that matches the
+  // chosen academic structure. Class scope keeps a single class.
+  const targetClasses = useMemo(
+    () => (scope === "department" ? classOptions : selectedClass ? [selectedClass] : []),
+    [scope, classOptions, selectedClass],
+  );
+
+  const targetClassIds = useMemo(() => targetClasses.map((klass) => klass.id), [targetClasses]);
 
   const templateForSubject = (subject) => {
     const family = subjectFamily(subject);
@@ -352,12 +384,19 @@ export default function ClassExamScheduler({
   };
 
   const eligibleSubjects = useMemo(() => {
-    if (!form.class_id) return [];
-    const offered = new Set(
-      classSubjects.filter((row) => row.class_id === form.class_id).map((row) => row.subject_id),
+    if (targetClassIds.length === 0) return [];
+    // A department examination only takes subjects that every target class
+    // offers, because the database writes one subject row per class.
+    const offeredSets = targetClassIds.map(
+      (classId) =>
+        new Set(
+          classSubjects
+            .filter((row) => row.class_id === classId)
+            .map((row) => row.subject_id),
+        ),
     );
     return subjects
-      .filter((subject) => offered.has(subject.id))
+      .filter((subject) => offeredSets.every((set) => set.has(subject.id)))
       .filter((subject) => subjectAllowedInExam(subject, form.exam_type))
       .filter((subject) => {
         if (!isTeacher) return true;
@@ -369,7 +408,7 @@ export default function ClassExamScheduler({
         );
       })
       .sort((a, b) => String(a.code ?? "").localeCompare(String(b.code ?? "")));
-  }, [form.class_id, form.exam_type, classSubjects, subjects, isTeacher, teacherAssignments, profile]);
+  }, [targetClassIds, form.class_id, form.exam_type, classSubjects, subjects, isTeacher, teacherAssignments, profile]);
 
   const filteredSubjects = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -453,7 +492,13 @@ export default function ClassExamScheduler({
   const problems = useMemo(() => {
     const list = [];
     if (!form.name.trim()) list.push("Give the examination a name.");
-    if (!form.class_id) list.push("Choose a class.");
+    if (scope === "department") {
+      if (!form.department_id) list.push("Choose a department.");
+      if (!form.course_id) list.push("Choose a course for the department examination.");
+      if (targetClassIds.length === 0) list.push("No class matches the chosen department, course and year.");
+    } else if (!form.class_id) {
+      list.push("Choose a class.");
+    }
     if (entries.length === 0) list.push("Add at least one subject to the scheduling panel.");
     if (form.starts_on && form.ends_on && form.ends_on < form.starts_on) {
       list.push("The end date cannot be before the start date.");
@@ -487,7 +532,7 @@ export default function ClassExamScheduler({
     });
 
     return [...new Set(list)];
-  }, [form, entries, componentMode, conflicts]);
+  }, [form, entries, componentMode, conflicts, targetClassIds, scope]);
 
   const updateForm = (patch) => setForm((current) => ({ ...current, ...patch }));
 
@@ -497,20 +542,28 @@ export default function ClassExamScheduler({
     setRemovedSubjectIds([]);
   };
 
+  const changeScope = (value) => {
+    updateForm({ scope: value, class_id: "", semester: "" });
+    resetEntries();
+  };
   const changeDegree = (value) => {
-    updateForm({ degree_id: value, department_id: "", course_id: "", academic_year: "", class_id: "" });
+    updateForm({ degree_id: value, department_id: "", course_id: "", academic_year: "", semester: "", class_id: "" });
     resetEntries();
   };
   const changeDepartment = (value) => {
-    updateForm({ department_id: value, course_id: "", academic_year: "", class_id: "" });
+    updateForm({ department_id: value, course_id: "", academic_year: "", semester: "", class_id: "" });
     resetEntries();
   };
   const changeCourse = (value) => {
-    updateForm({ course_id: value, academic_year: "", class_id: "" });
+    updateForm({ course_id: value, academic_year: "", semester: "", class_id: "" });
     resetEntries();
   };
   const changeYear = (value) => {
-    updateForm({ academic_year: value, class_id: "" });
+    updateForm({ academic_year: value, semester: "", class_id: "" });
+    resetEntries();
+  };
+  const changeSemester = (value) => {
+    updateForm({ semester: value, class_id: "" });
     resetEntries();
   };
   const changeClass = (value) => {
@@ -518,7 +571,7 @@ export default function ClassExamScheduler({
     resetEntries();
   };
   const changeExamType = (value) => {
-    updateForm({ exam_type: value });
+    updateForm({ exam_type: examTypeForActivity(value) });
     resetEntries();
   };
 
@@ -617,9 +670,9 @@ export default function ClassExamScheduler({
           exam_date: bulk.exam_date ? addDays(bulk.exam_date, flat * (Number(bulk.stagger_days) || 0)) : paper.exam_date,
           start_time: bulk.start_time || paper.start_time,
           duration_minutes: bulk.duration_minutes || paper.duration_minutes,
-          room: rooms.length > 0 ? rooms[flat % rooms.length] : paper.room,
+          room: !classworkActivity && rooms.length > 0 ? rooms[flat % rooms.length] : paper.room,
           teacher_id:
-            bulk.teacher_ids.length > 0
+            !classworkActivity && bulk.teacher_ids.length > 0
               ? bulk.teacher_ids[flat % bulk.teacher_ids.length]
               : paper.teacher_id,
         };
@@ -709,8 +762,8 @@ export default function ClassExamScheduler({
         end_time: addMinutesToClock(paper.start_time, paper.duration_minutes) || null,
         max_marks: Number(entry.max_marks) || 100,
         pass_marks: entry.pass_marks === "" ? null : Number(entry.pass_marks),
-        teacher_id: teacherId,
-        room: paper.room?.trim() || null,
+        teacher_id: classworkActivity ? null : teacherId,
+        room: classworkActivity ? null : paper.room?.trim() || null,
         instructions: "",
         allow_overlap: Boolean(paper.allow_overlap),
         is_optional: false,
@@ -731,12 +784,12 @@ export default function ClassExamScheduler({
     const groupId = await callRpc("create_exam_group", {
       p_name: form.name.trim(),
       p_exam_type: form.exam_type,
-      p_scope: "class",
+      p_scope: scope,
       p_department_id: form.department_id || null,
       p_course_id: form.course_id || null,
       p_academic_year: form.academic_year || selectedClass?.academic_year || null,
       p_academic_term_id: null,
-      p_class_ids: [form.class_id],
+      p_class_ids: scope === "department" ? targetClassIds : [form.class_id],
       p_starts_on: startsOn,
       p_ends_on: endsOn,
       p_instructions: form.instructions || "",
@@ -871,14 +924,26 @@ export default function ClassExamScheduler({
       <form onSubmit={submit} className="mt-5 space-y-6">
         <section>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-medium text-(--foreground)">1. Choose the class</p>
+            <p className="text-sm font-medium text-(--foreground)">1. Choose the scope</p>
             {editing ? (
               <span className="rounded-full border border-(--border) px-2.5 py-1 text-[11px] text-(--muted-foreground)">
-                Class is fixed for this examination
+                {scope === "department"
+                  ? `Department examination, ${group?.exams?.length ?? 0} classes`
+                  : "Class is fixed for this examination"}
               </span>
             ) : null}
           </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <Field label="Schedule for">
+              <Select
+                value={form.scope}
+                onChange={(event) => changeScope(event.target.value)}
+                disabled={editing || isTeacher}
+              >
+                <option value="class">One class</option>
+                <option value="department">A department</option>
+              </Select>
+            </Field>
             <Field label="Degree">
               <Select value={form.degree_id} onChange={(event) => changeDegree(event.target.value)} disabled={editing}>
                 <option value="">Any degree</option>
@@ -889,7 +954,7 @@ export default function ClassExamScheduler({
             </Field>
             <Field label="Department">
               <Select value={form.department_id} onChange={(event) => changeDepartment(event.target.value)} disabled={editing}>
-                <option value="">Any department</option>
+                <option value="">{scope === "department" ? "Choose a department" : "Any department"}</option>
                 {departmentOptions.map((department) => (
                   <option key={department.id} value={department.id}>{department.name}</option>
                 ))}
@@ -897,7 +962,7 @@ export default function ClassExamScheduler({
             </Field>
             <Field label="Course">
               <Select value={form.course_id} onChange={(event) => changeCourse(event.target.value)} disabled={editing}>
-                <option value="">Any course</option>
+                <option value="">{scope === "department" ? "Choose a course" : "Any course"}</option>
                 {courseOptions.map((course) => (
                   <option key={course.id} value={course.id}>{course.name}</option>
                 ))}
@@ -911,16 +976,34 @@ export default function ClassExamScheduler({
                 ))}
               </Select>
             </Field>
-            <Field label="Class">
-              <Select value={form.class_id} onChange={(event) => changeClass(event.target.value)} disabled={editing}>
-                <option value="">Choose a class</option>
-                {classOptions.map((klass) => (
-                  <option key={klass.id} value={klass.id}>
-                    {klass.name}, {derivedBatch(klass)}
-                  </option>
+            <Field label="Semester">
+              <Select value={form.semester} onChange={(event) => changeSemester(event.target.value)} disabled={editing}>
+                <option value="">Any semester</option>
+                {semesterOptions.map((semester) => (
+                  <option key={semester} value={semester}>Semester {semester}</option>
                 ))}
               </Select>
             </Field>
+            {scope === "department" ? (
+              <Field label="Classes">
+                <p className="rounded-lg border border-(--border-subtle) bg-(--surface-secondary)/40 px-3 py-2.5 text-sm text-(--foreground)">
+                  {targetClassIds.length === 0
+                    ? "No class matches yet"
+                    : `${targetClassIds.length} class${targetClassIds.length === 1 ? "" : "es"} included`}
+                </p>
+              </Field>
+            ) : (
+              <Field label="Class">
+                <Select value={form.class_id} onChange={(event) => changeClass(event.target.value)} disabled={editing}>
+                  <option value="">Choose a class</option>
+                  {classOptions.map((klass) => (
+                    <option key={klass.id} value={klass.id}>
+                      {klass.name}, {derivedBatch(klass)}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            )}
           </div>
         </section>
 
@@ -936,8 +1019,8 @@ export default function ClassExamScheduler({
             />
           </Field>
           <Field label="Type">
-            <Select value={form.exam_type} onChange={(event) => changeExamType(event.target.value)} disabled={editing}>
-              {(typeOptions.length > 0 ? typeOptions : [{ id: form.exam_type, label: form.exam_type }]).map((type) => (
+            <Select value={activity} onChange={(event) => changeExamType(event.target.value)} disabled={editing}>
+              {(typeOptions.length > 0 ? typeOptions : [{ id: activity, label: activity }]).map((type) => (
                 <option key={type.id} value={type.id}>{type.label}</option>
               ))}
             </Select>
@@ -953,7 +1036,11 @@ export default function ClassExamScheduler({
           </Field>
           <Field label="Papers">
             <p className="rounded-lg border border-(--border-subtle) bg-(--surface-secondary)/40 px-3 py-2.5 text-sm text-(--foreground)">
-              {componentMode ? "IA1, IA2 and ESA per subject" : "One subject paper"}
+              {componentMode
+                ? "IA1, IA2 and ESA per subject"
+                : classworkActivity
+                  ? "Classwork, no room or invigilator"
+                  : "One subject paper"}
             </p>
           </Field>
           <Field label="Starts on">
@@ -988,10 +1075,12 @@ export default function ClassExamScheduler({
 
         <p className="rounded-lg border border-(--border-subtle) bg-(--surface-secondary)/40 px-3 py-2 text-[11px] text-(--muted-foreground)">
           {componentMode
-            ? "Semester papers are scheduled one row at a time. Quiz, Assignment and Project stay classwork and never need a room or invigilator. The assessment structure still controls direct-mark or breakdown entry in Marks Entry."
-            : isTeacher
-              ? "Teachers schedule their own class tests, unit tests and practicals. IA1, IA2 and ESA papers belong to a semester examination managed by the Exam Cell."
-              : "Internal examinations use one paper per subject. Practical subjects belong in a practical or semester examination."}
+            ? "ESA papers are scheduled one row at a time. Quiz, Assignment and Project stay classwork and never need a room or invigilator. The assessment structure still controls direct-mark or breakdown entry in Marks Entry."
+            : classworkActivity
+              ? "Project and Quiz are classwork activities. They are marked in class and never take a date, room or invigilator."
+              : isTeacher
+                ? "Teachers schedule their own IA1, Quiz, Project, Practical and Viva activities. IA2 and ESA papers belong to an ESA examination managed by the Exam Cell."
+                : "Single-paper activities keep one subject paper. Practical subjects belong in a Practical or ESA examination."}
         </p>
 
         <section className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.6fr)]">
@@ -1011,15 +1100,19 @@ export default function ClassExamScheduler({
               aria-label="Search assigned subjects"
             />
 
-            {!form.class_id ? (
+            {targetClassIds.length === 0 ? (
               <p className="mt-3 rounded-lg border border-dashed border-(--border) px-4 py-4 text-xs text-(--muted-foreground)">
-                Choose the five filters and a class. Its assigned subjects appear here.
+                {scope === "department"
+                  ? "Choose a department and course. Every matching class is included and its shared subjects appear here."
+                  : "Choose the academic filters and a class. Its assigned subjects appear here."}
               </p>
             ) : eligibleSubjects.length === 0 ? (
               <p className="mt-3 rounded-lg border border-dashed border-(--border) px-4 py-4 text-xs text-(--muted-foreground)">
                 {isTeacher
                   ? "No subject in this class is assigned to you for this examination type."
-                  : "No subject in this class matches the examination type."}
+                  : scope === "department"
+                    ? "No subject is shared by every class in this department for the examination type."
+                    : "No subject in this class matches the examination type."}
               </p>
             ) : (
               <>
@@ -1160,14 +1253,16 @@ export default function ClassExamScheduler({
                         onChange={(event) => setBulk((current) => ({ ...current, duration_minutes: event.target.value }))}
                       />
                     </Field>
-                    <Field label="Rooms, comma separated">
-                      <input
-                        className={smallInput}
-                        value={bulk.rooms}
-                        onChange={(event) => setBulk((current) => ({ ...current, rooms: event.target.value }))}
-                        placeholder="Room 101, Room 102"
-                      />
-                    </Field>
+                    {!classworkActivity ? (
+                      <Field label="Rooms, comma separated">
+                        <input
+                          className={smallInput}
+                          value={bulk.rooms}
+                          onChange={(event) => setBulk((current) => ({ ...current, rooms: event.target.value }))}
+                          placeholder="Room 101, Room 102"
+                        />
+                      </Field>
+                    ) : null}
                     <Field label="Stagger by (days)">
                       <input
                         type="number"
@@ -1177,35 +1272,39 @@ export default function ClassExamScheduler({
                         onChange={(event) => setBulk((current) => ({ ...current, stagger_days: event.target.value }))}
                       />
                     </Field>
-                    <Field label="Invigilators">
-                      <div className="max-h-24 overflow-y-auto rounded-lg border border-(--border-subtle) bg-(--surface-secondary) p-2">
-                        {teachers.length === 0 ? (
-                          <p className="text-[11px] text-(--muted-foreground)">No active teacher.</p>
-                        ) : null}
-                        {teachers.map((teacher) => (
-                          <label key={teacher.id} className="flex items-center gap-2 py-0.5 text-[11px] text-(--foreground)">
-                            <input
-                              type="checkbox"
-                              className="size-3.5 rounded border-(--border) accent-(--primary)"
-                              checked={bulk.teacher_ids.includes(teacher.id)}
-                              onChange={() =>
-                                setBulk((current) => ({
-                                  ...current,
-                                  teacher_ids: current.teacher_ids.includes(teacher.id)
-                                    ? current.teacher_ids.filter((id) => id !== teacher.id)
-                                    : [...current.teacher_ids, teacher.id],
-                                }))
-                              }
-                            />
-                            <span className="truncate">{teacherLabel(teacher)}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </Field>
+                    {!classworkActivity ? (
+                      <Field label="Invigilators">
+                        <div className="max-h-24 overflow-y-auto rounded-lg border border-(--border-subtle) bg-(--surface-secondary) p-2">
+                          {teachers.length === 0 ? (
+                            <p className="text-[11px] text-(--muted-foreground)">No active teacher.</p>
+                          ) : null}
+                          {teachers.map((teacher) => (
+                            <label key={teacher.id} className="flex items-center gap-2 py-0.5 text-[11px] text-(--foreground)">
+                              <input
+                                type="checkbox"
+                                className="size-3.5 rounded border-(--border) accent-(--primary)"
+                                checked={bulk.teacher_ids.includes(teacher.id)}
+                                onChange={() =>
+                                  setBulk((current) => ({
+                                    ...current,
+                                    teacher_ids: current.teacher_ids.includes(teacher.id)
+                                      ? current.teacher_ids.filter((id) => id !== teacher.id)
+                                      : [...current.teacher_ids, teacher.id],
+                                  }))
+                                }
+                              />
+                              <span className="truncate">{teacherLabel(teacher)}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </Field>
+                    ) : null}
                   </div>
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                     <p className="text-[11px] text-(--muted-foreground)">
-                      Rooms and invigilators rotate in order when several are chosen.
+                      {classworkActivity
+                        ? "Classwork has no room or invigilator, so only the date, time and duration apply."
+                        : "Rooms and invigilators rotate in order when several are chosen."}
                     </p>
                     <Button type="button" variant="subtle" onClick={applyBulk} disabled={saving}>
                       Apply to {bulkPaperCount} paper{bulkPaperCount === 1 ? "" : "s"}
@@ -1304,24 +1403,26 @@ export default function ClassExamScheduler({
                                 }
                               />
                             </Field>
-                            <Field label="Invigilator">
-                              <Select
-                                className="py-1.5 text-xs"
-                                value={entry.teacher_id}
-                                onChange={(event) =>
-                                  setEntries((current) =>
-                                    current.map((row) =>
-                                      row.subjectId === entry.subjectId ? { ...row, teacher_id: event.target.value } : row,
-                                    ),
-                                  )
-                                }
-                              >
-                                <option value="">Use assigned teacher</option>
-                                {teachers.map((teacher) => (
-                                  <option key={teacher.id} value={teacher.id}>{teacherLabel(teacher)}</option>
-                                ))}
-                              </Select>
-                            </Field>
+                            {!classworkActivity ? (
+                              <Field label="Invigilator">
+                                <Select
+                                  className="py-1.5 text-xs"
+                                  value={entry.teacher_id}
+                                  onChange={(event) =>
+                                    setEntries((current) =>
+                                      current.map((row) =>
+                                        row.subjectId === entry.subjectId ? { ...row, teacher_id: event.target.value } : row,
+                                      ),
+                                    )
+                                  }
+                                >
+                                  <option value="">Use assigned teacher</option>
+                                  {teachers.map((teacher) => (
+                                    <option key={teacher.id} value={teacher.id}>{teacherLabel(teacher)}</option>
+                                  ))}
+                                </Select>
+                              </Field>
+                            ) : null}
                           </div>
                         ) : null}
 
@@ -1394,26 +1495,30 @@ export default function ClassExamScheduler({
                                       }
                                     />
                                   </Field>
-                                  <Field label="Room">
-                                    <input
-                                      className={smallInput}
-                                      value={paper.room}
-                                      onChange={(event) => updatePaper(entry.subjectId, index, { room: event.target.value })}
-                                      placeholder="Block A, room 12"
-                                    />
-                                  </Field>
-                                  <Field label="Invigilator">
-                                    <Select
-                                      className="py-1.5 text-xs"
-                                      value={paper.teacher_id}
-                                      onChange={(event) => updatePaper(entry.subjectId, index, { teacher_id: event.target.value })}
-                                    >
-                                      <option value="">Use assigned teacher</option>
-                                      {teachers.map((teacher) => (
-                                        <option key={teacher.id} value={teacher.id}>{teacherLabel(teacher)}</option>
-                                      ))}
-                                    </Select>
-                                  </Field>
+                                  {!classworkActivity ? (
+                                    <>
+                                      <Field label="Room">
+                                        <input
+                                          className={smallInput}
+                                          value={paper.room}
+                                          onChange={(event) => updatePaper(entry.subjectId, index, { room: event.target.value })}
+                                          placeholder="Block A, room 12"
+                                        />
+                                      </Field>
+                                      <Field label="Invigilator">
+                                        <Select
+                                          className="py-1.5 text-xs"
+                                          value={paper.teacher_id}
+                                          onChange={(event) => updatePaper(entry.subjectId, index, { teacher_id: event.target.value })}
+                                        >
+                                          <option value="">Use assigned teacher</option>
+                                          {teachers.map((teacher) => (
+                                            <option key={teacher.id} value={teacher.id}>{teacherLabel(teacher)}</option>
+                                          ))}
+                                        </Select>
+                                      </Field>
+                                    </>
+                                  ) : null}
                                   <div className="flex items-end gap-3">
                                     <label className="flex items-center gap-2 pb-1.5 text-[11px] text-(--muted-foreground)">
                                       <input
@@ -1475,7 +1580,9 @@ export default function ClassExamScheduler({
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-(--border-subtle) pt-4">
           <p className="text-[11px] text-(--muted-foreground)">
             {classLabel ? `${classLabel}. ` : ""}
-            Room, invigilator and timing conflicts are checked before saving.
+            {classworkActivity
+              ? "Classwork papers are marked in class, so no room, invigilator or timing check applies."
+              : "Room, invigilator and timing conflicts are checked before saving."}
           </p>
           <div className="flex flex-wrap items-center gap-2">
             {!editing && form.status !== "draft" ? (
