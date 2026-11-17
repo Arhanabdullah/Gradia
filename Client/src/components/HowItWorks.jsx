@@ -11,13 +11,13 @@ const steps = [
         number: "02",
         title: "Manage results",
         description:
-            "Enter, review, and organize academic results with a streamlined workflow.",
+            "Enter, review, and organize academic results in one workflow.",
     },
     {
         number: "03",
         title: "Publish with confidence",
         description:
-            "Review final results and make them available to students through a clear, centralized system.",
+            "Review final results and publish them to students.",
     },
 ];
 
@@ -44,9 +44,8 @@ const HowItWorks = () => {
                 </Reveal>
                 <Reveal delay={0.2}>
                     <p className="mt-5 max-w-xl text-sm leading-7 text-(--muted)">
-                        Gradia simplifies the entire results workflow, giving institutions
-                        a structured way to manage academic information from setup to
-                        publication.
+                        Setup to publication, one calm flow. No lost marks,
+                        no spreadsheet chaos, no chasing approvals.
                     </p>
                 </Reveal>
             </div>
@@ -64,7 +63,7 @@ const HowItWorks = () => {
                             transition={{ duration: 0.25, ease: "easeOut" }}
                         >
                             <div className="glass-inner flex h-7 w-7 items-center justify-center rounded-md">
-                                <span className="text-[11px] font-medium text-(--primary)">
+                                <span className="text-xs font-medium text-(--primary)">
                                     {step.number}
                                 </span>
                             </div>

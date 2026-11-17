@@ -27,7 +27,7 @@ function SubmissionChip({ status }) {
   const label = status === "draft" ? "Not submitted" : submissionStatusLabel(status);
   return (
     <span
-      className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+      className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${
         statusChipClass[status] ?? statusChipClass.draft
       }`}
     >
@@ -303,7 +303,7 @@ export default function ExamGroupCard({
             {classNames.length ? `, ${classNames.length} class${classNames.length === 1 ? "" : "es"}` : ""}
           </p>
           {classNames.length ? (
-            <p className="mt-1 truncate text-[11px] text-(--muted-foreground)" title={classNames.join(", ")}>
+            <p className="mt-1 truncate text-xs text-(--muted-foreground)" title={classNames.join(", ")}>
               {classNames.join(", ")}
             </p>
           ) : null}
@@ -319,7 +319,7 @@ export default function ExamGroupCard({
               </Select>
             </Field>
             <Button type="button" variant="subtle" onClick={changeStatus} disabled={statusBusy || status === group.status}>
-              {statusBusy ? "Updating…" : "Update status"}
+              {statusBusy ? "Updatingâ€¦" : "Update status"}
             </Button>
             {onEditSchedule ? (
               <Button type="button" variant="subtle" onClick={() => onEditSchedule(group)}>
@@ -342,11 +342,11 @@ export default function ExamGroupCard({
           <p className="mt-0.5 text-sm font-semibold text-(--foreground) tabular-nums">{paperCount}</p>
         </div>
         <div className="rounded-lg border border-(--border-subtle) px-3 py-2">
-          <p className="text-[11px] text-(--muted-foreground)">Awaiting approval</p>
+          <p className="text-xs text-(--muted-foreground)">Awaiting approval</p>
           <p className="mt-0.5 text-sm font-semibold text-(--foreground) tabular-nums">{summary.pending}</p>
         </div>
         <div className="rounded-lg border border-(--border-subtle) px-3 py-2">
-          <p className="text-[11px] text-(--muted-foreground)">Approved</p>
+          <p className="text-xs text-(--muted-foreground)">Approved</p>
           <p className="mt-0.5 text-sm font-semibold text-(--foreground) tabular-nums">{summary.approved}</p>
         </div>
       </div>
@@ -398,7 +398,7 @@ export default function ExamGroupCard({
                           onClick={() => removeSubject(entry)}
                           disabled={busySubject === entry.subjectId}
                         >
-                          {busySubject === entry.subjectId ? "Removing…" : "Confirm remove"}
+                          {busySubject === entry.subjectId ? "Removingâ€¦" : "Confirm remove"}
                         </Button>
                         <Button type="button" variant="subtle" onClick={() => setRemoveTarget(null)}>
                           Cancel
@@ -424,7 +424,7 @@ export default function ExamGroupCard({
                         onClick={() => applyStructure(entry)}
                         disabled={busyStructure === entry.subjectId}
                       >
-                        {busyStructure === entry.subjectId ? "Applying…" : "Apply structure"}
+                        {busyStructure === entry.subjectId ? "Applyingâ€¦" : "Apply structure"}
                       </Button>
                     ) : null}
                   </div>
@@ -565,7 +565,7 @@ export default function ExamGroupCard({
                                       onClick={() => savePaper(entry, component)}
                                       disabled={busyPaper === key}
                                     >
-                                      {busyPaper === key ? "Saving…" : "Save"}
+                                      {busyPaper === key ? "Savingâ€¦" : "Save"}
                                     </Button>
                                   </td>
                                 ) : null}
@@ -613,7 +613,7 @@ export default function ExamGroupCard({
                               onClick={() => removeSubject(entry)}
                               disabled={busySubject === entry.subjectId}
                             >
-                              {busySubject === entry.subjectId ? "Removing…" : "Confirm remove"}
+                              {busySubject === entry.subjectId ? "Removingâ€¦" : "Confirm remove"}
                             </Button>
                             <Button type="button" variant="subtle" onClick={() => setRemoveTarget(null)}>
                               Cancel
@@ -735,7 +735,7 @@ export default function ExamGroupCard({
                           onClick={() => saveSchedule(subject)}
                           disabled={busySubject === subject.id}
                         >
-                          {busySubject === subject.id ? "Saving…" : "Save"}
+                          {busySubject === subject.id ? "Savingâ€¦" : "Save"}
                         </Button>
                       </td>
                     ) : null}
@@ -765,7 +765,7 @@ export default function ExamGroupCard({
               </Select>
             </Field>
             <Button type="button" onClick={addSubject} disabled={!addSubjectId || addBusy}>
-              {addBusy ? "Adding…" : "Add subject"}
+              {addBusy ? "Addingâ€¦" : "Add subject"}
             </Button>
           </div>
           {availableSubjects.length === 0 ? (

@@ -277,12 +277,12 @@ const Overview = () => {
       />
       <div className="mt-7 grid gap-3 sm:grid-cols-3">
         {(stats ?? Array.from({ length: 3 })).map((stat, i) =>
-          stat ? <StatCard key={i} label={stat.label} value={stat.value} /> : <StatCard key={i} label="…" value="" />,
+          stat ? <StatCard key={i} label={stat.label} value={stat.value} /> : <StatCard key={i} label="â€¦" value="" />,
         )}
       </div>
       {loadError ? (
         <p className="mt-3 text-xs text-(--danger)">
-          Couldn’t load some dashboard data. Check your connection and refresh the page.
+          Couldnâ€™t load some dashboard data. Check your connection and refresh the page.
         </p>
       ) : null}
 

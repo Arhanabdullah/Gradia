@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import DashboardHeader from "./dashboard/DashboardHeader";
 import DashboardStats from "./dashboard/DashboardStats";
 import RecentResults from "./dashboard/RecentResults";
+import { LayoutDashboard, Users, Award, GraduationCap, BarChart2 } from "lucide-react";
 
 // The charting library is heavy and purely decorative on this mockup, so it is
 // loaded after the preview itself has painted.
@@ -11,9 +12,14 @@ const PerformanceChart = lazy(() => import("./charts/PerformanceChart"));
 const SubjectPerformanceChart = lazy(() => import("./charts/SubjectPerformanceChart"));
 const chartFallback = <div className="h-55 w-full" aria-hidden="true" />;
 
-// Preview-only tabs for the landing-page mockup. Pure mock content, stylized
-// figures in the same family as the existing preview stats (e.g. 1,248).
-const PREVIEW_TABS = ["Overview", "Students", "Results", "Subjects", "Reports"];
+// Preview-only tabs for the landing-page mockup. Pure mock content.
+const PREVIEW_TABS = [
+  { label: "Overview", icon: LayoutDashboard },
+  { label: "Students", icon: Users },
+  { label: "Results", icon: Award },
+  { label: "Subjects", icon: GraduationCap },
+  { label: "Reports", icon: BarChart2 },
+];
 
 const mockStudents = [
     { name: "Aarav Sharma", className: "Class 10 A", average: "86%" },
@@ -45,6 +51,14 @@ const mockReports = [
     { label: "Reports generated", value: "312" },
 ];
 
+const tabPaths = {
+    Overview: "dashboard",
+    Students: "students",
+    Results: "results",
+    Subjects: "subjects",
+    Reports: "reports",
+};
+
 const resultStatusClass = {
     Published: "bg-(--success-subtle) text-(--success)",
     "Awaiting HOD review": "bg-(--primary)/10 text-(--primary)",
@@ -52,9 +66,9 @@ const resultStatusClass = {
 };
 
 const sidebarIdleClass =
-    "w-full cursor-pointer whitespace-nowrap rounded-lg px-4 py-2.5 text-left text-sm font-medium text-(--muted) transition-colors hover:bg-(--sidebar-hover) hover:text-(--foreground) focus-visible:outline-2 focus-visible:outline-(--primary)";
+    "w-full flex items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium text-(--muted) transition-colors hover:bg-(--sidebar-hover) hover:text-(--foreground) focus-visible:outline-2 focus-visible:outline-(--primary)";
 const sidebarActiveClass =
-    "w-full cursor-pointer whitespace-nowrap rounded-lg bg-(--sidebar-active) px-4 py-2.5 text-left text-sm font-medium text-(--foreground) focus-visible:outline-2 focus-visible:outline-(--primary)";
+    "w-full flex items-center gap-3 rounded-lg bg-(--sidebar-active) px-4 py-2.5 text-left text-sm font-medium text-(--foreground) focus-visible:outline-2 focus-visible:outline-(--primary)";
 
 // Mock sidebar for the mockup. Renders the same visual recipe as the
 // dashboard sidebar, but its items are preview tabs (no navigation).
@@ -62,10 +76,10 @@ const PreviewSidebar = ({ tab, onSelect }) => (
     <aside className="glass-floating flex w-full shrink-0 flex-col p-4 md:w-56">
         <div className="mb-8">
             <p className="text-sm font-semibold text-(--foreground)">Gradia</p>
-            <p className="mt-0.5 text-[11px] text-(--muted)">Academic suite</p>
+            <p className="mt-0.5 text-xs text-(--muted)">Academic suite</p>
         </div>
         <nav className="space-y-1" aria-label="Preview sections">
-            {PREVIEW_TABS.map((label) => {
+            {PREVIEW_TABS.map(({ label, icon: Icon }) => {
                 const active = label === tab;
                 return (
                     <button
@@ -75,6 +89,7 @@ const PreviewSidebar = ({ tab, onSelect }) => (
                         aria-pressed={active}
                         className={active ? sidebarActiveClass : sidebarIdleClass}
                     >
+                        <Icon className="h-4 w-4 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
                         {label}
                     </button>
                 );
@@ -88,7 +103,7 @@ const PreviewSidebar = ({ tab, onSelect }) => (
 const PanelHeader = ({ title, caption }) => (
     <div>
         <p className="text-xs font-medium text-(--foreground)">{title}</p>
-        <p className="mt-0.5 text-[11px] text-(--muted)">{caption}</p>
+        <p className="mt-0.5 text-xs text-(--muted)">{caption}</p>
     </div>
 );
 
@@ -100,7 +115,7 @@ const StudentPanel = () => (
                 <div key={student.name} className="flex items-center justify-between gap-3 py-2.5">
                     <div className="min-w-0">
                         <p className="truncate text-xs font-medium text-(--foreground)">{student.name}</p>
-                        <p className="mt-0.5 text-[11px] text-(--muted)">{student.className}</p>
+                        <p className="mt-0.5 text-xs text-(--muted)">{student.className}</p>
                     </div>
                     <p className="text-xs font-semibold text-(--foreground) tabular-nums">
                         {student.average}
@@ -119,10 +134,10 @@ const ResultsPanel = () => (
                 <div key={sheet.subject} className="flex items-center justify-between gap-3 py-2.5">
                     <div className="min-w-0">
                         <p className="truncate text-xs font-medium text-(--foreground)">{sheet.subject}</p>
-                        <p className="mt-0.5 text-[11px] text-(--muted)">{sheet.className}</p>
+                        <p className="mt-0.5 text-xs text-(--muted)">{sheet.className}</p>
                     </div>
                     <span
-                        className={`whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                        className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${
                             resultStatusClass[sheet.status]
                         }`}
                     >
@@ -184,8 +199,8 @@ const ProductPreview = () => {
                             <span className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
                         </div>
                         <div className="mx-auto hidden rounded-md border border-(--border-subtle) bg-(--surface-secondary) px-4 py-1 sm:block">
-                            <p className="text-[11px] text-(--muted)">
-                                app.gradia.academy/dashboard
+                            <p className="text-xs text-(--muted)">
+                                app.gradia.academy/{tabPaths[tab] || "dashboard"}
                             </p>
                         </div>
                         <div className="w-11.5" />
@@ -215,7 +230,7 @@ const ProductPreview = () => {
                                                 <p className="text-xs font-medium text-(--foreground)">
                                                     Performance Overview
                                                 </p>
-                                                <p className="mt-0.5 text-[11px] text-(--muted)">
+                                                <p className="mt-0.5 text-xs text-(--muted)">
                                                     Average score over the academic year
                                                 </p>
                                             </div>
@@ -238,7 +253,7 @@ const ProductPreview = () => {
                                                 <p className="text-xs font-medium text-(--foreground)">
                                                     Subject Performance
                                                 </p>
-                                                <p className="mt-0.5 text-[11px] text-(--muted)">
+                                                <p className="mt-0.5 text-xs text-(--muted)">
                                                     Average score by subject
                                                 </p>
                                             </div>

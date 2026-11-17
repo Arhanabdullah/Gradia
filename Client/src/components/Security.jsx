@@ -9,7 +9,7 @@ const securityPoints = [
     {
         title: "Protected academic records",
         description:
-            "Keep sensitive result information within a structured platform designed for controlled access.",
+            "Keep sensitive result information inside the platform, under controlled access.",
     },
     {
         title: "Clear accountability",
@@ -42,9 +42,9 @@ const Security = () => {
                         </Reveal>
                         <Reveal delay={0.2}>
                             <p className="mt-5 max-w-md text-sm leading-7 text-(--muted)">
-                                Gradia is designed around controlled access,
-                                structured workflows, and responsible handling
-                                of academic information.
+                                Every role sees exactly what it should,
+                                and nothing it shouldn't. Access is
+                                scoped by design, not by trust.
                             </p>
                         </Reveal>
                         <Reveal delay={0.3}>
@@ -64,7 +64,7 @@ const Security = () => {
                             >
                                 <div className="border-b border-(--border) p-7 last:border-b-0">
                                     <div className="flex items-start gap-4">
-                                        <span className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-(--border) text-[11px] font-medium text-(--primary)">
+                                        <span className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-(--border) text-xs font-medium text-(--primary)">
                                             {String(index + 1).padStart(2, "0")}
                                         </span>
                                         <div>

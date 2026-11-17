@@ -13,9 +13,9 @@ const HeroContent = () => {
             </Reveal>
             <Reveal delay={0.2}>
                 <p className="mt-7 max-w-2xl text-sm leading-7 text-(--muted) sm:text-base">
-                    Gradia brings students, teachers, and academic administrators
-                    together in one streamlined platform for managing, reviewing, and
-                    publishing academic results.
+                    Students, teachers, and administrators share one
+                    clean workflow: marks go in, results come out, and
+                    everyone stays in sync.
                 </p>
             </Reveal>
         </div>

@@ -41,7 +41,7 @@ const DashboardStats = () => {
                         <p className="text-xl font-semibold tracking-tight text-(--foreground) tabular-nums">
                             {stat.value}
                         </p>
-                        <span className="text-[11px] font-medium text-(--muted) tabular-nums">
+                        <span className="text-xs font-medium text-(--muted) tabular-nums">
                             {stat.change}
                         </span>
                     </div>

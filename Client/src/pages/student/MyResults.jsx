@@ -226,7 +226,7 @@ const MyResults = () => {
           </p>
           <div className="mt-3 h-55 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+              <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="2 4" vertical={false} />
                 <XAxis dataKey="exam" {...axis} dy={8} />
                 <YAxis {...axis} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} width={55} />
@@ -242,7 +242,7 @@ const MyResults = () => {
       )}
 
       <section className="mt-8 space-y-4">
-        {sheets.length === 0 && <Empty>No published results yet. You’ll be notified when results go live.</Empty>}
+        {sheets.length === 0 && <Empty>No published results yet. Youâ€™ll be notified when results go live.</Empty>}
         {sheets.map((sheet) => {
           const mine = items.filter((i) => i.sheet_id === sheet.id);
           const summary = summaryBySheet.get(sheet.id) ?? null;

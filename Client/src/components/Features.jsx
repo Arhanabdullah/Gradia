@@ -9,15 +9,15 @@ const features = [
     },
     {
         number: "02",
-        title: "Streamlined result management",
+        title: "Result management",
         description:
-            "Manage, review, and publish results through a workflow designed to reduce administrative complexity.",
+            "Manage, review, and publish results through a single approval workflow.",
     },
     {
         number: "03",
         title: "Clear academic insights",
         description:
-            "Turn academic records into clear performance insights that are easy to review and understand.",
+            "Turn academic records into clear performance insights.",
     },
     {
         number: "04",
@@ -49,8 +49,8 @@ const Features = () => {
                 </Reveal>
                 <Reveal delay={0.2}>
                     <p className="mt-5 max-w-xl text-sm leading-7 text-(--muted)">
-                        A focused academic management experience built around
-                        the workflows that matter most.
+                        No bloat. Just the workflows your
+                        institution actually runs, in one place.
                     </p>
                 </Reveal>
             </div>
@@ -65,7 +65,7 @@ const Features = () => {
                             whileHover={{ backgroundColor: "rgba(255,255,255,0.04)" }}
                             transition={{ duration: 0.25, ease: "easeOut" }}
                         >
-                            <span className="text-[11px] font-medium text-(--primary)">
+                            <span className="text-xs font-medium text-(--primary)">
                                 {feature.number}
                             </span>
                             <h3 className="mt-8 text-base font-semibold text-(--foreground)">

@@ -9,10 +9,10 @@ export const chartAxis = {
 
 export const chartTooltip = {
     contentStyle: {
-        background: "var(--surface)",
+        background: "var(--tooltip-bg)",
         border: "1px solid var(--border)",
         borderRadius: "10px",
-        boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
+        boxShadow: "0 12px 32px rgba(0,0,0,0.16)",
         color: "var(--foreground)",
         fontSize: "12px",
     },

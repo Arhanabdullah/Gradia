@@ -78,7 +78,7 @@ const RecentResults = () => {
                                 81%
                             </td>
                             <td className="pt-4">
-                                <span className="rounded-full bg-(--primary-deep)/10 px-2.5 py-1 text-xs font-medium text-(--primary-deep)">
+                                <span className="rounded-full bg-(--primary-deep)/10 px-2.5 py-1 text-xs font-medium text-(--primary)">
                                     Pending
                                 </span>
                             </td>
