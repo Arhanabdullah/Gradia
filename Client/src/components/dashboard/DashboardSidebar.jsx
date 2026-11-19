@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Users, GraduationCap, FileText, BarChart2, CheckCircle2, Send, Award, Bell, LogOut, Menu, X, ChevronLeft } from "lucide-react";
+import { LayoutDashboard, Users, GraduationCap, FileText, BarChart2, CheckCircle2, Send, Award, Bell, LogOut, Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { microTransition } from "../../animations/variants";
 
@@ -43,9 +43,9 @@ const PREVIEW_ITEMS = [
   { label: "Reports", icon: BarChart2 },
 ];
 
-const SidebarItem = ({ item, isActive }) => {
+const SidebarItem = ({ item, isActive, collapsed }) => {
   const Icon = item.icon;
-  const baseClass = "flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-colors";
+  const baseClass = "flex items-center gap-3 w-full rounded-lg px-3 py-3 text-sm font-medium transition-colors";
   const activeClass = `${baseClass} bg-(--sidebar-active) text-(--foreground)`;
   const idleClass = `${baseClass} text-(--muted) hover:bg-(--sidebar-hover) hover:text-(--foreground) focus-visible:outline-2 focus-visible:outline-(--primary)`;
 
@@ -57,7 +57,7 @@ const SidebarItem = ({ item, isActive }) => {
         transition={microTransition}
       >
         <Icon className="h-4 w-4 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
-        {item.label}
+        {!collapsed && <span>{item.label}</span>}
       </motion.div>
     );
   }
@@ -71,7 +71,7 @@ const SidebarItem = ({ item, isActive }) => {
           transition={microTransition}
         >
           <Icon className="h-4 w-4 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
-          {item.label}
+          {!collapsed && <span>{item.label}</span>}
         </motion.div>
       )}
     </NavLink>
@@ -90,15 +90,20 @@ export default function DashboardSidebar({
 
   return (
     <aside
-      className={`glass-floating flex shrink-0 flex-col transition-all duration-300 ease-out ${
+      className={`glass-floating flex shrink-0 flex-col ${
         fluid ? "w-full md:w-64" : collapsed ? "w-16" : "w-64"
       }`}
       aria-label="Main navigation"
+      data-collapsed={collapsed}
+      style={{
+        transition: 'width 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        willChange: 'width'
+      }}
     >
-      {/* Brand header */}
-      <div className={`flex items-center gap-3 p-4 border-b border-(--border) transition-opacity duration-200 ${collapsed && !fluid ? "opacity-0 pointer-events-none" : ""}`}>
+      {/* Brand header - always visible, toggle button always accessible */}
+      <div className="flex items-center gap-3 p-4 border-b border-(--border)">
         {!collapsed && (
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 overflow-hidden">
             <p className="text-sm font-semibold text-(--foreground) truncate">Gradia</p>
             <p className="mt-0.5 text-xs text-(--muted) truncate">Academic suite</p>
           </div>
@@ -106,38 +111,49 @@ export default function DashboardSidebar({
         {!fluid && (
           <button
             onClick={onToggleCollapse}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg text-(--muted) hover:text-(--foreground) hover:bg-(--surface-secondary) transition-colors ${collapsed ? "rotate-180" : ""}`}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-(--muted) hover:text-(--foreground) hover:bg-(--surface-secondary) transition-colors"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-expanded={!collapsed}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            <ChevronLeft className="h-4 w-4" strokeWidth={2} />
+            <span className="inline-block" style={{
+              transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)',
+              transformOrigin: 'center',
+              willChange: 'transform',
+              transition: 'transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+            }}>
+              <ChevronRight className="h-4 w-4" strokeWidth={2} />
+            </span>
           </button>
         )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 p-3 overflow-y-auto" aria-label={isPreview ? "Preview sections" : "Dashboard"}>
+      <nav className="flex-1 space-y-3 p-3 overflow-y-auto" aria-label={isPreview ? "Preview sections" : "Dashboard"}>
         {navItems.map((item) => (
           <SidebarItem
             key={item.to ?? item.label}
             item={item}
             isActive={item.active}
+            collapsed={collapsed}
           />
         ))}
       </nav>
 
       {/* Account section - only for authenticated users */}
       {!isPreview && (
-        <div className={`border-t border-(--border) p-4 transition-opacity duration-200 ${collapsed && !fluid ? "opacity-0 pointer-events-none" : ""}`}>
+        <div className="border-t border-(--border) p-4">
           <div className="flex items-center gap-3">
-            <div className={`flex-1 min-w-0 ${collapsed ? "hidden" : "block"}`}>
-              <p className="text-xs font-medium text-(--foreground) truncate">
-                {profile?.username ?? profile?.email?.split("@")[0] ?? "User"}
-              </p>
-              <p className="text-[11px] text-(--muted) truncate capitalize">
-                {profile?.role ?? "guest"}
-              </p>
-            </div>
+            {!collapsed && (
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <p className="text-xs font-medium text-(--foreground) truncate">
+                  {profile?.username ?? profile?.email?.split("@")[0] ?? "User"}
+                </p>
+                <p className="text-[11px] text-(--muted) truncate capitalize">
+                  {profile?.role ?? "guest"}
+                </p>
+              </div>
+            )}
             {!collapsed && (
               <button
                 onClick={signOut}
@@ -154,9 +170,11 @@ export default function DashboardSidebar({
       {/* Preview footer */}
       {isPreview && (
         <div className="mt-auto border-t border-(--border) pt-4">
-          <p className="px-3 text-xs text-(--muted)">
-            This is a preview. Sign in to access the full dashboard.
-          </p>
+          {!collapsed && (
+            <p className="px-3 text-xs text-(--muted)">
+              This is a preview. Sign in to access the full dashboard.
+            </p>
+          )}
         </div>
       )}
     </aside>
