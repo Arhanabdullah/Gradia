@@ -82,11 +82,11 @@
   --glass-base: 20, 23, 29;
   --glass-highlight: 255, 255, 255;
   --glass-border: 43, 49, 59;
-  --glass-floating-alpha: 0.2;
-  --glass-panel-alpha: 0.1;
-  --glass-inner-alpha: 0.05;
-  --glass-border-alpha: 0.05;
-  --glass-highlight-alpha: 0.02;
+  --glass-floating-alpha: 0.35;
+  --glass-panel-alpha: 0.25;
+  --glass-inner-alpha: 0.15;
+  --glass-border-alpha: 0.12;
+  --glass-highlight-alpha: 0.08;
   --ambient-primary: 34, 211, 238;
   --ambient-secondary: 200, 210, 220;
   --ambient-primary-alpha: 0.04;
@@ -227,25 +227,27 @@ body {
 .nav-glass {
   border: 1px solid transparent;
   background:
-    linear-gradient(135deg, rgba(var(--ambient-primary), 0.35), rgba(255, 255, 255, 0.1) 45%, transparent 70%) padding-box,
-    rgba(250, 251, 252, 0.6) padding-box,
-    linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.45) 55%, rgba(var(--ambient-primary), 0.6)) border-box;
-  backdrop-filter: blur(22px) saturate(180%);
-  -webkit-backdrop-filter: blur(22px) saturate(180%);
+    linear-gradient(135deg, rgba(var(--ambient-primary), 0.35), rgba(var(--glass-highlight), var(--glass-highlight-alpha)) 45%, transparent 70%) padding-box,
+    rgba(var(--glass-base), var(--glass-floating-alpha)) padding-box,
+    linear-gradient(135deg, rgba(var(--glass-highlight), 0.98), rgba(var(--glass-highlight), 0.6) 55%, rgba(var(--ambient-primary), 0.7)) border-box;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   box-shadow:
-    0 8px 30px rgba(23, 27, 33, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    0 8px 30px rgba(23, 27, 33, 0.12),
+    inset 0 1px 0 rgba(var(--glass-highlight), 0.95),
+    0 0 0 1px rgba(var(--glass-border), var(--glass-border-alpha)) inset;
   border-radius: 16px;
 }
 
 .dark .nav-glass {
   background:
-    linear-gradient(135deg, rgba(var(--ambient-primary), 0.16), rgba(var(--ambient-primary), 0.04) 45%, transparent 70%) padding-box,
-    rgba(24, 27, 33, 0.62) padding-box,
-    linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.07) 55%, rgba(var(--ambient-primary), 0.4)) border-box;
+    linear-gradient(135deg, rgba(var(--ambient-primary), 0.22), rgba(var(--ambient-primary), 0.08) 45%, transparent 70%) padding-box,
+    rgba(var(--glass-base), var(--glass-floating-alpha)) padding-box,
+    linear-gradient(135deg, rgba(var(--glass-highlight), 0.35), rgba(var(--glass-highlight), 0.12) 55%, rgba(var(--ambient-primary), 0.5)) border-box;
   box-shadow:
-    0 8px 30px rgba(0, 0, 0, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    0 8px 30px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(var(--glass-highlight), 0.2),
+    0 0 0 1px rgba(var(--glass-border), var(--glass-border-alpha)) inset;
   border-radius: 16px;
 }
 
