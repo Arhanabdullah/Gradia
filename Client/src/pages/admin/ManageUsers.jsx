@@ -4,10 +4,19 @@ import { Button, Card, Empty, Field, Select, inputClass } from "../../components
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
 import ImportButton from "../../components/import/ImportButton";
 
-const ROLES = ["student", "teacher", "hod", "principal", "admin"];
+const ROLES = ["student", "teacher", "hod", "principal", "admin", "coordinator", "exam_cell"];
+const ROLE_LABEL = {
+  student: "Student",
+  teacher: "Teacher",
+  hod: "HOD",
+  principal: "Principal",
+  admin: "Admin",
+  coordinator: "Coordinator",
+  exam_cell: "Exam Cell",
+};
 const EMPTY_FORM = {
   name: "", username: "", email: "", password: "", role: "student",
-  student_id: "", teacher_id: "", department_id: "", degree_id: "", course_id: "", class_id: "",
+  student_id: "", registration_no: "", teacher_id: "", department_id: "", degree_id: "", course_id: "", class_id: "",
   hod_type: "department", hod_subject_id: "",
 };
 
@@ -210,6 +219,7 @@ const ManageUsers = () => {
       username: form.username.trim() || form.email.split("@")[0],
       role: form.role,
       student_id: form.role === "student" ? form.student_id.trim() : "",
+      registration_no: form.role === "student" ? form.registration_no.trim() : "",
       teacher_id: form.role === "teacher" ? form.teacher_id.trim() : "",
       department_id: needsDegree ? form.department_id : "",
       degree_id: needsDegree ? form.degree_id : "",
@@ -368,13 +378,21 @@ const ManageUsers = () => {
           </Field>
           <Field label="Role">
             <Select value={form.role} onChange={update("role")}>
-              {ROLES.map((role) => <option key={role} value={role}>{role.charAt(0).toUpperCase() + role.slice(1)}</option>)}
+              {ROLES.map((role) => <option key={role} value={role}>{ROLE_LABEL[role]}</option>)}
             </Select>
           </Field>
 
           {form.role === "student" && <>
             <Field label="Student ID">
               <input className={inputClass} value={form.student_id} onChange={update("student_id")} placeholder="e.g. GRD2026001" required />
+            </Field>
+            <Field label="Registration number">
+              <input
+                className={inputClass}
+                value={form.registration_no}
+                onChange={update("registration_no")}
+                placeholder="e.g. 2026CS1001"
+              />
             </Field>
             <Field label="Department">
               <Select value={form.department_id} onChange={update("department_id")} required>
@@ -519,7 +537,7 @@ const ManageUsers = () => {
               <div className="min-w-0">
                 <p className="truncate text-(--foreground)">{user.name}, <span className="text-(--muted-foreground)">{user.email}</span></p>
                 <p className="text-xs text-(--muted-foreground)">
-                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                  {ROLE_LABEL[user.role] ?? user.role}
                   {user.student_id ? ` · Student ID: ${user.student_id}` : ""}
                   {user.teacher_id ? ` · Teacher ID: ${user.teacher_id}` : ""}
                   {user.role === "student" && user.department ? ` · ${user.department}` : ""}

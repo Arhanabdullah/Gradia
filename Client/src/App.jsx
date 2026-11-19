@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy } from "react";
 
 import Landing from "./pages/Landing";
@@ -7,9 +7,8 @@ import NotFound from "./pages/NotFound";
 import RequestDemo from "./pages/RequestDemo";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import AppLoader from "./components/AppLoader";
-import { useAuth } from "./context/AuthContext";
-import { Navigate } from "react-router-dom";
 import RouteMetaUpdater from "./components/RouteMetaUpdater";
+import { useAuth } from "./context/AuthContext";
 import { useMinLoadingState } from "./lib/useMinLoadingState";
 
 // Lazy load heavy pages that use recharts
@@ -23,10 +22,17 @@ const ManageUsers = lazy(() => import("./pages/admin/ManageUsers"));
 const ManageClasses = lazy(() => import("./pages/admin/ManageClasses"));
 const ManageExams = lazy(() => import("./pages/admin/ManageExams"));
 const AdminSheets = lazy(() => import("./pages/admin/AdminSheets"));
+const UsersDirectory = lazy(() => import("./pages/UsersDirectory"));
 
 // Lazy load other role pages
+const Attendance = lazy(() => import("./pages/teacher/Attendance"));
 const ReviewSheets = lazy(() => import("./pages/hod/ReviewSheets"));
 const Notifications = lazy(() => import("./pages/student/Notifications"));
+const CoordinatorReports = lazy(() => import("./pages/coordinator/CoordinatorReports"));
+const ResultArchive = lazy(() => import("./pages/coordinator/ResultArchive"));
+const ResultConfig = lazy(() => import("./pages/exam_cell/ResultConfig"));
+const AssessmentSetup = lazy(() => import("./pages/exam_cell/AssessmentSetup"));
+const ResultApproval = lazy(() => import("./pages/exam_cell/ResultApproval"));
 
 const RequireRole = ({ role, roles, children }) => {
   const { profile, loading } = useAuth();
@@ -56,6 +62,16 @@ const App = () => {
             }
           />
           <Route
+            path="directory"
+            element={
+              <RequireRole roles={["admin", "principal", "hod", "teacher", "coordinator", "exam_cell"]}>
+                <Suspense fallback={<AppLoader label="Loading directory…" />}>
+                  <UsersDirectory />
+                </Suspense>
+              </RequireRole>
+            }
+          />
+          <Route
             path="users"
             element={
               <RequireRole role="admin">
@@ -78,7 +94,7 @@ const App = () => {
           <Route
             path="exams"
             element={
-              <RequireRole roles={["admin", "teacher", "hod"]}>
+              <RequireRole roles={["admin", "teacher", "hod", "exam_cell"]}>
                 <Suspense fallback={<AppLoader label="Loading exams…" />}>
                   <ManageExams />
                 </Suspense>
@@ -88,7 +104,7 @@ const App = () => {
           <Route
             path="sheets"
             element={
-              <RequireRole role="admin">
+              <RequireRole roles={["admin", "exam_cell"]}>
                 <Suspense fallback={<AppLoader label="Loading sheets…" />}>
                   <AdminSheets />
                 </Suspense>
@@ -101,6 +117,16 @@ const App = () => {
               <RequireRole role="teacher">
                 <Suspense fallback={<AppLoader label="Loading marks entry…" />}>
                   <MarksEntry />
+                </Suspense>
+              </RequireRole>
+            }
+          />
+          <Route
+            path="attendance"
+            element={
+              <RequireRole roles={["admin", "teacher", "hod"]}>
+                <Suspense fallback={<AppLoader label="Loading attendance…" />}>
+                  <Attendance />
                 </Suspense>
               </RequireRole>
             }
@@ -141,6 +167,56 @@ const App = () => {
               <RequireRole role="student">
                 <Suspense fallback={<AppLoader label="Loading notifications…" />}>
                   <Notifications />
+                </Suspense>
+              </RequireRole>
+            }
+          />
+          <Route
+            path="reports"
+            element={
+              <RequireRole role="coordinator">
+                <Suspense fallback={<AppLoader label="Loading reports…" />}>
+                  <CoordinatorReports />
+                </Suspense>
+              </RequireRole>
+            }
+          />
+          <Route
+            path="archive"
+            element={
+              <RequireRole roles={["coordinator", "principal", "exam_cell"]}>
+                <Suspense fallback={<AppLoader label="Loading archive…" />}>
+                  <ResultArchive />
+                </Suspense>
+              </RequireRole>
+            }
+          />
+          <Route
+            path="config"
+            element={
+              <RequireRole role="exam_cell">
+                <Suspense fallback={<AppLoader label="Loading result config…" />}>
+                  <ResultConfig />
+                </Suspense>
+              </RequireRole>
+            }
+          />
+          <Route
+            path="assessment"
+            element={
+              <RequireRole role="exam_cell">
+                <Suspense fallback={<AppLoader label="Loading assessment setup…" />}>
+                  <AssessmentSetup />
+                </Suspense>
+              </RequireRole>
+            }
+          />
+          <Route
+            path="approval"
+            element={
+              <RequireRole role="exam_cell">
+                <Suspense fallback={<AppLoader label="Loading approvals…" />}>
+                  <ResultApproval />
                 </Suspense>
               </RequireRole>
             }

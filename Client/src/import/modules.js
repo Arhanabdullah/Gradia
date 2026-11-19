@@ -409,8 +409,8 @@ const courseModule = {
       label: "Duration in years",
       required: false,
       aliases: ["duration", "duration years", "duration in years", "years"],
-      example: "4",
-      help: "A whole number of years, for example 4.",
+      example: "5.5",
+      help: "A positive number of years, including decimals such as 5.5.",
     },
   ],
   exampleRows: [
@@ -452,9 +452,9 @@ const courseModule = {
     const code = optionalText(values.code);
     let duration = null;
     if (text(values.duration_years)) {
-      duration = asInt(values.duration_years);
-      if (duration === null || Number.isNaN(duration) || duration < 1 || duration > 10) {
-        roleError(errors, "Duration in years", "must be a whole number between 1 and 10.");
+      duration = asNumber(values.duration_years);
+      if (duration === null || Number.isNaN(duration) || duration <= 0 || duration > 99.9) {
+        roleError(errors, "Duration in years", "must be a positive number, such as 4 or 5.5.");
       }
     }
     const department = departmentHit.item;
@@ -1442,8 +1442,8 @@ const examModule = {
       label: "Exam type",
       required: false,
       aliases: ["exam type", "type", "assessment type", "category"],
-      example: "Mid-term",
-      help: "Class test when left blank. Teachers may import class tests, unit tests, internal assessments, assignments and practicals.",
+      example: "IA1",
+      help: "IA1 when left blank. Teachers may import IA1, Quiz, Project, Practical and Viva.",
     },
     {
       key: "academic_year",
@@ -1484,8 +1484,8 @@ const examModule = {
     },
   ],
   exampleRows: [
-    ["CSE Semester 3, Section A", "Midterm 2026", "Mid-term", "2026-27", "2026-11-16", "2026-11-27", "draft", "Reporting time 09:30"],
-    ["CSE Semester 3, Section A", "Unit test 2", "Unit test", "2026-27", "", "", "open", ""],
+    ["CSE Semester 3, Section A", "IA1 2026", "IA1", "2026-27", "2026-11-16", "2026-11-27", "draft", "Reporting time 09:30"],
+    ["CSE Semester 3, Section A", "Quiz 2", "Quiz", "2026-27", "", "", "open", ""],
   ],
   async loadContext() {
     const { data: auth } = await supabase.auth.getUser();
@@ -1527,7 +1527,7 @@ const examModule = {
     const rawType = text(values.exam_type);
     const type = rawType ? examTypeId(rawType) : null;
     if (type === undefined) {
-      roleError(errors, "Exam type", "is not recognised. Use a value such as Class test, Unit test, Mid-term or Final.");
+      roleError(errors, "Exam type", "is not recognised. Use IA1, IA2, ESA, Project, Practical, Viva or Quiz.");
     }
     const allowedTypes = context.role === "teacher" ? REGULAR_EXAM_TYPES : EXAM_TYPES.map((item) => item.id);
     if (type && !allowedTypes.includes(type)) {
@@ -1535,7 +1535,7 @@ const examModule = {
         errors,
         "Exam type",
         context.role === "teacher"
-          ? "is reserved for administrators. Teachers can import class tests, unit tests, internal assessments, assignments and practicals."
+          ? "is reserved for the Exam Cell. Teachers can import IA1, Quiz, Project, Practical and Viva."
           : "is not allowed for this account.",
       );
     }

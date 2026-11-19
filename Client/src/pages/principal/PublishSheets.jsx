@@ -4,40 +4,41 @@ import { callRpc } from "../../lib/db";
 import { Button, Card, Empty, StatusChip } from "../../components/ui";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { chartAxis, chartTooltip } from "../../components/charts/ChartsConfig";
+import { resultKindLabel } from "../../lib/exams";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
 
 // chartAxis config reused, with the tick size raised to the 11px text floor
 const axis = { ...chartAxis, tick: { ...chartAxis.tick, fontSize: 11 } };
 
 const PublishSheets = () => {
-  const [toSign, setToSign] = useState([]); // hod_approved
-  const [toPublish, setToPublish] = useState([]); // principal_signed
+  const [toPublish, setToPublish] = useState([]); // hod_approved or exam_approved, plus legacy principal_signed
   const [history, setHistory] = useState([]);
   const [perf, setPerf] = useState(null); // null = still loading, [] = nothing published
   const [loadError, setLoadError] = useState(null);
-  const [remarks, setRemarks] = useState({});
   const [message, setMessage] = useState("");
   const [busyId, setBusyId] = useState(null);
 
   const load = async () => {
     setLoadError(null);
-    const select = "id, status, updated_at, principal_remarks, exams ( name, academic_year ), classes ( name )";
-    const [{ data: sign, error: signError }, { data: publish, error: publishError }, { data: past, error: pastError }, { data: published, error: publishedError }] = await Promise.all([
-      supabase.from("result_sheets").select(select).eq("status", "hod_approved"),
-      supabase.from("result_sheets").select(select).eq("status", "principal_signed"),
+    const select = "id, status, result_kind, updated_at, exams ( name, academic_year ), classes ( name )";
+    const [{ data: publish, error: publishError }, { data: past, error: pastError }, { data: published, error: publishedError }] = await Promise.all([
       supabase
         .from("result_sheets")
         .select(select)
-        .in("status", ["published", "hod_rejected", "compiled"])
+        .in("status", ["hod_approved", "exam_approved", "principal_signed"])
+        .order("updated_at", { ascending: true }),
+      supabase
+        .from("result_sheets")
+        .select(select)
+        .in("status", ["published", "hod_rejected", "exam_rejected", "compiled"])
         .order("updated_at", { ascending: false })
         .limit(10),
       supabase.from("result_sheets").select("id, class_id, classes ( name )").eq("status", "published"),
     ]);
-    setToSign(sign ?? []);
     setToPublish(publish ?? []);
     setHistory(past ?? []);
 
-    const failed = signError?.message ?? publishError?.message ?? pastError?.message ?? publishedError?.message;
+    const failed = publishError?.message ?? pastError?.message ?? publishedError?.message;
     if (failed) {
       setLoadError(`Could not load result sheets: ${failed}. Refresh the page and try again.`);
       setPerf([]);
@@ -82,19 +83,6 @@ const PublishSheets = () => {
     load();
   }, []);
 
-  const signOff = async (sheet) => {
-    setBusyId(sheet.id);
-    setMessage("");
-    try {
-      await callRpc("sign_off_result_sheet", { p_sheet_id: sheet.id, p_remarks: remarks[sheet.id] ?? "" });
-      setMessage(`Signed off "${sheet.exams?.name}". Ready to publish.`);
-    } catch (err) {
-      setMessage(err.message);
-    }
-    setBusyId(null);
-    load();
-  };
-
   const publish = async (sheet) => {
     if (!confirm(`Publish results for "${sheet.exams?.name}"? Students will be notified.`)) return;
     setBusyId(sheet.id);
@@ -117,7 +105,7 @@ const PublishSheets = () => {
             {s.exams?.name} <span className="text-(--muted-foreground)">{s.classes?.name}{s.exams?.academic_year ? `, ${s.exams.academic_year}` : ""}</span>
           </p>
           <p className="text-xs text-(--muted-foreground)">
-            Updated {new Date(s.updated_at).toLocaleString()}
+            {resultKindLabel(s.result_kind)}, updated {new Date(s.updated_at).toLocaleString()}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -130,7 +118,10 @@ const PublishSheets = () => {
 
   return (
     <>
-      <DashboardHeader title="Sign Off & Publish" subtitle="Final sign-off before students see their results." />
+      <DashboardHeader
+        title="Publish results"
+        subtitle="Publish HOD-approved internal assessments and Exam Cell approved semester results. Students are notified when a sheet is published."
+      />
 
       {loadError ? (
         <p className="mt-6 rounded-lg border border-(--danger)/40 bg-(--danger-subtle) px-4 py-3 text-xs text-(--danger)">
@@ -149,7 +140,7 @@ const PublishSheets = () => {
               <BarChart data={perf} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="2 4" vertical={false} />
                 <XAxis dataKey="label" {...axis} dy={8} />
-                <YAxis {...axis} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} width={35} />
+                <YAxis {...axis} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} width={55} />
                 <Tooltip cursor={{ fill: "color-mix(in srgb, var(--primary) 6%, transparent)" }} {...chartTooltip} />
                 <Bar dataKey="value" fill="var(--primary)" radius={[6, 6, 0, 0]} barSize={26} />
               </BarChart>
@@ -161,43 +152,29 @@ const PublishSheets = () => {
       )}
 
       <section className="mt-6">
-        <p className="text-xs font-medium text-(--muted-foreground)">
-          Approved by HOD, awaiting my sign-off
-        </p>
+        <p className="text-xs font-medium text-(--muted-foreground)">Approved, ready to publish</p>
         <div className="mt-3 space-y-3">
-          {toSign.length === 0 && <Empty>Nothing awaiting sign-off.</Empty>}
-          {toSign.map((s) =>
-            row(
+          {toPublish.length === 0 && (
+            <Empty>Nothing ready to publish. Sheets appear here after the HOD or the Exam Cell approves a compiled sheet.</Empty>
+          )}
+          {toPublish.map((s) => {
+            // A semester result is an official document: the Exam Cell must
+            // approve it first, so the Principal only publishes at that stage.
+            const awaitingExamCell =
+              s.result_kind === "semester" && s.status !== "exam_approved";
+            return row(
               s,
-              <>
-                <input
-                  className="w-40 rounded-lg border border-(--border) bg-(--surface) px-2.5 py-1.5 text-xs text-(--foreground) transition-colors focus:border-(--primary) focus-visible:outline-2 focus-visible:outline-(--primary) focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
-                  placeholder="Remarks (optional)"
-                  value={remarks[s.id] ?? ""}
-                  onChange={(e) => setRemarks({ ...remarks, [s.id]: e.target.value })}
-                  disabled={busyId === s.id}
-                />
-                <Button onClick={() => signOff(s)} disabled={busyId === s.id}>
-                  {busyId === s.id ? "Signing…" : "Sign off"}
+              awaitingExamCell ? (
+                <span className="text-[11px] text-(--muted-foreground)">
+                  Awaiting Exam Cell approval
+                </span>
+              ) : (
+                <Button variant="success" onClick={() => publish(s)} disabled={busyId === s.id}>
+                  {busyId === s.id ? "Publishing…" : "Publish"}
                 </Button>
-              </>,
-            ),
-          )}
-        </div>
-      </section>
-
-      <section className="mt-8">
-        <p className="text-xs font-medium text-(--muted-foreground)">Ready to publish</p>
-        <div className="mt-3 space-y-3">
-          {toPublish.length === 0 && <Empty>Nothing ready to publish.</Empty>}
-          {toPublish.map((s) =>
-            row(
-              s,
-              <Button variant="success" onClick={() => publish(s)} disabled={busyId === s.id}>
-                {busyId === s.id ? "Publishing…" : "Publish"}
-              </Button>,
-            ),
-          )}
+              ),
+            );
+          })}
         </div>
       </section>
 

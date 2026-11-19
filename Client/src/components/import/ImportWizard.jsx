@@ -20,6 +20,8 @@ import {
   normHeader,
 } from "../../import/schemaUtils";
 
+const PAGE_SIZE = 100;
+
 const STEPS = [
   { id: "upload", label: "Upload" },
   { id: "map", label: "Match columns" },
@@ -110,6 +112,28 @@ function Notice({ tone = "danger", children }) {
   );
 }
 
+function Pager({ page, pageCount, total, pageSize, onChange, noun = "rows" }) {
+  if (total <= pageSize) return null;
+  const first = page * pageSize + 1;
+  const last = Math.min(total, (page + 1) * pageSize);
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <p className="text-[11px] text-(--muted-foreground)">
+        Showing {first.toLocaleString()} to {last.toLocaleString()} of {total.toLocaleString()} {noun}
+      </p>
+      <div className="flex items-center gap-2">
+        <Button type="button" variant="subtle" onClick={() => onChange(page - 1)} disabled={page <= 0}>
+          Previous
+        </Button>
+        <span className="text-[11px] tabular-nums text-(--muted-foreground)">Page {page + 1} of {pageCount}</span>
+        <Button type="button" variant="subtle" onClick={() => onChange(page + 1)} disabled={page >= pageCount - 1}>
+          Next
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function ImportWizard({ module, onClose, onComplete, defaults = {} }) {
   const [step, setStep] = useState("upload");
   const [context, setContext] = useState(null);
@@ -134,6 +158,8 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
   const [results, setResults] = useState(null);
   const [wizardError, setWizardError] = useState("");
   const [downloading, setDownloading] = useState("");
+  const [previewPage, setPreviewPage] = useState(0);
+  const [failedPage, setFailedPage] = useState(0);
 
   const panelRef = useRef(null);
   const closeRef = useRef(null);
@@ -151,6 +177,14 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
   );
   const readyCount = plan ? plan.summary.create + plan.summary.update : 0;
   const blockedCount = plan ? plan.summary.invalid + plan.summary.failed : 0;
+
+  useEffect(() => {
+    setPreviewPage(0);
+  }, [plan]);
+
+  useEffect(() => {
+    setFailedPage(0);
+  }, [results]);
 
   useEffect(() => {
     let active = true;
@@ -414,6 +448,16 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
   const previewFields = module.fields.filter((field) => mapping[field.key]).slice(0, 5);
   const failedOutcomes = results?.outcomes.filter((item) => ["failed", "invalid"].includes(item.status)) ?? [];
   const createdAccounts = results?.outcomes.filter((item) => item.status === "created" && item.meta?.password) ?? [];
+
+  const previewPageCount = plan ? Math.max(1, Math.ceil(plan.records.length / PAGE_SIZE)) : 1;
+  const safePreviewPage = Math.min(previewPage, previewPageCount - 1);
+  const previewRows = plan
+    ? plan.records.slice(safePreviewPage * PAGE_SIZE, safePreviewPage * PAGE_SIZE + PAGE_SIZE)
+    : [];
+
+  const failedPageCount = Math.max(1, Math.ceil(failedOutcomes.length / PAGE_SIZE));
+  const safeFailedPage = Math.min(failedPage, failedPageCount - 1);
+  const failedRows = failedOutcomes.slice(safeFailedPage * PAGE_SIZE, safeFailedPage * PAGE_SIZE + PAGE_SIZE);
 
   return (
     <div
@@ -824,7 +868,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                     </tr>
                   </thead>
                   <tbody>
-                    {plan.records.slice(0, 100).map((record) => (
+                    {previewRows.map((record) => (
                       <tr
                         key={record.rowNumber}
                         className={`border-b border-(--border-subtle)/60 last:border-b-0 ${
@@ -849,11 +893,16 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                   </tbody>
                 </table>
               </div>
-              {plan.records.length > 100 ? (
-                <p className="text-xs text-(--muted-foreground)">
-                  Showing the first 100 of {plan.records.length.toLocaleString()} rows. Every row is checked and imported.
-                </p>
-              ) : null}
+              <Pager
+                page={safePreviewPage}
+                pageCount={previewPageCount}
+                total={plan.records.length}
+                pageSize={PAGE_SIZE}
+                onChange={setPreviewPage}
+              />
+              <p className="text-[11px] text-(--muted-foreground)">
+                Every row is checked and imported, not only the rows on this page.
+              </p>
 
               <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                 <Button type="button" variant="subtle" onClick={() => setStep("map")}>
@@ -1073,7 +1122,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                         </tr>
                       </thead>
                       <tbody>
-                        {failedOutcomes.slice(0, 100).map((item) => (
+                        {failedRows.map((item) => (
                           <tr key={item.rowNumber} className="border-b border-(--border-subtle)/60 last:border-b-0">
                             <td className="px-2 py-1.5 tabular-nums text-(--muted-foreground)">{item.rowNumber}</td>
                             <td className="px-2 py-1.5">{REPORT_STATUS_LABEL[item.status] ?? item.status}</td>
@@ -1084,11 +1133,15 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                       </tbody>
                     </table>
                   </div>
-                  {failedOutcomes.length > 100 ? (
-                    <p className="mt-2 text-xs text-(--muted-foreground)">
-                      Showing 100 of {failedOutcomes.length.toLocaleString()} rows. Download the report for the rest.
-                    </p>
-                  ) : null}
+                  <div className="mt-3">
+                    <Pager
+                      page={safeFailedPage}
+                      pageCount={failedPageCount}
+                      total={failedOutcomes.length}
+                      pageSize={PAGE_SIZE}
+                      onChange={setFailedPage}
+                    />
+                  </div>
                 </div>
               ) : null}
 

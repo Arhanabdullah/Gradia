@@ -1,12 +1,13 @@
+import { Suspense, useState, useEffect } from "react";
 import { Outlet, useLocation, Navigate } from "react-router-dom";
 import DashboardSidebar from "./DashboardSidebar";
 import { useAuth } from "../../context/AuthContext";
 import { Button } from "../ui";
+import ErrorBoundary from "../ErrorBoundary";
 import AppLoader from "../AppLoader";
+import BackToTop from "../BackToTop";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useMinLoadingState } from "../../lib/useMinLoadingState";
-import { useState, useEffect } from "react";
-import BackToTop from "../BackToTop";
 
 const DashboardLayout = () => {
   const { profile, loading, signOut } = useAuth();
@@ -66,7 +67,19 @@ const DashboardLayout = () => {
           className="focus-target relative z-10"
         >
           <div className="mx-auto max-w-5xl px-6 py-6">
-            <Outlet />
+            <ErrorBoundary key={location.pathname}>
+              <Suspense
+                fallback={
+                  <div className="mt-6 space-y-3" aria-hidden="true">
+                    {[0, 1, 2].map((key) => (
+                      <div key={key} className="glass-inner h-40 motion-safe:animate-pulse rounded-xl" />
+                    ))}
+                  </div>
+                }
+              >
+                <Outlet />
+              </Suspense>
+            </ErrorBoundary>
           </div>
         </main>
       </div>

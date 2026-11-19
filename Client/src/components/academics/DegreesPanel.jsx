@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Button, Card, Empty, Field, inputClass } from "../ui";
+import { useMemo, useState } from "react";
+import { Button, Card, Empty, Field, SearchField, inputClass } from "../ui";
 import ImportButton from "../import/ImportButton";
 
 const emptyDegree = { name: "", code: "" };
@@ -17,9 +17,20 @@ export default function DegreesPanel({
   const [form, setForm] = useState(emptyDegree);
   const [editingId, setEditingId] = useState("");
   const [formError, setFormError] = useState("");
+  const [query, setQuery] = useState("");
 
   const courseCount = (id) => courses.filter((course) => course.degree_id === id).length;
   const classCount = (id) => classes.filter((item) => item.degree_id === id).length;
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return degrees;
+    return degrees.filter((degree) =>
+      [degree.name, degree.code]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(needle)),
+    );
+  }, [degrees, query]);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -97,15 +108,32 @@ export default function DegreesPanel({
         {formError ? <p className="mt-3 text-xs text-(--danger)">{formError}</p> : null}
       </Card>
 
-      <div className="mt-5 space-y-2">
+      <div className="mt-5 flex flex-wrap items-end justify-between gap-3">
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          label="Search degrees"
+          placeholder="Name or code"
+          className="w-full sm:max-w-xs"
+        />
+        {!loading ? (
+          <p className="pb-2.5 text-xs text-(--muted-foreground) tabular-nums">
+            {filtered.length} of {degrees.length} degree{degrees.length === 1 ? "" : "s"}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="mt-3 space-y-2">
         {loading ? (
           Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="glass-inner h-16 animate-pulse rounded-lg" />
           ))
         ) : degrees.length === 0 ? (
           <Empty>No degrees yet. Create the first one with the form above.</Empty>
+        ) : filtered.length === 0 ? (
+          <Empty>No degrees match "{query.trim()}".</Empty>
         ) : (
-          degrees.map((degree) => {
+          filtered.map((degree) => {
             const courseTotal = courseCount(degree.id);
             const classTotal = classCount(degree.id);
             return (

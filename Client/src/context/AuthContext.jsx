@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 const AuthContext = createContext(null);
@@ -7,34 +7,34 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  // Flips true once the initial getSession() check has completed. The
-  // [session] effect runs on mount before that, sees the initial null
-  // session, and must not treat it as "signed out" — otherwise every
-  // cold load of a protected route redirects through /login.
-  const checkedRef = useRef(false);
+  // getSession() is async, so the first render always has session === null.
+  // Without this flag the profile effect would resolve that placeholder as
+  // "signed out", clear loading, and bounce a hard load/refresh of a deep
+  // link (/app/reports, /app/archive, ...) through /login back to /app.
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
+    let active = true;
     supabase.auth.getSession().then(({ data: { session } }) => {
-      checkedRef.current = true;
+      if (!active) return;
       setSession(session);
-      // A null session after the initial check is definitively signed out.
-      if (!session) setLoading(false);
+      setSessionReady(true);
     });
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      // supabase-js can emit a null session mid-init even while a stored
-      // session is being revalidated; trusting it bounces signed-in users
-      // through /login. Real sign-out clears storage before the event, so
-      // the token check disambiguates the two cases.
-      if (!session && localStorage.getItem(supabase.auth.storageKey)) return;
       setSession(session);
+      setSessionReady(true);
     });
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
     let active = true;
+    if (!sessionReady) return undefined;
     if (session?.user) {
       const loadProfile = async () => {
         // two FKs exist between profiles and classes (class_id / hod_id),
@@ -54,15 +54,14 @@ export function AuthProvider({ children }) {
         }
       };
       loadProfile();
-    } else if (checkedRef.current) {
-      // A later null session (sign-out), not the initial mount pass.
+    } else {
       setProfile(null);
       setLoading(false);
     }
     return () => {
       active = false;
     };
-  }, [session]);
+  }, [session, sessionReady]);
 
   const value = {
     session,

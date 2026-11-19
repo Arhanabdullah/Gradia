@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import Reveal from "./Reveal";
 import { motion } from "framer-motion";
 import DashboardHeader from "./dashboard/DashboardHeader";
 import DashboardStats from "./dashboard/DashboardStats";
 import RecentResults from "./dashboard/RecentResults";
-import PerformanceChart from "./charts/PerformanceChart";
-import SubjectPerformanceChart from "./charts/SubjectPerformanceChart";
 import { LayoutDashboard, Users, Award, GraduationCap, BarChart2 } from "lucide-react";
+
+// The charting library is heavy and purely decorative on this mockup, so it is
+// loaded after the preview itself has painted.
+const PerformanceChart = lazy(() => import("./charts/PerformanceChart"));
+const SubjectPerformanceChart = lazy(() => import("./charts/SubjectPerformanceChart"));
+const chartFallback = <div className="h-55 w-full" aria-hidden="true" />;
 
 // Preview-only tabs for the landing-page mockup. Pure mock content.
 const PREVIEW_TABS = [
@@ -230,7 +234,9 @@ const ProductPreview = () => {
                                                     Average score over the academic year
                                                 </p>
                                             </div>
-                                            <PerformanceChart />
+                                            <Suspense fallback={chartFallback}>
+                                                <PerformanceChart />
+                                            </Suspense>
                                         </motion.div>
                                         <motion.div
                                             className="glass-inner rounded-xl p-4"
@@ -251,7 +257,9 @@ const ProductPreview = () => {
                                                     Average score by subject
                                                 </p>
                                             </div>
-                                            <SubjectPerformanceChart />
+                                            <Suspense fallback={chartFallback}>
+                                                <SubjectPerformanceChart />
+                                            </Suspense>
                                         </motion.div>
                                     </div>
                                     <RecentResults />

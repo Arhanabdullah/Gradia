@@ -4,7 +4,7 @@
 
 Gradia is a full-stack Student Result Management System for managing, reviewing, approving, and publishing student academic results.
 
-The system provides different interfaces and permissions for students, teachers, administrators, HODs, and principals, creating a structured result management and approval workflow.
+The system provides different interfaces and permissions for students, teachers, administrators, HODs, the Exam Cell, coordinators, and principals, creating a structured result management and approval workflow.
 
 **Stack:** React 19 + Vite + Tailwind 4 (client) · Supabase (Postgres + Auth + Row Level Security + Edge Functions).
 
@@ -38,10 +38,11 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
    ```bash
    npx supabase functions deploy create-user --project-ref <your-ref>
    npx supabase functions deploy set-user-active --project-ref <your-ref>
+   npx supabase functions deploy demo-request --project-ref <your-ref>
    ```
-   `SUPABASE_SERVICE_ROLE_KEY` is injected automatically; it must never live in the client.
+   `SUPABASE_SERVICE_ROLE_KEY` is injected automatically; it must never live in the client. The `demo-request` function also needs `RESEND_API_KEY` set as a function secret.
 
-5. **Apply academic migrations (Phase 2 first, then Phase 3, then Phase 4):**
+5. **Apply academic migrations (Phase 2 first, then Phase 3, then Phase 4 and later):**
    Run each migration file in `supabase/migrations/` in order via the SQL Editor or `npx supabase db push`.
    Migration order — see `supabase/migrations/README.md`.
 
@@ -65,7 +66,7 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 
 The objective of Gradia is to provide a centralized platform for managing student academic results while reducing manual work and improving the accuracy, transparency, and efficiency of the result publication process.
 
-The system follows a role-based workflow where teachers enter marks, administrators compile results, the HOD reviews and approves them, and the Principal provides the final sign-off before results are published to students.
+The system follows a role-based workflow where teachers enter marks, administrators or the Exam Cell compile results, the HOD reviews and approves them, and the Exam Cell gives the final approval before publication. There is no separate principal sign-off stage.
 
 ---
 
@@ -87,8 +88,9 @@ Are all marks entered?
    └── Yes
           │
           ▼
-     Admin Compiles
-     Result Sheet
+     Admin / Exam Cell
+     Compiles Result
+     Sheet
           │
           ▼
       HOD Reviews
@@ -102,15 +104,18 @@ Are all marks entered?
    No       Yes
       │        │
       ▼        ▼
- Send Back   Principal
-  for         Signs Off
- Correction     │
+Send Back   Exam Cell
+for         Approves
+Correction  Result
+      │        │
       │        ▼
-      └────► Publish Result
-                 │
-                 ▼
-            Notify Students
+      │   Exam Cell or Principal
+      │   Publishes Result
+      │        │
+      └────► Notify Students
 ```
+
+Statuses: `compiled → hod_approved | hod_rejected → exam_approved | exam_rejected → published`. Legacy `principal_signed` rows remain publishable.
 
 ## 📦 Import Feature
 
@@ -206,13 +211,15 @@ select
 
 - **The landing page shares dashboard components.** `ProductPreview.jsx` renders `<DashboardSidebar fluid />` and `<DashboardHeader />` with no props — the sidebar has `PREVIEW_ITEMS`/`fluid` fallbacks and the header hides auth controls when `profile` is null. Preserve those fallbacks or the landing page crashes (`items.map` of undefined).
 
-- **Published results are immutable.** Once a result sheet is `published`, it cannot be deleted or modified. Corrections require creating a new version via the workflow RPCs (Phase 4/7).
+- **Published results are immutable.** DB triggers block deleting a published sheet, moving it back to an earlier status, changing its publication timestamp, and writing to published items/components/versions. There is no correction-version workflow yet, so a published sheet cannot be rebuilt or recalculated — plan for it to stay as issued.
 
 - **Legacy `subjects.class_id` and `subjects.teacher_id`** columns are preserved but deprecated. New assignments use `class_subjects` and `teacher_assignments`. Screens that still read legacy columns may show zero results for new catalogue subjects.
 
-- **Result versioning** (`result_sheet_versions`, `result_component_items`, `result_reviews`) supports corrections. A published sheet cannot be overwritten; a new version must be created and republished.
+- **Result versioning tables** (`result_sheet_versions`, `result_component_items`, `result_reviews`) exist for future corrections, but no correction RPC workflow is exposed yet. A published sheet cannot be overwritten.
 
 - **Published sheet immutability** — `guard_result_sheet_mutation()` freezes status and `published_at`, but it does NOT freeze `compiled_by`, `hod_reviewed_by`, `principal_signed_by`, remarks, or `updated_at`. Only RPCs/service role can reach these columns. Future correction RPCs should not mutate the published row — consider freezing all non-version columns or moving them to the version table.
+
+- **Grading is credit-weighted.** `recalculate_result_sheet` owns grades, earned points, result codes and SGPA/CGPA: SGPA = semester earned points / semester credits, CGPA = cumulative earned points / cumulative credits (never an average of SGPAs). Withheld (`RW`) items earn no points and are excluded from the denominators. Exam Cell approval and publication run `assert_result_sheet_ready` first, which blocks on ungraded items, missing marks and missing credit hours.
 
 - **EGradia did not start with a baseline migration.** The baseline is `supabase/schema.sql`. Apply things in this order:
   1. Run `supabase/schema.sql` once
@@ -221,12 +228,15 @@ select
   4. Then Phase 2 `202611060000-0006`
   5. Then Phase 3 `202611070001-0004`
   6. Then Phase 4 `202611090001`, `202611100001-0003`
+  7. Then Phase 5 and later migrations (attendance, Exam Cell, grading engine, assessment components) in filename order
 
 - **Never re-run `schema.sql` after migrations.** It replaces `handle_new_user()` with an older version and would leave the schema inconsistent.
 
 - **No service-role key anywhere in the client.** The anon key lives in `Client/.env` (`VITE_`-prefixed). Never write `result_sheets`/`result_items` directly from the client — RLS blocks direct writes and snapshots are RPC-controlled.
 
-- **Role enum:** `student | teacher | hod | principal | admin`. Roles are admin-only (RLS blocks self-update). Deactivated accounts read nothing and cannot call any guarded RPC.
+- **Role enum:** `student | teacher | hod | principal | admin | coordinator | exam_cell`. Roles and activation are admin-only (RLS blocks self-update). Deactivated accounts read nothing and cannot call any guarded RPC.
+
+- **HOD scope** resolves through `class_hod_assignments`, `department_hod_assignments` or the legacy `classes.hod_id`. An HOD with none of those assigned cannot review any sheet.
 
 - **Login expects "Confirm email" OFF** in Supabase Auth (admin-managed accounts); the Edge Function sets `email_confirm: true` per user anyway.
 
@@ -236,9 +246,9 @@ select
 
 - **Write per-row permission checks** as security-definer helpers (`app_role`, `is_admin`, `is_class_hod`, `is_subject_teacher`, `is_sheet_hod`), never inline subqueries against RLS'd tables (recursion risk).
 
-- **Result sheets statuses:** `draft → compiled → hod_approved | hod_rejected → principal_signed → published`. Published sheets are immutable.
+- **Result sheet statuses:** `compiled → hod_approved | hod_rejected → exam_approved | exam_rejected → published`. Published sheets are immutable.
 
-- **Admin-only operations:** Creating accounts, compiling sheets, reviewing/signing/publishing results, managing users, degrees, classes, and subjects.
+- **Who can do what:** account creation and user/degree/class/subject management are admin-only; compiling is admin or Exam Cell; review is HOD; Exam Cell approval is the final gate before publication; Exam Cell or the principal publishes.
 
 ---
 

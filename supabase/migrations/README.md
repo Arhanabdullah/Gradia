@@ -97,6 +97,122 @@ existing records through Academics → Degrees / Courses / Classes and Users →
 department-scoped degrees must merge or rename duplicates before applying it. The live
 catalogue was empty when the migration was introduced.
 
+## Attendance migration
+
+| File | Adds |
+|---|---|
+| `202611110001_attendance.sql` | `attendance` records linked to student, class, subject, academic year and teacher; generated per-subject percentage; validation trigger; scope helpers and RLS |
+
+The table stores `attended_classes` and `total_classes`; `attendance_percentage` is a
+generated column (`attended / total * 100`). A unique constraint on
+`(student_id, class_id, subject_id, academic_year)` prevents duplicate records, so the
+attendance screen upserts instead of inserting. The client calculates overall attendance
+as `sum(attended) / sum(total) * 100` across subjects.
+
+The migration is additive and does not touch existing tables. It must be applied after
+`202611100003_global_degrees.sql` so the migration chain stays in filename order, although
+the attendance table itself does not reference degrees.
+
+## Result workflow and visibility migrations
+
+| File | Changes |
+|---|---|
+| `202611110002_course_duration_decimal.sql` | `courses.duration_years` becomes `numeric(3,1)` so durations such as `5.5` are accepted |
+| `202611120001_exam_subject_visibility.sql` | `can_view_subject()` also allows a subject attached to an exam the caller can already view, so exam schedules no longer hide paper names behind RLS |
+| `202611120002_remove_principal_signoff.sql` | Removes the principal sign-off stage; `publish_result_sheet()` accepts `hod_approved` directly and `sign_off_result_sheet()` is disabled |
+
+`202611120002` keeps `principal_signed` publishable for sheets already in flight and leaves
+the enum value in place for backward compatibility. The publishing permission still belongs
+to the `principal` role; only the intermediate approval stage was removed.
+
+## Grading engine, assessment structure and read paths
+
+| File | Changes |
+|---|---|
+| `202611140001_academic_grading_engine.sql` | Credit-weighted SGPA/CGPA (`recalculate_result_sheet`), result codes `P/XP/X/F/RW`, promotion rules, `subjects.subject_type`, `subjects.credit_hours` backfill, `profiles.registration_no`, `grade_band_for()` gap-tolerant lookup, readiness gate (`result_sheet_readiness` / `assert_result_sheet_ready`), Exam Cell approval and publish gates, config audit triggers |
+| `202611150001_central_assessment_structure.sql` | `assessment_templates` + `assessment_template_components` materialised into `assessment_components`; `subjects.assessment_template_id` / `exam_subjects.assessment_template_id`; `exams.result_kind` and `result_sheets.result_kind` so only End-Semester sheets produce a printable grade card |
+| `202611160001_read_policy_fastpaths.sql` | Rewrites the `SELECT` policies on `subjects`, `profiles`, `student_enrollments` and `audit_logs` so the role-wide check is an InitPlan instead of a per-row call (Exam Cell subject scan 910 ms -> 5 ms on 792 rows) |
+| `202611170001_component_papers.sql` | One schedulable paper per assessment component (`is_conducted`, `exam_date`, `start_time`, `end_time`, `duration_minutes`, `room`, `teacher_id`, `instructions`, `allow_overlap`); practical-only labs; `add_exam_subject` / `remove_exam_subject`; `update_assessment_component_schedule`; Exam Cell access to examination scheduling |
+| `202611180001_paper_schedule_mode.sql` | `schedule_mode` (`formal` / `classwork`) on `assessment_template_components` and `assessment_components`; classwork trigger clears scheduling fields; `update_assessment_component_schedule` accepts `duration_minutes`, rejects schedules on classwork and derives `end_time` |
+| `202611180002_retire_legacy_exam_groups.sql` | Destructive, guarded cleanup of the five empty legacy internal groups (`IA 1`, `IA 2`, `Quiz`, `Assignment`, `Project`) plus cancelled groups, after writing a full backup to `audit_logs` |
+| `202611190001_schedule_conflict_guards.sql` | Extends `validate_assessment_component_schedule` with cross-group room and invigilator collision checks; adds the `schedule_conflicts()` read RPC the class scheduler calls before saving |
+
+`202611160001` only reorders how the existing predicates are evaluated: the scoped
+helpers (`can_view_subject`, `can_view_profile`, `is_class_hod`, `teaches_class`) still
+decide every non-monitor case, and the admin/principal branch is the same early return
+those helpers already take. Row counts were compared per role before and after. Keep the
+`(select …)` wrapper when editing these policies; without it the planner falls back to
+one helper call per row.
+
+### Component papers
+
+A semester examination now schedules each assessment component as its own paper, so a
+theory subject carries IA1, IA2, Quiz, Assignment, Project and the End Semester paper,
+and a practical subject carries its practical papers only. The structure still comes from
+the central templates; the papers only add scheduling and a conducted switch.
+
+- A paper switched off (`is_conducted = false`) is not marked, is excluded from
+  `assessment_component_total`, and the subject percentage is normalised over the papers
+  that were conducted. The structure must still total 100 configured marks.
+- `submit_exam_marks` counts only conducted papers, `result_sheet_readiness` reports
+  `missing_conducted`, and `skip_non_conducted_component_item` keeps a skipped paper out
+  of the compiled snapshot even if a stray mark exists.
+- Switching a paper off after marks were entered is rejected; a published examination
+  cannot be re-scheduled at all.
+- Practical subjects (`subjects.subject_type = 'lab'` or an `LS` code) are rejected from
+  internal and theory examinations by both `create_exam_group` and `add_exam_subject`.
+- `add_exam_subject` / `remove_exam_subject` and `update_assessment_component_schedule`
+  act group-wide, so every class in a department examination stays in step. Admin and
+  Exam Cell can change a subject list; a teacher can only re-schedule papers for subjects
+  they teach.
+
+### Formal papers and classwork
+
+`202611180001` splits the papers of a subject into two kinds, configured once in the
+assessment structure and copied to every exam subject by `materialize_assessment_template`:
+
+- **formal** — an invigilated paper with a date, start time, duration, room and invigilator.
+  This covers IA1, IA2, ESA, the practical exam and the viva.
+- **classwork** — a marked activity with no date, room or invigilator: quiz, assignment,
+  project and the practical record. A trigger clears those columns on any classwork row,
+  and `update_assessment_component_schedule` raises `check_violation` if a caller tries to
+  schedule one. The conducted toggle still works, so a skipped activity stays out of the
+  subject total.
+
+`update_assessment_component_schedule` now takes `duration_minutes` for formal papers and
+derives `end_time` from the start time plus the duration. A missing or zero duration on a
+formal paper is rejected. Scheduling still acts group-wide by component code and still
+refuses to switch off a paper that already has marks.
+
+`202611180002` is **destructive** and must run only after `202611180001`. It removes the
+five standalone legacy internal groups and any cancelled groups, but only when the group
+has no result sheet, marks or marks submission. Before deleting, it writes the group, its
+exams, subjects and components into `audit_logs` (`exam_group.legacy_cleanup`). Re-running
+is a no-op. Back up `exam_groups`, `exams`, `exam_subjects` and `assessment_components`
+before applying it to a database that holds real data.
+
+The client degrades gracefully while `202611180001` is unapplied: `ManageExams.jsx`
+retries its `schedule_mode` selects without the column, and `isClassworkComponent()` falls
+back to the classwork component codes. Saving a formal paper still needs the migration,
+because the older RPC ignores `duration_minutes`.
+
+### Schedule conflict guards
+
+`202611190001` keeps every paper inside one class free of clashes and stops two classes
+from sharing a room or an invigilator at the same time:
+
+- `validate_assessment_component_schedule` still rejects a class overlap inside the same
+  examination group, then also rejects a formal paper in a **different** group that
+  overlaps it in the same room or with the same invigilator. Same-group propagation is
+  skipped on purpose: `update_assessment_component_schedule` applies a paper group-wide, so
+  checking siblings would reject the very rows it is about to write.
+- `schedule_conflicts(p_exam_date, p_start_time, p_end_time, p_room, p_teacher_id,
+  p_class_id, p_exam_group_id, p_exclude_component_id)` returns the clashing papers for a
+  proposed slot. It is the authoritative pre-flight check for callers whose RLS view hides
+  other classes. The class scheduler validates locally against the papers it can read so
+  the form gives instant feedback; the trigger remains the final guard on every write.
+- A paper with `allow_overlap` is exempt, matching the existing same-group behaviour.
+
 ## Known sequencing deferrals
 
 Two legacy constraints are intentionally kept through Phase 2 because current UI code
@@ -160,6 +276,12 @@ select count(*) from public.profiles p
 where p.role = 'student' and p.class_id is not null
   and not exists (select 1 from public.student_enrollments e
                   where e.student_id = p.id and e.class_id = p.class_id);
+
+-- classwork papers must not carry scheduling fields (after 202611180001)
+select count(*) from public.assessment_components
+where schedule_mode = 'classwork'
+  and (exam_date is not null or start_time is not null
+       or room is not null or teacher_id is not null);
 ```
 
 Row-count sanity (should match the legacy counts):

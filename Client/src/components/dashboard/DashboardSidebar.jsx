@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Users, GraduationCap, FileText, BarChart2, CheckCircle2, Send, Award, Bell, LogOut, Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Users, GraduationCap, FileText, BarChart2, CheckCircle2, Send, Award, Bell, LogOut, Menu, X, ChevronLeft, ChevronRight, CalendarCheck, Archive, SlidersHorizontal, ClipboardList } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { microTransition } from "../../animations/variants";
 
@@ -8,29 +8,52 @@ import { microTransition } from "../../animations/variants";
 const NAV_BY_ROLE = {
   admin: [
     { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
+    { to: "/app/directory", label: "Users Dashboard", icon: Users },
     { to: "/app/users", label: "Users", icon: Users },
     { to: "/app/classes", label: "Academics", icon: GraduationCap },
     { to: "/app/exams", label: "Exams", icon: FileText },
+    { to: "/app/attendance", label: "Attendance", icon: CalendarCheck },
     { to: "/app/sheets", label: "Result Sheets", icon: BarChart2 },
   ],
   teacher: [
     { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
+    { to: "/app/directory", label: "Users Dashboard", icon: Users },
     { to: "/app/exams", label: "Exams", icon: FileText },
     { to: "/app/marks", label: "Marks Entry", icon: CheckCircle2 },
+    { to: "/app/attendance", label: "Attendance", icon: CalendarCheck },
   ],
   hod: [
     { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
+    { to: "/app/directory", label: "Users Dashboard", icon: Users },
     { to: "/app/exams", label: "Exams", icon: FileText },
+    { to: "/app/attendance", label: "Attendance", icon: CalendarCheck },
     { to: "/app/review", label: "Review Sheets", icon: Send },
   ],
   principal: [
     { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
+    { to: "/app/directory", label: "Users Dashboard", icon: Users },
     { to: "/app/publish", label: "Sign Off & Publish", icon: Award },
   ],
   student: [
     { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
     { to: "/app/results", label: "My Results", icon: Award },
     { to: "/app/notifications", label: "Notifications", icon: Bell },
+  ],
+  coordinator: [
+    { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
+    { to: "/app/reports", label: "Monitoring", icon: BarChart2 },
+    { to: "/app/archive", label: "Result archive", icon: Archive },
+    { to: "/app/directory", label: "Users Dashboard", icon: Users },
+  ],
+  exam_cell: [
+    { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
+    { to: "/app/exams", label: "Exams", icon: FileText },
+    { to: "/app/config", label: "Result configuration", icon: SlidersHorizontal },
+    { to: "/app/assessment", label: "Assessment setup", icon: ClipboardList },
+    { to: "/app/approval", label: "Result approval", icon: CheckCircle2 },
+    { to: "/app/sheets", label: "Result Sheets", icon: BarChart2 },
+    { to: "/app/archive", label: "Result archive", icon: Archive },
+    { to: "/app/directory", label: "Users Dashboard", icon: Users },
   ],
 };
 
@@ -90,7 +113,7 @@ export default function DashboardSidebar({
 
   return (
     <aside
-      className={`glass-floating flex shrink-0 flex-col ${
+      className={`glass-floating flex shrink-0 flex-col transition-all duration-300 ease-out ${
         fluid ? "w-full md:w-64" : collapsed ? "w-16" : "w-64"
       }`}
       aria-label="Main navigation"

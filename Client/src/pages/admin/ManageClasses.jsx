@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { Button, Card, Empty, Field, Select, inputClass } from "../../components/ui";
+import { Button, Card, Empty, Field, SearchField, Select, inputClass } from "../../components/ui";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
 import DepartmentsPanel from "../../components/academics/DepartmentsPanel";
 import DegreesPanel from "../../components/academics/DegreesPanel";
 import CoursesPanel from "../../components/academics/CoursesPanel";
+import AssignSubjectPanel from "../../components/academics/AssignSubjectPanel";
 import ImportButton from "../../components/import/ImportButton";
 
 const initialClass = { name: "", department_id: "", degree_id: "", course_id: "", academic_year: "", semester: "", section: "", hod_id: "" };
@@ -18,27 +19,17 @@ function isMissingRelation(error) {
   return /does not exist|schema cache|could not find the table/i.test(error.message ?? "");
 }
 
-// The dropdown must identify teachers even when two staff share a name.
-function teacherLabel(teacher) {
-  if (!teacher) return "";
-  const id = teacher.teacher_id || teacher.username;
-  return id ? `${teacher.name} (${id})` : teacher.name;
-}
-
-function teacherNamesFor(row) {
-  return (row.teachers ?? []).map((teacher) => teacherLabel(teacher.profiles)).filter(Boolean);
-}
-
 const TABS = [
-  { id: "classes", label: "Classes" },
-  { id: "subjects", label: "Subjects" },
-  { id: "departments", label: "Departments" },
   { id: "degrees", label: "Degrees" },
+  { id: "departments", label: "Departments" },
   { id: "courses", label: "Courses" },
+  { id: "subjects", label: "Subjects" },
+  { id: "classes", label: "Classes" },
+  { id: "assignsubjects", label: "Assign subjects" },
 ];
 
 export default function ManageClasses() {
-  const [activeTab, setActiveTab] = useState("classes");
+  const [activeTab, setActiveTab] = useState("degrees");
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -60,6 +51,10 @@ export default function ManageClasses() {
   const [saving, setSaving] = useState(false);
   const [pageError, setPageError] = useState("");
   const [success, setSuccess] = useState("");
+  const [classQuery, setClassQuery] = useState("");
+  const [subjectQuery, setSubjectQuery] = useState("");
+  const [catalogueQuery, setCatalogueQuery] = useState("");
+  const [assignedQuery, setAssignedQuery] = useState("");
 
   const filteredCourses = useMemo(
     () =>
@@ -81,6 +76,27 @@ export default function ManageClasses() {
       ),
     [hods, classForm.department_id, classForm.hod_id]
   );
+
+  const filteredClasses = useMemo(() => {
+    const needle = classQuery.trim().toLowerCase();
+    if (!needle) return classes;
+    return classes.filter((item) => {
+      const degree = degrees.find((entry) => entry.id === item.degree_id)?.name;
+      return [item.name, item.department, degree, item.academic_year, item.semester, item.section]
+        .filter((value) => value !== null && value !== undefined && value !== "")
+        .some((value) => String(value).toLowerCase().includes(needle));
+    });
+  }, [classes, degrees, classQuery]);
+
+  const filteredSubjects = useMemo(() => {
+    const needle = subjectQuery.trim().toLowerCase();
+    if (!needle) return subjects;
+    return subjects.filter((subject) =>
+      [subject.code, subject.name, subject.max_marks]
+        .filter((value) => value !== null && value !== undefined && value !== "")
+        .some((value) => String(value).toLowerCase().includes(needle)),
+    );
+  }, [subjects, subjectQuery]);
 
   async function load() {
     setLoading(true);
@@ -526,18 +542,29 @@ export default function ManageClasses() {
     setSaving(false);
   }
 
-  function manageSubjectsFor(classId) {
+  function selectClassForAssignment(classId) {
     setSelectedClassId(classId);
     setSelectedSubjectIds([]);
     setTeachersBySubject({});
     setTeacherDrafts({});
     setEditingTeacherRowId("");
-    setActiveTab("subjects");
+    setCatalogueQuery("");
+    setAssignedQuery("");
+  }
+
+  function manageSubjectsFor(classId) {
+    selectClassForAssignment(classId);
+    setActiveTab("assignsubjects");
+  }
+
+  async function refreshAssignments() {
+    await load();
+    await loadAssignments(selectedClassId);
   }
 
   return (
     <>
-      <DashboardHeader title="Academics" subtitle="Manage departments, courses, classes and subjects in one connected structure." />
+      <DashboardHeader title="Academics" subtitle="Manage degrees, departments, courses, subjects and classes in one connected structure." />
 
       {pageError && <div role="alert" className="mt-5 rounded-lg border border-(--danger)/40 bg-(--danger-subtle) p-3 text-sm text-(--danger)">{pageError}</div>}
       {success && <div role="status" className="mt-5 rounded-lg border border-(--success)/40 bg-(--success-subtle) p-3 text-sm text-(--success)">{success}</div>}
@@ -567,7 +594,7 @@ export default function ManageClasses() {
           <>
             <section>
               <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                <div><p className="text-xs font-medium text-(--muted-foreground)">Section 01</p><h2 className="text-base font-semibold text-(--foreground)">{editingClassId ? "Edit class" : "Create class"}</h2><p className="mt-1 text-xs text-(--muted-foreground)">Create the academic class independently. Subjects are assigned from the Subjects tab.</p></div>
+                <div><h2 className="text-base font-semibold text-(--foreground)">{editingClassId ? "Edit class" : "Create class"}</h2><p className="mt-1 text-xs text-(--muted-foreground)">Create the academic class independently. Subjects are assigned from the Assign subjects tab.</p></div>
                 <ImportButton moduleId="classes" onComplete={load} />
               </div>
               <Card>
@@ -590,7 +617,17 @@ export default function ManageClasses() {
 
             <section className="mt-8">
               <div className="mb-3"><h2 className="text-base font-semibold text-(--foreground)">All classes</h2><p className="mt-1 text-xs text-(--muted-foreground)">Open a class to assign its subjects, or delete a class you no longer need.</p></div>
-              {loading ? <div className="glass-inner h-12 animate-pulse rounded-lg" /> : classes.length === 0 ? <Empty>No classes created yet.</Empty> : <div className="space-y-2">{classes.map((item) => <div key={item.id} className="glass-inner flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm"><div className="text-(--foreground)"><strong>{item.name}</strong><span className="block text-xs text-(--muted-foreground)">{degreeName(item.degree_id) ? `${degreeName(item.degree_id)}, ` : ""}{item.department}, {item.academic_year ?? "Year not set"}, Semester {item.semester ?? "Not set"}, Section {item.section ?? "Not set"}</span></div><div className="flex gap-2"><Button type="button" variant="subtle" onClick={() => startEditClass(item)}>Edit</Button><Button type="button" variant="subtle" onClick={() => manageSubjectsFor(item.id)}>Manage subjects</Button><Button type="button" variant="danger" onClick={() => removeClass(item.id)}>Delete</Button></div></div>)}</div>}
+              <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+                <SearchField
+                  value={classQuery}
+                  onChange={setClassQuery}
+                  label="Search classes"
+                  placeholder="Name, department, degree or year"
+                  className="w-full sm:max-w-sm"
+                />
+                {!loading ? <p className="pb-2.5 text-xs text-(--muted-foreground) tabular-nums">{filteredClasses.length} of {classes.length} class{classes.length === 1 ? "" : "es"}</p> : null}
+              </div>
+              {loading ? <div className="glass-inner h-12 animate-pulse rounded-lg" /> : classes.length === 0 ? <Empty>No classes created yet.</Empty> : filteredClasses.length === 0 ? <Empty>No classes match "{classQuery.trim()}".</Empty> : <div className="space-y-2">{filteredClasses.map((item) => <div key={item.id} className="glass-inner flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm"><div className="text-(--foreground)"><strong>{item.name}</strong><span className="block text-xs text-(--muted-foreground)">{degreeName(item.degree_id) ? `${degreeName(item.degree_id)}, ` : ""}{item.department}, {item.academic_year ?? "Year not set"}, Semester {item.semester ?? "Not set"}, Section {item.section ?? "Not set"}</span></div><div className="flex gap-2"><Button type="button" variant="subtle" onClick={() => startEditClass(item)}>Edit</Button><Button type="button" variant="subtle" onClick={() => manageSubjectsFor(item.id)}>Manage subjects</Button><Button type="button" variant="danger" onClick={() => removeClass(item.id)}>Delete</Button></div></div>)}</div>}
             </section>
           </>
         )}
@@ -599,7 +636,7 @@ export default function ManageClasses() {
           <>
             <section>
               <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                <div><p className="text-xs font-medium text-(--muted-foreground)">Section 02</p><h2 className="text-base font-semibold text-(--foreground)">{editingSubjectId ? "Edit subject" : "Create subject"}</h2><p className="mt-1 text-xs text-(--muted-foreground)">Add a subject once to the institution-wide catalogue. Do not select a class here.</p></div>
+                <div><h2 className="text-base font-semibold text-(--foreground)">{editingSubjectId ? "Edit subject" : "Create subject"}</h2><p className="mt-1 text-xs text-(--muted-foreground)">Add a subject once to the institution-wide catalogue. Do not select a class here.</p></div>
                 <ImportButton moduleId="subjects" onComplete={load} />
               </div>
               <Card>
@@ -611,141 +648,22 @@ export default function ManageClasses() {
                 </form>
                 {editingSubjectId ? <div className="mt-3"><Button type="button" variant="subtle" onClick={cancelSubjectEdit} disabled={saving}>Cancel edit</Button></div> : null}
               </Card>
+              <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
+                <SearchField
+                  value={subjectQuery}
+                  onChange={setSubjectQuery}
+                  label="Search subjects"
+                  placeholder="Name or code"
+                  className="w-full sm:max-w-xs"
+                />
+                {!loading ? <p className="pb-2.5 text-xs text-(--muted-foreground) tabular-nums">{filteredSubjects.length} of {subjects.length} subject{subjects.length === 1 ? "" : "s"}</p> : null}
+              </div>
               <div className="mt-3 space-y-2">
-                {subjects.length === 0 ? <Empty>No subjects in the catalogue yet.</Empty> : subjects.map((subject) => <div key={subject.id} className="glass-inner flex items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm"><span className="min-w-0 text-(--foreground)"><strong>{subject.code}</strong>, {subject.name}<span className="ml-2 text-xs text-(--muted-foreground)">Max marks: {subject.max_marks}</span></span><div className="flex gap-2"><Button type="button" variant="subtle" onClick={() => startEditSubject(subject)}>Edit</Button><Button type="button" variant="danger" onClick={() => removeSubject(subject)}>Delete</Button></div></div>)}
+                {subjects.length === 0 ? <Empty>No subjects in the catalogue yet.</Empty> : filteredSubjects.length === 0 ? <Empty>No subjects match "{subjectQuery.trim()}".</Empty> : filteredSubjects.map((subject) => <div key={subject.id} className="glass-inner flex items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm"><span className="min-w-0 text-(--foreground)"><strong>{subject.code}</strong>, {subject.name}<span className="ml-2 text-xs text-(--muted-foreground)">Max marks: {subject.max_marks}</span></span><div className="flex gap-2"><Button type="button" variant="subtle" onClick={() => startEditSubject(subject)}>Edit</Button><Button type="button" variant="danger" onClick={() => removeSubject(subject)}>Delete</Button></div></div>)}
               </div>
             </section>
 
-            <section className="mt-8">
-              <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                <div><p className="text-xs font-medium text-(--muted-foreground)">Section 03</p><h2 className="text-base font-semibold text-(--foreground)">Assign multiple subjects to a class</h2><p className="mt-1 text-xs text-(--muted-foreground)">Choose a class, select several catalogue subjects, and assign at least one teacher to each subject. More than one teacher can share a subject.</p></div>
-                <ImportButton
-                  moduleId="class_subjects"
-                  label="Import class subjects"
-                  onComplete={() => {
-                    load();
-                    loadAssignments(selectedClassId);
-                  }}
-                />
-              </div>
-              <Card>
-                <form onSubmit={assignSubjects} className="space-y-4">
-                  <Field label="Select class"><Select value={selectedClassId} onChange={(e) => { setSelectedClassId(e.target.value); setSelectedSubjectIds([]); setTeachersBySubject({}); setTeacherDrafts({}); setEditingTeacherRowId(""); }} required><option value="">Choose a class</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}, {c.department} {c.section ? `(${c.section})` : ""}</option>)}</Select></Field>
-                  {selectedClassId && <>
-                    <div><p className="mb-2 text-xs font-semibold text-(--foreground)">Choose subjects from the catalogue</p>
-                      {subjects.length === 0 ? <Empty>Create subjects in Section 02 first.</Empty> : <div className="grid gap-2 md:grid-cols-2">{subjects.map((subject) => {
-                        const alreadyAssigned = assignedRows.some((row) => row.subject_id === subject.id);
-                        return <label key={subject.id} className={`flex cursor-pointer items-start gap-3 rounded-lg border border-(--border) p-3 ${alreadyAssigned ? "opacity-50" : ""}`}><input type="checkbox" className="mt-1" checked={selectedSubjectIds.includes(subject.id)} disabled={alreadyAssigned} onChange={() => toggleSubject(subject.id)} /><span className="min-w-0 flex-1 text-sm text-(--foreground)"><strong>{subject.code}</strong>, {subject.name}<span className="block text-xs text-(--muted-foreground)">{alreadyAssigned ? "Already assigned" : `Maximum marks: ${subject.max_marks}`}</span></span></label>;
-                      })}</div>}
-                    </div>
-                    {selectedSubjectIds.length > 0 && (
-                      <div className="space-y-3">
-                        <p className="text-xs font-semibold text-(--foreground)">Assign at least one teacher to every selected subject</p>
-                        {selectedSubjectIds.map((id) => {
-                          const subject = subjects.find((item) => item.id === id);
-                          const selectedTeachers = teachersBySubject[id] ?? [];
-                          return (
-                            <div key={id} className="rounded-lg border border-(--border) p-3">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className="text-sm text-(--foreground)">{subject?.code}, {subject?.name}</span>
-                                <span className={`text-xs ${selectedTeachers.length ? "text-(--muted-foreground)" : "text-(--danger)"}`}>
-                                  {selectedTeachers.length ? `${selectedTeachers.length} selected` : "Select at least one teacher"}
-                                </span>
-                              </div>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {teachers.length === 0 ? (
-                                  <p className="text-xs text-(--danger)">No active teachers available. Add teachers in Users before assigning subjects.</p>
-                                ) : (
-                                  teachers.map((teacher) => {
-                                    const active = selectedTeachers.includes(teacher.id);
-                                    return (
-                                      <button
-                                        key={teacher.id}
-                                        type="button"
-                                        aria-pressed={active}
-                                        onClick={() => toggleTeacherForSubject(id, teacher.id)}
-                                        className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-(--primary) focus-visible:outline-offset-2 ${active ? "border-(--primary) bg-(--primary)/10 text-(--primary)" : "border-(--border) text-(--muted-foreground) hover:border-(--primary)/40 hover:text-(--foreground)"}`}
-                                      >
-                                        {teacherLabel(teacher)}
-                                      </button>
-                                    );
-                                  })
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                    <Button type="submit" disabled={saving || selectedSubjectIds.length === 0}>{saving ? "Assigning..." : `Assign ${selectedSubjectIds.length || "Selected"} Subject(s)`}</Button>
-                  </>}
-                </form>
-                {selectedClassId && (
-                  <div className="mt-6 border-t border-(--border) pt-4">
-                    <p className="mb-3 text-sm font-semibold text-(--foreground)">Subjects currently assigned to this class</p>
-                    {assignedRows.length === 0 ? (
-                      <Empty>No subjects assigned to this class yet.</Empty>
-                    ) : (
-                      <div className="space-y-2">
-                        {assignedRows.map((row) => {
-                          const names = teacherNamesFor(row);
-                          const editing = editingTeacherRowId === row.id;
-                          const draft = teacherDrafts[row.id] ?? [];
-                          return (
-                            <div key={row.id} className="rounded-lg border border-(--border) p-3">
-                              <div className="flex flex-wrap items-center justify-between gap-3">
-                                <div className="text-sm text-(--foreground)">
-                                  <strong>{row.subjects?.code}</strong>, {row.subjects?.name}
-                                  <span className={`block text-xs ${names.length ? "text-(--muted-foreground)" : "text-(--danger)"}`}>
-                                    {names.length ? `Teachers: ${names.join(", ")}` : "No teacher assigned. Assign at least one teacher."}
-                                  </span>
-                                </div>
-                                <div className="flex gap-2">
-                                  <Button type="button" variant="subtle" onClick={() => startEditTeachers(row)} disabled={saving}>Manage teachers</Button>
-                                  <Button type="button" variant="danger" onClick={() => removeAssignment(row)} disabled={saving}>Remove</Button>
-                                </div>
-                              </div>
-                              {editing ? (
-                                <div className="mt-3 border-t border-(--border) pt-3">
-                                  <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <p className="text-xs font-semibold text-(--foreground)">Select one or more teachers</p>
-                                    <span className={`text-xs ${draft.length ? "text-(--muted-foreground)" : "text-(--danger)"}`}>{draft.length ? `${draft.length} selected` : "At least one required"}</span>
-                                  </div>
-                                  <div className="mt-2 flex flex-wrap gap-2">
-                                    {teachers.length === 0 ? (
-                                      <p className="text-xs text-(--danger)">No active teachers available.</p>
-                                    ) : (
-                                      teachers.map((teacher) => {
-                                        const active = draft.includes(teacher.id);
-                                        return (
-                                          <button
-                                            key={teacher.id}
-                                            type="button"
-                                            aria-pressed={active}
-                                            onClick={() => toggleDraftTeacher(row.id, teacher.id)}
-                                            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-(--primary) focus-visible:outline-offset-2 ${active ? "border-(--primary) bg-(--primary)/10 text-(--primary)" : "border-(--border) text-(--muted-foreground) hover:border-(--primary)/40 hover:text-(--foreground)"}`}
-                                          >
-                                            {teacherLabel(teacher)}
-                                          </button>
-                                        );
-                                      })
-                                    )}
-                                  </div>
-                                  <div className="mt-3 flex flex-wrap gap-2">
-                                    <Button type="button" onClick={() => saveTeachers(row)} disabled={saving || draft.length === 0}>{saving ? "Saving..." : "Save teachers"}</Button>
-                                    <Button type="button" variant="subtle" onClick={cancelEditTeachers} disabled={saving}>Cancel</Button>
-                                  </div>
-                                </div>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </Card>
-            </section>
+           
           </>
         )}
 
@@ -760,6 +678,35 @@ export default function ManageClasses() {
             onReload={load}
           />
         )}
+        {activeTab === "assignsubjects" && (
+          <AssignSubjectPanel
+            classes={classes}
+            subjects={subjects}
+            teachers={teachers}
+            assignedRows={assignedRows}
+            selectedClassId={selectedClassId}
+            selectedSubjectIds={selectedSubjectIds}
+            teachersBySubject={teachersBySubject}
+            teacherDrafts={teacherDrafts}
+            editingTeacherRowId={editingTeacherRowId}
+            catalogueQuery={catalogueQuery}
+            assignedQuery={assignedQuery}
+            onCatalogueQueryChange={setCatalogueQuery}
+            onAssignedQueryChange={setAssignedQuery}
+            onSelectClass={selectClassForAssignment}
+            onToggleSubject={toggleSubject}
+            onToggleTeacherForSubject={toggleTeacherForSubject}
+            onEditTeachers={startEditTeachers}
+            onCancelEditTeachers={cancelEditTeachers}
+            onToggleDraftTeacher={toggleDraftTeacher}
+            onAssignSubjects={assignSubjects}
+            onSaveTeachers={saveTeachers}
+            onRemoveAssignment={removeAssignment}
+            onImportComplete={refreshAssignments}
+            saving={saving}
+          />
+        )}
+
 
         {activeTab === "degrees" && (
           <DegreesPanel

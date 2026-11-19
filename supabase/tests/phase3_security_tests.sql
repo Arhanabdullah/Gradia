@@ -710,7 +710,7 @@ select gradia_tests.expect_error(
   'a sheet cannot be reviewed twice',
   $sql$select public.review_result_sheet('d1000000-0000-4000-8000-000000000003', true, 'again')$sql$);
 select gradia_tests.expect_error(
-  'HOD cannot sign off a sheet',
+  'HOD cannot sign off a sheet (sign-off removed)',
   $sql$select public.sign_off_result_sheet('d1000000-0000-4000-8000-000000000003', 'nope')$sql$);
 reset role;
 
@@ -726,14 +726,11 @@ reset role;
 
 select set_config('request.jwt.claims', '{"sub":"40000000-0000-4000-8000-000000000031","role":"authenticated"}', true);
 set local role authenticated;
-select gradia_tests.expect_rows(
-  'principal signs off the approved sheet',
-  $sql$select public.sign_off_result_sheet('d1000000-0000-4000-8000-000000000003', 'signed')$sql$, 1);
 select gradia_tests.expect_error(
-  'a sheet cannot be signed twice',
-  $sql$select public.sign_off_result_sheet('d1000000-0000-4000-8000-000000000003', 'again')$sql$);
+  'principal sign-off is no longer part of the workflow',
+  $sql$select public.sign_off_result_sheet('d1000000-0000-4000-8000-000000000003', 'signed')$sql$);
 select gradia_tests.expect_rows(
-  'principal publishes the signed sheet',
+  'principal publishes the HOD-approved sheet directly',
   $sql$select public.publish_result_sheet('d1000000-0000-4000-8000-000000000003')$sql$, 1);
 select gradia_tests.expect_error(
   'a sheet cannot be published twice',

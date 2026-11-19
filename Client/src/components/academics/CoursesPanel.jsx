@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Button, Card, Empty, Field, Select, inputClass } from "../ui";
+import { useMemo, useState } from "react";
+import { Button, Card, Empty, Field, SearchField, Select, inputClass } from "../ui";
 import ImportButton from "../import/ImportButton";
 
 const emptyCourse = { name: "", code: "", department_id: "", degree_id: "", duration_years: "" };
@@ -18,10 +18,23 @@ export default function CoursesPanel({
   const [form, setForm] = useState(emptyCourse);
   const [editingId, setEditingId] = useState("");
   const [formError, setFormError] = useState("");
+  const [query, setQuery] = useState("");
 
   const departmentName = (id) => departments.find((item) => item.id === id)?.name ?? "Unknown department";
   const degreeName = (id) => degrees.find((item) => item.id === id)?.name ?? "Degree not set";
   const classCount = (id) => classes.filter((item) => item.course_id === id).length;
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return courses;
+    return courses.filter((course) => {
+      const department = departments.find((item) => item.id === course.department_id)?.name;
+      const degree = degrees.find((item) => item.id === course.degree_id)?.name;
+      return [course.name, course.code, department, degree, course.duration_years]
+        .filter((value) => value !== null && value !== undefined && value !== "")
+        .some((value) => String(value).toLowerCase().includes(needle));
+    });
+  }, [courses, query, departments, degrees]);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -37,8 +50,10 @@ export default function CoursesPanel({
       setFormError("Select the degree this course belongs to.");
       return;
     }
-    if (form.duration_years !== "" && Number(form.duration_years) <= 0) {
-      setFormError("Duration must be a positive number of years.");
+    const durationText = String(form.duration_years).trim();
+    const duration = durationText === "" ? null : Number(durationText);
+    if (duration !== null && (!Number.isFinite(duration) || duration <= 0 || duration > 99.9)) {
+      setFormError("Duration must be a positive number of years, such as 4 or 5.5.");
       return;
     }
     setFormError("");
@@ -146,11 +161,14 @@ export default function CoursesPanel({
           <Field label="Duration in years (optional)">
             <input
               type="number"
-              min="1"
+              min="0.1"
+              max="99.9"
+              step="0.1"
+              inputMode="decimal"
               className={inputClass}
               value={form.duration_years}
               onChange={(event) => setForm({ ...form, duration_years: event.target.value })}
-              placeholder="e.g. 4"
+              placeholder="e.g. 4 or 5.5"
             />
           </Field>
           <div className="flex items-end gap-2 md:col-span-2 lg:col-span-4">
@@ -167,15 +185,32 @@ export default function CoursesPanel({
         {formError ? <p className="mt-3 text-xs text-(--danger)">{formError}</p> : null}
       </Card>
 
-      <div className="mt-5 space-y-2">
+      <div className="mt-5 flex flex-wrap items-end justify-between gap-3">
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          label="Search courses"
+          placeholder="Name, code, department or degree"
+          className="w-full sm:max-w-sm"
+        />
+        {!loading ? (
+          <p className="pb-2.5 text-xs text-(--muted-foreground) tabular-nums">
+            {filtered.length} of {courses.length} course{courses.length === 1 ? "" : "s"}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="mt-3 space-y-2">
         {loading ? (
           Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="glass-inner h-16 animate-pulse rounded-lg" />
           ))
         ) : courses.length === 0 ? (
           <Empty>No courses yet. Create the first one with the form above.</Empty>
+        ) : filtered.length === 0 ? (
+          <Empty>No courses match "{query.trim()}".</Empty>
         ) : (
-          courses.map((course) => {
+          filtered.map((course) => {
             const used = classCount(course.id);
             return (
               <div
@@ -192,7 +227,7 @@ export default function CoursesPanel({
                   <p className="text-xs text-(--muted-foreground)">
                     {departmentName(course.department_id)}
                     {`, ${degreeName(course.degree_id)}`}
-                    {course.duration_years ? `, ${course.duration_years} year${course.duration_years === 1 ? "" : "s"}` : ""}
+                    {course.duration_years ? `, ${course.duration_years} year${Number(course.duration_years) === 1 ? "" : "s"}` : ""}
                     {used === 0 ? ", no classes yet" : `, ${used} class${used === 1 ? "" : "es"}`}
                   </p>
                 </div>
