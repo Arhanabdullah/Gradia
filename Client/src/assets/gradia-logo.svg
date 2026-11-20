@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 248 58" fill="none" role="img" aria-labelledby="gradia-logo-title gradia-logo-desc">
+  <title id="gradia-logo-title">Gradia</title>
+  <desc id="gradia-logo-desc">An open book beneath a graduation cap, paired with the Gradia wordmark.</desc>
+
+  <rect x="1" y="3" width="52" height="52" rx="14" fill="#172033" />
+
+  <path d="M11 30.5c6.2-2.1 11.4-1.5 15.5 1.6v17.2c-4.1-3.1-9.3-3.7-15.5-1.6z" fill="#F8F3E8" />
+  <path d="M43 30.5c-6.2-2.1-11.4-1.5-15.5 1.6v17.2c4.1-3.1 9.3-3.7 15.5-1.6z" fill="#E7D9BC" />
+  <path d="M26.5 32.1v17.2" stroke="#B8873B" stroke-width="1.4" />
+
+  <path d="M13 27.8 26.5 21.2 40 27.8 26.5 34.4z" fill="#B8873B" />
+  <path d="M19 31v5.2c4.6 2.1 10.4 2.1 15 0V31" stroke="#F8F3E8" stroke-width="1.5" stroke-linecap="round" />
+  <path d="M40 27.8v7.5" stroke="#B8873B" stroke-width="1.4" stroke-linecap="round" />
+  <circle cx="40" cy="36.1" r="1.7" fill="#F8F3E8" />
+
+  <path d="M14 42h7M14 45h5M33 42h7M33 45h5" stroke="#B8873B" stroke-width="1.1" stroke-linecap="round" opacity="0.75" />
+
+  <text x="66" y="38" font-family="Instrument Serif, Georgia, serif" font-size="31" font-weight="400" letter-spacing="-0.4" fill="#172033">Gradia</text>
+  <path d="M66 45h88" stroke="#B8873B" stroke-width="1.4" />
+  <path d="M66 48.5h42" stroke="#172033" stroke-width="0.8" opacity="0.35" />
+</svg>

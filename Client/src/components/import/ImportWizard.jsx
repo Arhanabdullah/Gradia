@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -10,7 +11,7 @@ import {
 } from "lucide-react";
 import { Button, Card, Field, Select } from "../ui";
 import { ACCEPT_ATTRIBUTE, MAX_FILE_BYTES, MAX_IMPORT_ROWS, parseFile } from "../../import/parseFile";
-import { downloadImportReport, downloadImportTemplate } from "../../import/templates";
+import { downloadFailedRows, downloadImportReport, downloadImportTemplate } from "../../import/templates";
 import { planRecords, summarizeOutcomes } from "../../import/plan";
 import {
   REPORT_STATUS_LABEL,
@@ -215,8 +216,6 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
 
   useEffect(() => {
     const previous = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     closeRef.current?.focus();
 
     const handleKeyDown = (event) => {
@@ -243,7 +242,6 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
       previous?.focus?.();
     };
   }, []);
@@ -278,6 +276,14 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
         issues.push(`${field.label} is required but no column is mapped.`);
       }
     }
+    for (const group of module.requiredAny ?? []) {
+      const fields = group
+        .map((key) => module.fields.find((field) => field.key === key))
+        .filter(Boolean);
+      if (fields.length > 0 && !fields.some((field) => mapping[field.key])) {
+        issues.push(`Map at least one of: ${fields.map((field) => field.label).join(" or ")}.`);
+      }
+    }
     const usage = new Map();
     for (const field of module.fields) {
       const header = mapping[field.key];
@@ -288,7 +294,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
       if (count > 1) issues.push(`The column "${header}" is mapped more than once.`);
     }
     return issues;
-  }, [mapping, module.fields, sheet]);
+  }, [mapping, module.fields, module.requiredAny, sheet]);
 
   const unmappedHeaders = useMemo(() => {
     if (!sheet) return [];
@@ -319,6 +325,14 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
       });
       const candidates = records.filter((record) => !record.errors?.length);
       const existingMap = await module.findExisting(candidates, context, defaults);
+      if (module.preflight && candidates.length > 0) {
+        const notes = await module.preflight(candidates, context, defaults);
+        notes.forEach((message, rowNumber) => {
+          const record = records.find((row) => row.rowNumber === rowNumber);
+          if (!record) return;
+          record.errors = [...(record.errors ?? []), { field: "Schedule", message }];
+        });
+      }
       setPrepared({ records, existingMap });
       setStep("review");
     } catch (error) {
@@ -333,6 +347,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
     setRunning(true);
     setStep("import");
     setWizardError("");
+    module.beginRun?.(context);
     setProgress({ done: 0, total: plan.records.length });
     setLive({ created: 0, updated: 0, skipped: 0, failed: 0, invalid: 0 });
     const outcomes = new Array(plan.records.length);
@@ -356,6 +371,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
               existing: record.existing,
               context,
               record,
+              records: plan.records,
             });
             outcome = {
               status: response?.status ?? (record.action === "update" ? "updated" : "created"),
@@ -411,11 +427,24 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
     }
   };
 
+  const downloadFailed = async () => {
+    if (!results) return;
+    setDownloading("failed");
+    setWizardError("");
+    try {
+      await downloadFailedRows(module, results.outcomes);
+    } catch (error) {
+      setWizardError(error.message || "The failed rows could not be downloaded.");
+    } finally {
+      setDownloading("");
+    }
+  };
+
   const downloadTemplate = async () => {
     setDownloading("template");
     setWizardError("");
     try {
-      await downloadImportTemplate(module);
+      await downloadImportTemplate(module, context ?? {});
     } catch (error) {
       setWizardError(error.message || "The template could not be downloaded.");
     } finally {
@@ -459,9 +488,12 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
   const safeFailedPage = Math.min(failedPage, failedPageCount - 1);
   const failedRows = failedOutcomes.slice(safeFailedPage * PAGE_SIZE, safeFailedPage * PAGE_SIZE + PAGE_SIZE);
 
-  return (
+  // Render at the document root. A backdrop-filter/transform ancestor (the
+  // Card around the trigger on several screens) would otherwise become the
+  // containing block for `fixed` and clip the wizard to that card.
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/50 p-4 backdrop-blur-sm"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) close();
       }}
@@ -471,9 +503,9 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
         role="dialog"
         aria-modal="true"
         aria-labelledby="import-wizard-title"
-        className="glass-floating my-4 w-full max-w-5xl overflow-hidden rounded-2xl sm:my-0"
+        className="glass-floating flex max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col rounded-2xl"
       >
-        <header className="flex items-start justify-between gap-4 border-b border-(--border)/60 p-5">
+        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-(--border)/60 p-5">
           <div className="min-w-0">
             <p className="text-xs font-medium text-(--muted-foreground)">Import from file</p>
             <h2 id="import-wizard-title" className="mt-1 text-lg font-semibold tracking-tight text-(--foreground)">
@@ -493,7 +525,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
           </button>
         </header>
 
-        <div className="border-b border-(--border)/60 px-5 py-3">
+        <div className="shrink-0 border-b border-(--border)/60 px-5 py-3">
           <ol className="flex items-center gap-1 overflow-x-auto" aria-label="Import progress">
             {STEPS.map((item, index) => {
               const active = item.id === step;
@@ -526,7 +558,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
           </ol>
         </div>
 
-        <div className="max-h-[72vh] overflow-y-auto p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
           {wizardError ? <div className="mb-4"><Notice>{wizardError}</Notice></div> : null}
 
           {step === "upload" ? (
@@ -670,7 +702,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                     type="button"
                     variant="subtle"
                     onClick={downloadTemplate}
-                    disabled={downloading === "template"}
+                    disabled={downloading === "template" || contextLoading}
                   >
                     {downloading === "template" ? <Loader2 className="animate-spin" size={15} /> : <Download size={15} />}
                     {downloading === "template" ? "Preparing..." : "Download template"}
@@ -1142,6 +1174,12 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
                       onChange={setFailedPage}
                     />
                   </div>
+                  <div className="mt-3">
+                    <Button type="button" variant="subtle" onClick={downloadFailed} disabled={downloading !== ""}>
+                      {downloading === "failed" ? <Loader2 className="animate-spin" size={15} /> : <Download size={15} />}
+                      Download failed rows
+                    </Button>
+                  </div>
                 </div>
               ) : null}
 
@@ -1155,6 +1193,7 @@ export default function ImportWizard({ module, onClose, onComplete, defaults = {
           ) : null}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

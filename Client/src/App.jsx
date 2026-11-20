@@ -26,6 +26,7 @@ const UsersDirectory = lazy(() => import("./pages/UsersDirectory"));
 
 // Lazy load other role pages
 const Attendance = lazy(() => import("./pages/teacher/Attendance"));
+const Classwork = lazy(() => import("./pages/Classwork"));
 const ReviewSheets = lazy(() => import("./pages/hod/ReviewSheets"));
 const Notifications = lazy(() => import("./pages/student/Notifications"));
 const CoordinatorReports = lazy(() => import("./pages/coordinator/CoordinatorReports"));
@@ -167,6 +168,16 @@ const App = () => {
               <RequireRole role="student">
                 <Suspense fallback={<AppLoader label="Loading notifications…" />}>
                   <Notifications />
+                </Suspense>
+              </RequireRole>
+            }
+          />
+          <Route
+            path="classwork"
+            element={
+              <RequireRole roles={["teacher", "admin", "exam_cell", "student"]}>
+                <Suspense fallback={<AppLoader label="Loading classwork…" />}>
+                  <Classwork />
                 </Suspense>
               </RequireRole>
             }

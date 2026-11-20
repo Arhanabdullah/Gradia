@@ -32,10 +32,13 @@ Edge Function, so RLS remains the real boundary. The role check in
 | Courses | Academics, Courses tab | admin | new, skip, update | Department resolved by name or code; matches `(department, name)`. |
 | Classes | Academics, Classes tab | admin | new, skip, update | Department and course must exist; `department` text label kept in sync. |
 | Subjects | Academics, Subjects tab | admin | new, skip, update | Catalogue only, `class_id` and `teacher_id` stay null. |
-| Class subjects | Academics, Subjects tab | admin | new, skip, update | Inserts `class_subjects`; optional teacher goes to `teacher_assignments`. |
+| Class subjects | Academics, Subjects tab | admin | new, skip, update | Inserts `class_subjects`; teacher goes to `teacher_assignments`. Supply Teacher ID or teacher name; Teacher ID is preferred when teachers share a name. |
 | Users | Users | admin | new, skip | Calls `create-user`. Updates are not supported for auth accounts. Blank passwords are generated and shown once in the report. |
 | Exams | Exams | admin | new, skip, update | Matches `(class, name)`. |
+| Semester paper schedules | Semester Examination | admin, teacher, exam_cell | update, skip | Schedules an existing paper of a class semester examination and writes the room for the row's class, so department groups can use separate rooms; never creates an examination or a component. |
 | Marks | Marks Entry | admin, teacher | new, skip, update | Uses the class/exam/subject selected on the screen when the file omits them; RLS checks `is_subject_teacher` and `entered_by`. |
+| Classwork | Classwork | admin, teacher, exam_cell | new, skip | Publishes each row with kind, class, subject, title, description, instructions and deadline. Each row calls `publish_classwork_item`, notifies the class and creates no exam or exam subject. Assessment marks remain in the semester examination's assessment components. |
+| Attendance | Attendance | admin, teacher, hod | new, skip, update | Uses the class/subject/academic year selected on the screen when the file omits them. A teacher or HOD records under their own identity; an admin records on behalf of the teacher assigned to the class and subject. Total classes defaults to the value entered for the whole class. |
 
 ## Not supported yet
 
@@ -44,14 +47,12 @@ tables were created.
 
 | Area | Why it is blocked |
 |---|---|
-| Attendance | No attendance table. |
 | Fees and payments | No fee table. |
 | Timetable | No timetable table. |
-| Assignments and submissions | No assignment table. |
+| Submissions | Classwork items (assignment, quiz and project) are imported and published; student submissions are student-authored, so they are not imported. |
 | Library | No library table. |
 | Parents and guardians | No parent table. |
 | Academic sessions and terms | No session or term table; `classes` has no `academic_term_id` live. |
-| Enrollments | No `student_enrollments` table. |
 | Audit logs | No audit table and no safe client write path. |
 | Result sheets and result items | Deliberately blocked: snapshots are RPC-controlled. |
 

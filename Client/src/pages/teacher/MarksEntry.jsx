@@ -9,8 +9,10 @@ import DashboardHeader from "../../components/dashboard/DashboardHeader";
 import ImportButton from "../../components/import/ImportButton";
 import {
   MARK_STATUSES,
+  SEMESTER_EXAM_TYPES,
   examTypeLabel,
   formatExamDate,
+  isPracticalSubject,
   subjectLabel,
   submissionStatusLabel,
   timeRange,
@@ -99,6 +101,7 @@ const MarksEntry = () => {
   const [subjectId, setSubjectId] = useState("");
 
   const [components, setComponents] = useState([]);
+  const [structureRows, setStructureRows] = useState([]);
   const [componentId, setComponentId] = useState("");
 
   const [students, setStudents] = useState([]);
@@ -155,7 +158,7 @@ const MarksEntry = () => {
             .order("name"),
           supabase
             .from("subjects")
-            .select("id, name, code, max_marks")
+            .select("id, name, code, max_marks, subject_type")
             .in("id", subjectIds)
             .order("code"),
         ]);
@@ -189,6 +192,7 @@ const MarksEntry = () => {
       .from("exams")
       .select("id, name, academic_year, exam_type, status, starts_on, ends_on")
       .eq("class_id", classId)
+      .in("exam_type", SEMESTER_EXAM_TYPES)
       .order("created_at", { ascending: false })
       .then(({ data, error: loadError }) => {
         if (cancelled) return;
@@ -319,6 +323,7 @@ const MarksEntry = () => {
   useEffect(() => {
     let cancelled = false;
     setComponents([]);
+    setStructureRows([]);
     setComponentId("");
     if (!examSubject) return undefined;
 
@@ -335,8 +340,11 @@ const MarksEntry = () => {
           setError(componentError.message);
           return;
         }
-        // Papers switched off for this semester are not marked at all.
-        const rows = (data ?? []).filter((row) => row.is_conducted !== false);
+        // Keep the full structure to recognise a lab with every paper off.
+        // Papers switched off for this semester are not marked individually.
+        const all = data ?? [];
+        const rows = all.filter((row) => row.is_conducted !== false);
+        setStructureRows(all);
         setComponents(rows);
         setComponentId((current) =>
           rows.some((row) => row.id === current) ? current : rows[0]?.id ?? "",
@@ -382,6 +390,10 @@ const MarksEntry = () => {
 
   const subject = subjects.find((row) => row.id === subjectId);
   const component = components.find((row) => row.id === componentId) ?? null;
+  // Every lab paper off means one direct mark out of the subject maximum
+  // (100 for a materialised lab template), stored with no component id.
+  const directMode =
+    isPracticalSubject(subject) && structureRows.length > 0 && components.length === 0;
   const maxMarks = Number(
     component?.max_marks ?? examSubject?.max_marks ?? subject?.max_marks ?? 100,
   );
@@ -744,6 +756,12 @@ const MarksEntry = () => {
 
       {classId && examId && subjectId ? (
         <section className="mt-6">
+          {directMode ? (
+            <p className="mb-4 rounded-lg border border-(--primary)/30 bg-(--primary)/5 px-4 py-3 text-xs text-(--foreground)">
+              Direct marks: the practical, viva and record papers are switched off for this lab subject.
+              Enter one mark out of {maxMarks} per student.
+            </p>
+          ) : null}
           {components.length > 0 ? (
             <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-(--border-subtle) p-3">
               <Field label="Assessment component">
@@ -771,7 +789,7 @@ const MarksEntry = () => {
             <div>
               <p className="text-sm font-medium text-(--foreground)">Student marks</p>
               <p className="mt-1 text-xs text-(--muted-foreground) tabular-nums">
-                {component ? `${component.name}, ` : ""}
+                {component ? `${component.name}, ` : directMode ? "Direct marks, " : ""}
                 {enteredCount} of {students.length} entered, maximum {maxMarks}
                 {passMarks != null ? `, pass ${passMarks}` : ""}
                 {invalidCount > 0 ? `, ${invalidCount} invalid` : ""}

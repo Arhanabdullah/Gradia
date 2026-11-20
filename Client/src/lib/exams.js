@@ -19,22 +19,25 @@ export const EXAM_TYPES = [
   { id: "major", label: "ESA", teachers: false },
 ];
 
-// The seven activity types shown everywhere in the UI. Project and Quiz are
-// classwork: they are marked in class and never need a room or an invigilator.
-// Each one maps to a stored examination type, so no schema change is required.
+// Legacy activity labels for stored examination types. The semester workflow
+// uses component codes for papers, but these names remain in marks screens and
+// import templates, so the mapping between a type and its label stays here.
 export const ACTIVITY_TYPES = [
-  { id: "ia1", label: "IA1", examType: "unit_test", teachers: true, classwork: false },
-  { id: "ia2", label: "IA2", examType: "mid_term", teachers: false, classwork: false },
-  { id: "esa", label: "ESA", examType: "semester", teachers: false, classwork: false },
-  { id: "project", label: "Project", examType: "assignment", teachers: true, classwork: true },
-  { id: "practical", label: "Practical", examType: "practical", teachers: true, classwork: false },
-  { id: "viva", label: "Viva", examType: "internal_assessment", teachers: true, classwork: false },
-  { id: "quiz", label: "Quiz", examType: "class_test", teachers: true, classwork: true },
+  { id: "ia1", label: "IA1", examType: "unit_test", teachers: true, classwork: false, scheduling: true },
+  { id: "ia2", label: "IA2", examType: "mid_term", teachers: false, classwork: false, scheduling: true },
+  { id: "esa", label: "ESA", examType: "semester", teachers: false, classwork: false, scheduling: true },
+  { id: "project", label: "Project", examType: "assignment", teachers: true, classwork: true, scheduling: false },
+  { id: "practical", label: "Practical", examType: "practical", teachers: true, classwork: false, scheduling: true },
+  { id: "viva", label: "Viva", examType: "internal_assessment", teachers: true, classwork: false, scheduling: true },
+  // Quiz joins assignment and project as classwork: no scheduled date or room.
+  { id: "quiz", label: "Quiz", examType: "class_test", teachers: true, classwork: true, scheduling: false },
 ];
 
 export const ACTIVITY_TYPE_LABEL = Object.fromEntries(
   ACTIVITY_TYPES.map((type) => [type.id, type.label]),
 );
+
+export const CLASSWORK_KIND_LABEL = { assignment: "Assignment", quiz: "Quiz", project: "Project" };
 
 const EXAM_TYPE_TO_ACTIVITY = {
   class_test: "quiz",
@@ -60,25 +63,12 @@ export const EXAM_TYPE_LABEL = {
   final: "ESA",
 };
 
-// Maps a stored examination type (or an activity id) to one of the seven
-// activity types. Unknown legacy values fall back to IA1.
+// Maps a stored examination type (or an activity id) to a UI activity label.
+// Unknown legacy values fall back to IA1.
 export function activityForExamType(type) {
   if (!type) return "";
   if (ACTIVITY_TYPE_LABEL[type]) return type;
   return EXAM_TYPE_TO_ACTIVITY[type] ?? "ia1";
-}
-
-// Maps an activity id back to the stored examination type used by the RPCs.
-export function examTypeForActivity(activity) {
-  return ACTIVITY_TYPES.find((type) => type.id === activity)?.examType ?? "unit_test";
-}
-
-export function activityLabel(activity) {
-  return ACTIVITY_TYPE_LABEL[activity] ?? ACTIVITY_TYPE_LABEL[activityForExamType(activity)] ?? "Examination";
-}
-
-export function activityIsClasswork(activity) {
-  return ACTIVITY_TYPES.find((type) => type.id === activity)?.classwork ?? false;
 }
 
 // A paper's activity type: the component code wins, then the examination type.
@@ -125,16 +115,6 @@ export const MARK_STATUSES = [
   { id: "exempt", label: "Exempt" },
   { id: "withheld", label: "Withheld" },
 ];
-
-export function examTypesForRole(role) {
-  if (role === "teacher") return ACTIVITY_TYPES.filter((type) => type.teachers);
-  if (role === "admin" || role === "exam_cell") return ACTIVITY_TYPES;
-  return [];
-}
-
-export function isRegularExamType(type) {
-  return REGULAR_EXAM_TYPES.includes(type);
-}
 
 export function examTypeLabel(type) {
   if (!type) return "Examination";
@@ -223,6 +203,41 @@ export function todayKey() {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   return `${now.getFullYear()}-${month}-${day}`;
+}
+
+// A single paper is upcoming, ongoing (today) or completed, read from its own
+// date instead of the group window. The semester workflow schedules each paper
+// inside one class examination, so the paper date is the only source of truth.
+export function paperTimeBucket(paper, today = todayKey()) {
+  if (!paper?.date) return "unscheduled";
+  if (paper.date > today) return "upcoming";
+  if (paper.date === today) return "ongoing";
+  return "completed";
+}
+
+export const PAPER_BUCKET_LABEL = {
+  upcoming: "Upcoming",
+  ongoing: "Ongoing",
+  completed: "Completed",
+  unscheduled: "Not scheduled",
+};
+
+// One semester examination per class, or one shared group per course for the
+// department structure. The group holds the class exam rows, and each class
+// exam carries the subject papers.
+export function semesterGroupForClass(groups, classId) {
+  if (!classId) return null;
+  return (
+    (groups ?? []).find((group) =>
+      (group.exams ?? []).some(
+        (exam) => exam.class_id === classId && resolvedResultKind(exam) === "semester",
+      ),
+    ) ?? null
+  );
+}
+
+export function semesterPapers(groups) {
+  return flattenPapers(groups).filter((paper) => paper.resultKind === "semester");
 }
 
 export function groupExams(group) {
@@ -380,7 +395,7 @@ export function paperTitle(paper) {
 // ---------- formal papers and classwork ----------
 // A component is classwork when the structure says so, with a code fallback
 // for rows created before the schedule mode existed. Classwork is marked but
-// never invigilated, so it has no date, room or invigilator.
+// never scheduled, so it has no date or room.
 export const CLASSWORK_CODES = new Set(["QUIZ", "ASSIGNMENT", "PROJECT", "PRACTICAL_RECORD"]);
 
 export function isClassworkComponent(component) {
@@ -475,14 +490,16 @@ export function makePaper(group, exam, examSubject, component) {
     componentType: component?.component_type ?? group.exam_type,
     classwork: isClassworkComponent(component),
     conducted: component ? component.is_conducted !== false : true,
-    date: component?.exam_date ?? examSubject.exam_date ?? "",
-    start: component?.start_time ?? examSubject.start_time ?? "",
-    end: component?.end_time ?? examSubject.end_time ?? "",
-    duration: component?.duration_minutes ?? examSubject.duration_minutes ?? null,
-    room: component?.room ?? examSubject.room ?? "",
-    // Only a component paper has its own invigilator. A single-paper exam
-    // keeps the subject's assigned teacher, which is the legacy equivalent.
-    teacherId: component ? component.teacher_id ?? "" : examSubject.teacher_id ?? "",
+    // A component paper carries its own schedule. Falling back to the subject
+    // roll-up date would put an undated classwork row on the ESA date.
+    date: component ? component.exam_date ?? "" : examSubject.exam_date ?? "",
+    start: component ? component.start_time ?? "" : examSubject.start_time ?? "",
+    end: component ? component.end_time ?? "" : examSubject.end_time ?? "",
+    duration: component ? component.duration_minutes ?? null : examSubject.duration_minutes ?? null,
+    room: component ? component.room ?? "" : examSubject.room ?? "",
+    // Invigilator selection is retired. Only the legacy single-paper exam
+    // still exposes its assigned subject teacher; component papers do not.
+    teacherId: component ? "" : examSubject.teacher_id ?? "",
     maxMarks: component?.max_marks ?? examSubject.max_marks ?? null,
     weight: component?.weight_percent ?? null,
     status: group.status,

@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Users, GraduationCap, FileText, BarChart2, CheckCircle2, Send, Award, Bell, LogOut, Menu, X, ChevronLeft, CalendarCheck, Archive, SlidersHorizontal, ClipboardList } from "lucide-react";
+import { LayoutDashboard, Users, GraduationCap, FileText, BarChart2, CheckCircle2, Send, Award, Bell, LogOut, Menu, X, ChevronLeft, CalendarCheck, Archive, SlidersHorizontal, ClipboardList, BookOpen } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { microTransition } from "../../animations/variants";
 
@@ -11,21 +11,23 @@ const NAV_BY_ROLE = {
     { to: "/app/directory", label: "Users Dashboard", icon: Users },
     { to: "/app/users", label: "Users", icon: Users },
     { to: "/app/classes", label: "Academics", icon: GraduationCap },
-    { to: "/app/exams", label: "Exams", icon: FileText },
+    { to: "/app/exams", label: "Semester Examination", icon: FileText },
+    { to: "/app/classwork", label: "Classwork", icon: BookOpen },
     { to: "/app/attendance", label: "Attendance", icon: CalendarCheck },
     { to: "/app/sheets", label: "Result Sheets", icon: BarChart2 },
   ],
   teacher: [
     { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
     { to: "/app/directory", label: "Users Dashboard", icon: Users },
-    { to: "/app/exams", label: "Exams", icon: FileText },
+    { to: "/app/exams", label: "Semester Examination", icon: FileText },
+    { to: "/app/classwork", label: "Classwork", icon: BookOpen },
     { to: "/app/marks", label: "Marks Entry", icon: CheckCircle2 },
     { to: "/app/attendance", label: "Attendance", icon: CalendarCheck },
   ],
   hod: [
     { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
     { to: "/app/directory", label: "Users Dashboard", icon: Users },
-    { to: "/app/exams", label: "Exams", icon: FileText },
+    { to: "/app/exams", label: "Semester Examination", icon: FileText },
     { to: "/app/attendance", label: "Attendance", icon: CalendarCheck },
     { to: "/app/review", label: "Review Sheets", icon: Send },
   ],
@@ -36,6 +38,7 @@ const NAV_BY_ROLE = {
   ],
   student: [
     { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
+    { to: "/app/classwork", label: "Classwork", icon: BookOpen },
     { to: "/app/results", label: "My Results", icon: Award },
     { to: "/app/notifications", label: "Notifications", icon: Bell },
   ],
@@ -47,9 +50,10 @@ const NAV_BY_ROLE = {
   ],
   exam_cell: [
     { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
-    { to: "/app/exams", label: "Exams", icon: FileText },
+    { to: "/app/exams", label: "Semester Examination", icon: FileText },
     { to: "/app/config", label: "Result configuration", icon: SlidersHorizontal },
     { to: "/app/assessment", label: "Assessment setup", icon: ClipboardList },
+    { to: "/app/classwork", label: "Classwork", icon: BookOpen },
     { to: "/app/approval", label: "Result approval", icon: CheckCircle2 },
     { to: "/app/sheets", label: "Result Sheets", icon: BarChart2 },
     { to: "/app/archive", label: "Result archive", icon: Archive },
@@ -66,9 +70,9 @@ const PREVIEW_ITEMS = [
   { label: "Reports", icon: BarChart2 },
 ];
 
-const SidebarItem = ({ item, isActive }) => {
+const SidebarItem = ({ item, isActive, collapsed = false }) => {
   const Icon = item.icon;
-  const baseClass = "flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-colors";
+  const baseClass = `flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${collapsed ? "justify-center" : ""}`;
   const activeClass = `${baseClass} bg-(--sidebar-active) text-(--foreground)`;
   const idleClass = `${baseClass} text-(--muted) hover:bg-(--sidebar-hover) hover:text-(--foreground) focus-visible:outline-2 focus-visible:outline-(--primary)`;
 
@@ -78,15 +82,21 @@ const SidebarItem = ({ item, isActive }) => {
         className={isActive ? activeClass : idleClass}
         whileHover={isActive ? undefined : { x: 2 }}
         transition={microTransition}
+        title={collapsed ? item.label : undefined}
       >
         <Icon className="h-4 w-4 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
-        {item.label}
+        {collapsed ? null : item.label}
       </motion.div>
     );
   }
 
   return (
-    <NavLink to={item.to} end={item.end}>
+    <NavLink
+      to={item.to}
+      end={item.end}
+      aria-label={collapsed ? item.label : undefined}
+      title={collapsed ? item.label : undefined}
+    >
       {({ isActive: active }) => (
         <motion.div
           className={active ? activeClass : idleClass}
@@ -94,7 +104,7 @@ const SidebarItem = ({ item, isActive }) => {
           transition={microTransition}
         >
           <Icon className="h-4 w-4 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
-          {item.label}
+          {collapsed ? null : item.label}
         </motion.div>
       )}
     </NavLink>
@@ -119,7 +129,11 @@ export default function DashboardSidebar({
       aria-label="Main navigation"
     >
       {/* Brand header */}
-      <div className={`flex items-center gap-3 p-4 border-b border-(--border) transition-opacity duration-200 ${collapsed && !fluid ? "opacity-0 pointer-events-none" : ""}`}>
+      <div
+        className={`flex items-center gap-3 border-b border-(--border) p-4 ${
+          collapsed && !fluid ? "justify-center" : ""
+        }`}
+      >
         {!collapsed && (
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-(--foreground) truncate">Gradia</p>
@@ -128,10 +142,12 @@ export default function DashboardSidebar({
         )}
         {!fluid && (
           <button
+            type="button"
             onClick={onToggleCollapse}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg text-(--muted) hover:text-(--foreground) hover:bg-(--surface-secondary) transition-colors ${collapsed ? "rotate-180" : ""}`}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-(--muted) hover:text-(--foreground) hover:bg-(--surface-secondary) transition-colors ${collapsed ? "rotate-180" : ""}`}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-expanded={!collapsed}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             <ChevronLeft className="h-4 w-4" strokeWidth={2} />
           </button>
@@ -145,6 +161,7 @@ export default function DashboardSidebar({
             key={item.to ?? item.label}
             item={item}
             isActive={item.active}
+            collapsed={collapsed && !fluid}
           />
         ))}
       </nav>

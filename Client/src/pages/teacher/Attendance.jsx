@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { Button, Card, Empty, Field, Select, inputClass } from "../../components/ui";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
+import ImportButton from "../../components/import/ImportButton";
 import { attendancePercentage, formatAttendance } from "../../lib/attendance";
 import { fetchClassStudents } from "../../lib/roster";
 
@@ -38,7 +39,9 @@ const Attendance = () => {
 
   const [students, setStudents] = useState([]);
   const [records, setRecords] = useState({});
+  const [totalClasses, setTotalClasses] = useState("");
   const [rosterLoading, setRosterLoading] = useState(false);
+  const [rosterVersion, setRosterVersion] = useState(0);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -204,6 +207,7 @@ const Attendance = () => {
     let cancelled = false;
     setStudents([]);
     setRecords({});
+    setTotalClasses("");
     setMessage("");
     setError("");
     if (!classId || !subjectId || !academicYear.trim()) return undefined;
@@ -235,6 +239,15 @@ const Attendance = () => {
           initial[student.id] = saved[student.id] ?? emptyRecord;
         });
 
+        // When every saved row shares one total, show it as the class total so
+        // the same number can be applied again without retyping it.
+        const savedTotals = new Set(
+          Object.values(saved)
+            .map((row) => row.total)
+            .filter((value) => value !== ""),
+        );
+        setTotalClasses(savedTotals.size === 1 ? [...savedTotals][0] : "");
+
         setStudents(roster);
         setRecords(initial);
       } catch (err) {
@@ -247,7 +260,7 @@ const Attendance = () => {
     return () => {
       cancelled = true;
     };
-  }, [classId, subjectId, academicYear]);
+  }, [classId, subjectId, academicYear, rosterVersion]);
 
   const subjectOptions = useMemo(() => {
     if (isAdmin) return subjects;
@@ -267,6 +280,29 @@ const Attendance = () => {
         [key]: value,
       },
     }));
+  };
+
+  // One subject runs the same number of classes for every student, so the
+  // class total is entered once and copied into each row.
+  const applyTotalToAll = () => {
+    const value = totalClasses.trim();
+    const count = Number(value);
+    if (!value || !Number.isInteger(count) || count <= 0) {
+      setError("Total classes conducted must be a whole number greater than zero.");
+      return;
+    }
+    setRecords((current) => {
+      const next = { ...current };
+      students.forEach((student) => {
+        const record = current[student.id] ?? emptyRecord;
+        next[student.id] = { ...record, total: String(count) };
+      });
+      return next;
+    });
+    setError("");
+    setMessage(
+      `Total classes set to ${count} for ${students.length} student${students.length === 1 ? "" : "s"}. Enter attended classes, then save.`,
+    );
   };
 
   const invalidRecord = (record) => {
@@ -398,12 +434,26 @@ const Attendance = () => {
       />
 
       <Card className="mt-6">
-        <div className="mb-4">
-          <p className="text-sm font-medium text-(--foreground)">Choose a class and subject</p>
-          <p className="mt-1 text-xs text-(--muted-foreground)">
-            The percentage is calculated as attended classes divided by total classes, multiplied by 100.
-            Saving an existing student and subject updates that record instead of creating a duplicate.
-          </p>
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-(--foreground)">Choose a class and subject</p>
+            <p className="mt-1 text-xs text-(--muted-foreground)">
+              The percentage is calculated as attended classes divided by total classes, multiplied by 100.
+              Saving an existing student and subject updates that record instead of creating a duplicate.
+            </p>
+          </div>
+          <ImportButton
+            moduleId="attendance"
+            label="Import attendance"
+            defaults={{
+              class_id: classId,
+              subject_id: subjectId,
+              academic_year: academicYear.trim(),
+              teacher_id: teacherId,
+              total_classes: totalClasses.trim(),
+            }}
+            onComplete={() => setRosterVersion((value) => value + 1)}
+          />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -501,9 +551,30 @@ const Attendance = () => {
                 {summary.percentage !== null ? `, class attendance ${formatAttendance(summary.percentage)}` : ""}
               </p>
             </div>
-            <Button onClick={save} disabled={saving || rosterLoading || students.length === 0}>
-              {saving ? "Saving" : "Save attendance"}
-            </Button>
+            <div className="flex flex-wrap items-end gap-2">
+              <Field label="Total classes conducted">
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  aria-label="Total classes conducted for the whole class"
+                  className={`${inputClass} w-32 tabular-nums`}
+                  value={totalClasses}
+                  onChange={(event) => setTotalClasses(event.target.value)}
+                  placeholder="0"
+                />
+              </Field>
+              <Button
+                variant="subtle"
+                onClick={applyTotalToAll}
+                disabled={saving || rosterLoading || students.length === 0}
+              >
+                Apply to all
+              </Button>
+              <Button onClick={save} disabled={saving || rosterLoading || students.length === 0}>
+                {saving ? "Saving" : "Save attendance"}
+              </Button>
+            </div>
           </div>
 
           {rosterLoading ? (

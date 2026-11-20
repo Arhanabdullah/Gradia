@@ -47,7 +47,12 @@ export const normaliseDate = (value) => {
 export const cellText = (value) => {
   if (value === null || value === undefined) return "";
   if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? "" : value.toISOString().slice(0, 10);
+    if (Number.isNaN(value.getTime())) return "";
+    // Excel time-only cells arrive as 1899-12-31 with the clock attached.
+    if (value.getFullYear() < 1901) {
+      return `${String(value.getHours()).padStart(2, "0")}:${String(value.getMinutes()).padStart(2, "0")}`;
+    }
+    return value.toISOString().slice(0, 10);
   }
   return String(value).trim();
 };

@@ -117,9 +117,24 @@ Correction  Result
 
 Statuses: `compiled → hod_approved | hod_rejected → exam_approved | exam_rejected → published`. Legacy `principal_signed` rows remain publishable.
 
+### Examination scheduling
+
+Scheduling is semester-first. Open **Semester Examination**, then browse Academic Year → Degree → Department → Course → Class → Subject. A class shows its assigned subjects, and each subject opens the full assessment breakdown configured in Assessment Setup: IA1, IA2, ESA, Quiz, Assignment and Project.
+
+- The semester examination is created automatically from the assigned class structure; there is no create button. Each subject keeps the template components configured in Assessment Setup.
+- Choose **Per class** or **Department-wide** structure. In department mode, select one or more classes to group; the group holds one exam per selected class in each course and academic year, shares every paper date and time, and keeps a separate room for each class. Classes may have different subject sets: the page lists the union of assigned subjects, shares a paper with every class that offers it, and names the classes that do not.
+- Each paper collects its own paper date, start time, duration and room or lab. Invigilator selection is retired. Classwork components (quiz, assignment, project) have no date or room and are marked in Marks Entry.
+- The database conflict guard blocks class and room clashes, and the page shows the error on the paper that caused it.
+- The calendar reads paper dates directly, so rescheduling or deleting a paper updates the examination page and the dashboard calendar.
+- Only a semester result is an official result and can issue a printable grade card; internal papers never print one.
+
+### Classwork (assignments, quizzes and projects)
+
+Assignments, quizzes and projects are classwork, not examinations. A teacher picks an assigned class and subject, enters a title, description, submission instructions and deadline, and publishes. Publishing only notifies every student in the class; it does not create an examination or a Marks Entry link. Students submit online from `/app/classwork` and teachers review submissions there. Marks for quiz, assignment and project come from the matching papers in the semester examination in Marks Entry. Administrators and the Exam Cell can publish classwork. Use **Import classwork** to publish a file of items with the same fields. Classwork never asks for a date or room.
+
 ## 📦 Import Feature
 
-Admins can upload Excel/CSV/JSON files for bulk creation of records:
+Admins, teachers and the Exam Cell can upload Excel/CSV/JSON files for bulk creation of records:
 
 | Module | Screen | Roles | Strategies |
 |---|---|---|---|
@@ -127,14 +142,22 @@ Admins can upload Excel/CSV/JSON files for bulk creation of records:
 | Courses | Academics, Courses tab | admin | new, skip, update |
 | Classes | Academics, Classes tab | admin | new, skip, update |
 | Subjects | Academics, Subjects tab | admin | new, skip, update |
-| Class subjects | Academics, Subjects tab | admin | new, skip, update |
+| Class subjects | Academics, Subjects tab | admin | new, skip, update; supply Teacher ID or teacher name |
 | Users | Users | admin | new, skip |
-| Exams | Exams | admin | new, skip, update |
+| Exams | Semester Examination | admin, teacher | new, skip, update |
+| Semester paper schedules | Semester Examination | admin, teacher, exam_cell | update, skip |
 | Marks | Marks Entry | admin, teacher | new, skip, update |
+| Classwork | Classwork | admin, teacher, exam_cell | new, skip |
+| Attendance | Attendance | admin, teacher, hod | new, skip, update |
 
 **Details:**
 - File size cap: 10 MB, row cap: 5,000
-- Validation: required fields, email shape, integer ranges (semester 1–12, max marks 1–1000, marks 0–subject maximum), foreign keys resolved against reference data, ambiguous names rejected, duplicate file rows reduced to one survivor
+- Validation: required fields, email shape, integer ranges (semester 1–12, max marks 1–1000, marks 0–subject maximum), foreign keys resolved against reference data, ambiguous names rejected, duplicate file rows reduced to one survivor. Class subject imports accept a Teacher ID column so teachers with the same name can be distinguished; when both Teacher ID and name are supplied, the ID wins and a conflicting name is reported.
+- Semester paper schedule imports resolve the class, subject and paper inside the class semester examination, then schedule each paper through the same rule as the screen. The room is written for the row's class, so a department-wide group can use different rooms on the same shared date. The import never creates an examination or an assessment component, and a classwork paper (quiz, assignment, project) is rejected because it has no date or room. Scheduling clashes with existing papers and with earlier rows in the file are reported row by row before anything is written.
+- Classwork imports publish each valid row through the same workflow as the form. Kind, class, subject and title are required; each row stores the deadline and submission details, notifies the class and creates no examination.
+- Downloaded templates are generated from the signed-in user's data: the sample row uses a real class, an offered subject and one of its scheduled papers, so the column values match what the import expects. The Instructions sheet lists the paper scheduling rules and the 24-hour or AM/PM time formats.
+- Attendance imports resolve the class, subject and teacher chosen on the Attendance screen, or from the file when a column is present. A teacher or HOD always records under their own identity; an administrator records on behalf of the teacher assigned to the class and subject. The total classes conducted can be applied to the whole class on screen and reused as the default for every imported row.
+- Failed and invalid rows can be downloaded as a template-shaped workbook, fixed and uploaded again.
 - Result sheets and result items are deliberately blocked from direct import — snapshots are RPC-controlled and immutable
 - The wizard never calls `result_sheets` or `result_items`
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { Button, Card, Empty, Field, Select, inputClass } from "../../components/ui";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
@@ -93,6 +94,7 @@ const ManageUsers = () => {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [showPassword, setShowPassword] = useState(false);
   const [editHod, setEditHod] = useState(null);
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState("");
@@ -272,6 +274,7 @@ const ManageUsers = () => {
 
     setBusy(false);
     setForm(EMPTY_FORM);
+    setShowPassword(false);
     if (courseWarning) setError(courseWarning);
     await load();
   };
@@ -373,9 +376,31 @@ const ManageUsers = () => {
           <Field label="Email">
             <input type="email" className={inputClass} value={form.email} onChange={update("email")} autoComplete="email" required />
           </Field>
-          <Field label="Password">
-            <input type="password" className={inputClass} value={form.password} onChange={update("password")} autoComplete="new-password" required minLength={6} />
-          </Field>
+          <div>
+            <label htmlFor="new-user-password" className="text-xs font-medium text-(--muted)">Password</label>
+            <div className="relative mt-1.5">
+              <input
+                id="new-user-password"
+                type={showPassword ? "text" : "password"}
+                className={`${inputClass} pr-11`}
+                value={form.password}
+                onChange={update("password")}
+                autoComplete="new-password"
+                required
+                minLength={6}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                title={showPassword ? "Hide password" : "Show password"}
+                className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-(--muted-foreground) transition-colors hover:text-(--foreground)"
+              >
+                {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+              </button>
+            </div>
+          </div>
           <Field label="Role">
             <Select value={form.role} onChange={update("role")}>
               {ROLES.map((role) => <option key={role} value={role}>{ROLE_LABEL[role]}</option>)}

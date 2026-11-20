@@ -8,7 +8,15 @@
 
 import { supabase } from "../lib/supabase";
 import { callRpc } from "../lib/db";
-import { EXAM_STATUSES, EXAM_TYPES, MARK_STATUSES, REGULAR_EXAM_TYPES } from "../lib/exams";
+import {
+  CLASSWORK_KIND_LABEL,
+  EXAM_STATUSES,
+  EXAM_TYPES,
+  MARK_STATUSES,
+  REGULAR_EXAM_TYPES,
+  SEMESTER_EXAM_TYPES,
+  isClassworkComponent,
+} from "../lib/exams";
 import {
   asInt,
   asNumber,
@@ -141,6 +149,17 @@ function personLookup(people) {
   return buildLookup(people ?? [], (row) => [row.student_id, row.teacher_id, row.username, row.email, row.name]);
 }
 
+function teacherById(profiles, value) {
+  const key = norm(value);
+  if (!key) return { item: null };
+  const matches = (profiles ?? []).filter(
+    (profile) => profile.role === "teacher" && norm(profile.teacher_id) === key,
+  );
+  if (matches.length === 1) return { item: matches[0] };
+  if (matches.length > 1) return { item: null, ambiguous: true, count: matches.length };
+  return { item: null };
+}
+
 function roleError(errors, field, message) {
   errors.push({ field, message });
 }
@@ -158,19 +177,55 @@ function normaliseTime(value) {
   if (typeof value === "number") {
     if (!Number.isFinite(value) || value < 0 || value >= 1) return Number.NaN;
     const total = Math.round(value * 24 * 60);
+    if (total >= 24 * 60) return Number.NaN;
     return `${padClock(Math.floor(total / 60))}:${padClock(total % 60)}`;
   }
-  const raw = text(value);
-  if (!raw) return null;
-  const match = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?\s*(am|pm)?$/i);
-  if (!match) return Number.NaN;
-  let hour = Number(match[1]);
-  const minute = Number(match[2]);
-  const suffix = (match[3] ?? "").toLowerCase();
+
+  // Accept 24-hour time (09:30, 13:30) and 12-hour time with AM or PM
+  // (10:00 AM, 1:00 PM, 10 a.m.). Excel turns a typed time into a clock value,
+  // so a bare "01:00" is always read as 1 AM, not 1 PM.
+  const compact = text(value).replace(/\s+/g, "");
+  if (!compact) return null;
+
+  let hour;
+  let minute;
+  let suffix = "";
+  let match = compact.match(/^(\d{1,2})[:.](\d{2})(?::\d{2}(?:\.\d+)?)?([ap])\.?m\.?$/i);
+  if (match) {
+    hour = Number(match[1]);
+    minute = Number(match[2]);
+    suffix = match[3].toLowerCase() === "p" ? "pm" : "am";
+  } else {
+    match = compact.match(/^(\d{1,2})([ap])\.?m\.?$/i);
+    if (match) {
+      hour = Number(match[1]);
+      minute = 0;
+      suffix = match[2].toLowerCase() === "p" ? "pm" : "am";
+    } else {
+      match = compact.match(/^(\d{1,2})[:.](\d{2})(?::\d{2}(?:\.\d+)?)?$/);
+      if (!match) return Number.NaN;
+      hour = Number(match[1]);
+      minute = Number(match[2]);
+    }
+  }
+
   if (suffix === "pm" && hour < 12) hour += 12;
   if (suffix === "am" && hour === 12) hour = 0;
   if (hour > 23 || minute > 59) return Number.NaN;
   return `${padClock(hour)}:${padClock(minute)}`;
+}
+
+// Sample templates show 12-hour clock labels so an afternoon paper reads as
+// 01:00 PM instead of being mistaken for 1 AM.
+function clockLabel(value) {
+  const raw = String(value ?? "").trim();
+  const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return raw;
+  let hour = Number(match[1]);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  if (hour === 0) hour = 12;
+  else if (hour > 12) hour -= 12;
+  return `${padClock(hour)}:${match[2]} ${suffix}`;
 }
 
 const clockKey = (value) => (value ? String(value).slice(0, 5) : "");
@@ -196,12 +251,6 @@ function examStatusId(value) {
   if (!key) return null;
   const match = EXAM_STATUSES.find((status) => norm(status.id) === key || norm(status.label) === key);
   return match?.id ?? undefined;
-}
-
-function groupWindowFor(context, exam) {
-  if (!exam?.exam_group_id) return { startsOn: null, endsOn: null };
-  const group = (context.examGroups ?? []).find((row) => row.id === exam.exam_group_id);
-  return { startsOn: group?.starts_on ?? null, endsOn: group?.ends_on ?? null };
 }
 
 const departmentModule = {
@@ -864,6 +913,7 @@ const classSubjectModule = {
   supportsUpdate: true,
   duplicateStrategies: ["new", "skip", "update"],
   defaultStrategy: "new",
+  requiredAny: [["teacher_id", "teacher"]],
   concurrency: 4,
   fields: [
     {
@@ -882,17 +932,25 @@ const classSubjectModule = {
       help: "Use the subject code or the exact subject name.",
     },
     {
-      key: "teacher",
-      label: "Teacher",
-      required: true,
-      aliases: ["teacher", "teacher name", "teacher id", "teacher email", "username"],
+      key: "teacher_id",
+      label: "Teacher ID",
+      required: false,
+      aliases: ["teacher id", "employee id", "staff id", "teacher employee id"],
       example: "TCH1001",
-      help: "Required. Use the teacher name, username, ID or email. Add more teachers from Manage subjects after import.",
+      help: "Recommended. Matches the Teacher ID shown in Manage users, so teachers who share a name stay distinct. Supply this or Teacher name.",
+    },
+    {
+      key: "teacher",
+      label: "Teacher name",
+      required: false,
+      aliases: ["teacher", "teacher name", "teacher email", "username", "email"],
+      example: "",
+      help: "Optional when Teacher ID is supplied. Name, username or email must match exactly one teacher; a duplicate name is rejected as ambiguous.",
     },
   ],
   exampleRows: [
-    ["CSE Semester 3, Section A", "CS201", "TCH1001"],
-    ["CSE Semester 3, Section A", "CS202", "TCH1002"],
+    ["CSE Semester 3, Section A", "CS201", "TCH1001", ""],
+    ["CSE Semester 3, Section A", "CS202", "TCH1002", ""],
   ],
   async loadContext() {
     return {
@@ -923,17 +981,44 @@ const classSubjectModule = {
           : "was not found in the subject catalogue.",
       );
     }
-    const teacherValue = text(values.teacher);
+    const teacherIdValue = text(values.teacher_id);
+    const teacherNameValue = text(values.teacher);
+    const teacherProfiles = (context.profiles ?? []).filter((profile) => profile.role === "teacher");
     let teacher = null;
-    if (!teacherValue) {
-      roleError(errors, "Teacher", "is required. Every class subject needs at least one teacher.");
-    } else {
-      const teacherHit = resolveOne(personLookup((context.profiles ?? []).filter((p) => p.role === "teacher")), teacherValue);
+    if (teacherIdValue) {
+      const idHit = teacherById(teacherProfiles, teacherIdValue);
+      if (!idHit.item) {
+        roleError(
+          errors,
+          "Teacher ID",
+          idHit.ambiguous
+            ? "matches more than one teacher. Check the user records."
+            : "was not found. Use the Teacher ID shown in Manage users.",
+        );
+      } else {
+        teacher = idHit.item;
+        if (teacherNameValue) {
+          const nameHit = resolveOne(personLookup(teacherProfiles), teacherNameValue);
+          if (nameHit.item && nameHit.item.id !== teacher.id) {
+            roleError(errors, "Teacher name", `does not match Teacher ID ${teacherIdValue}.`);
+          }
+        }
+      }
+    } else if (teacherNameValue) {
+      const teacherHit = resolveOne(personLookup(teacherProfiles), teacherNameValue);
       if (!teacherHit.item) {
-        roleError(errors, "Teacher", "was not found. Use the teacher name, username, ID or email.");
+        roleError(
+          errors,
+          "Teacher name",
+          teacherHit.ambiguous
+            ? "matches more than one teacher. Use the Teacher ID instead."
+            : "was not found. Use the Teacher ID shown in Manage users.",
+        );
       } else {
         teacher = teacherHit.item;
       }
+    } else {
+      roleError(errors, "Teacher", "is required. Supply a Teacher ID or teacher name.");
     }
     const klass = classHit.item;
     const subject = subjectHit.item;
@@ -1429,6 +1514,7 @@ const examModule = {
       required: true,
       aliases: ["class", "class name", "group"],
       example: "CSE Semester 3, Section A",
+      help: "An existing Gradia class. The class must offer subjects, and for a teacher at least one assigned to you.",
     },
     {
       key: "name",
@@ -1483,10 +1569,17 @@ const examModule = {
       example: "Reporting time 09:30, no calculators",
     },
   ],
-  exampleRows: [
-    ["CSE Semester 3, Section A", "IA1 2026", "IA1", "2026-27", "2026-11-16", "2026-11-27", "draft", "Reporting time 09:30"],
-    ["CSE Semester 3, Section A", "Quiz 2", "Quiz", "2026-27", "", "", "open", ""],
-  ],
+  // The sample group points at a class the signed-in user can actually import
+  // for, so the name and academic year resolve instead of naming a fiction.
+  exampleRows(context = {}) {
+    const { klass } = firstUsableClassSubject(context);
+    const className = classSampleLabel(klass) || "CSE Semester 3, Section A";
+    const academicYear = klass?.academic_year || "2026-27";
+    return [
+      [className, `IA1 ${academicYear}`, "IA1", academicYear, futureDate(14), futureDate(21), "draft", "Reporting time 15 minutes before the paper"],
+      [className, `Quiz 2 ${academicYear}`, "Quiz", academicYear, futureDate(28), futureDate(28), "open", ""],
+    ];
+  },
   async loadContext() {
     const { data: auth } = await supabase.auth.getUser();
     const userId = auth?.user?.id ?? null;
@@ -1663,9 +1756,6 @@ const examModule = {
       .filter(Boolean)
       .map((subject) => {
         const max = Number(subject.max_marks) || 100;
-        const assignment = (context.teacherAssignments ?? []).find(
-          (row) => row.class_id === data.class_id && row.subject_id === subject.id,
-        );
         return {
           subject_id: subject.id,
           exam_date: null,
@@ -1673,7 +1763,6 @@ const examModule = {
           end_time: null,
           max_marks: max,
           pass_marks: Math.round(max * 0.4),
-          teacher_id: assignment?.teacher_id ?? null,
           room: null,
           instructions: "",
           allow_overlap: false,
@@ -1704,13 +1793,141 @@ const examModule = {
   },
 };
 
-const examSubjectModule = {
-  id: "exam_subjects",
-  title: "Subject schedules",
-  templateName: "Subject_Schedule_Import_Template.xlsx",
-  description: "Set the date, time, room and marks for subjects already scheduled on an examination.",
-  identityLabel: "Subject schedule",
-  roles: EXAM_ROLES,
+const SCHEDULE_ROLES = ["admin", "teacher", "exam_cell"];
+
+// A class lookup accepts the plain name or the name with its section. Templates
+// use the same spelling so a downloaded example actually resolves.
+function classSampleLabel(klass) {
+  if (!klass) return "";
+  return klass.section ? `${klass.name} (${klass.section})` : klass.name;
+}
+
+function futureDate(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function firstUsableClassSubject(context) {
+  const isTeacher = context.role === "teacher";
+  const classes = [...(context.classes ?? [])].sort((a, b) =>
+    (a.name ?? "").localeCompare(b.name ?? ""),
+  );
+  const assignments = context.teacherAssignments ?? [];
+  for (const klass of classes) {
+    const offered = (context.classSubjects ?? []).filter((row) => row.class_id === klass.id);
+    const usable = isTeacher
+      ? offered.filter((row) =>
+          assignments.some(
+            (assignment) =>
+              assignment.class_id === klass.id &&
+              assignment.subject_id === row.subject_id &&
+              assignment.teacher_id === context.userId,
+          ),
+        )
+      : offered;
+    if (usable.length === 0) continue;
+    const subject = (context.subjects ?? []).find((row) => row.id === usable[0].subject_id);
+    if (subject) return { klass, subject };
+  }
+  return { klass: null, subject: null };
+}
+
+// ---------- semester paper scheduling ----------
+// A row schedules one paper that Assessment Setup already created inside the
+// class semester examination. The import never invents an examination or a
+// component: it only writes each paper's own date, time and room through
+// update_assessment_component_schedule. The room is written for the row's
+// class, so a department group keeps a different room for each class.
+const semesterIndexCache = new WeakMap();
+
+function componentLabel(component) {
+  if (!component) return "Paper";
+  return component.code ? `${component.name} (${component.code})` : component.name;
+}
+
+function componentKey(component) {
+  return norm(component?.code || component?.name || "");
+}
+
+function semesterScheduleIndex(context) {
+  const cached = semesterIndexCache.get(context);
+  if (cached) return cached;
+
+  const examById = new Map((context.exams ?? []).map((row) => [row.id, row]));
+  const groupById = new Map((context.examGroups ?? []).map((row) => [row.id, row]));
+  const examSubjectById = new Map(
+    (context.examSubjects ?? []).map((row) => [row.id, row]),
+  );
+  const items = [];
+  const byClassSubject = new Map();
+
+  for (const component of context.assessmentComponents ?? []) {
+    const examSubject = examSubjectById.get(component.exam_subject_id);
+    const exam = examById.get(examSubject?.exam_id);
+    if (!exam?.class_id || !examSubject?.subject_id) continue;
+    const group = groupById.get(exam.exam_group_id) ?? null;
+    const examType = exam.exam_type ?? group?.exam_type;
+    if (!SEMESTER_EXAM_TYPES.includes(examType)) continue;
+
+    const item = { component, exam, group, subjectId: examSubject.subject_id };
+    items.push(item);
+    const key = `${exam.class_id}|${examSubject.subject_id}`;
+    if (!byClassSubject.has(key)) byClassSubject.set(key, []);
+    byClassSubject.get(key).push(item);
+  }
+
+  const index = { items, byClassSubject };
+  semesterIndexCache.set(context, index);
+  return index;
+}
+
+function semesterPapersFor(context, classId, subjectId) {
+  if (!classId || !subjectId) return [];
+  return semesterScheduleIndex(context).byClassSubject.get(`${classId}|${subjectId}`) ?? [];
+}
+
+function semesterPaperToken(classId, subjectId, component) {
+  return token("semester_paper", classId, subjectId, componentKey(component))[0];
+}
+
+function scheduleSampleRow(item, context, index = 0) {
+  const subject = (context.subjects ?? []).find((row) => row.id === item.subjectId);
+  const klass = (context.classes ?? []).find((row) => row.id === item.exam.class_id);
+  return {
+    class: classSampleLabel(klass),
+    exam: item.exam.name,
+    subject: subject?.code || subject?.name || "",
+    paper: item.component.code || item.component.name,
+    exam_date: futureDate(14 + index * 2),
+    start_time: clockLabel(clockKey(item.component.start_time)) || "10:00 AM",
+    end_time: clockLabel(clockKey(item.component.end_time)) || "01:00 PM",
+    room: "Hall A",
+    allow_overlap: "No",
+  };
+}
+
+// The project still works before 202611180001 is applied: the code fallback in
+// isClassworkComponent() covers rows that have no schedule_mode column yet.
+async function fetchAssessmentComponents() {
+  const base = "id,exam_subject_id,name,code,is_conducted,exam_date,start_time,end_time,room,allow_overlap";
+  try {
+    return await fetchRows("assessment_components", `${base},schedule_mode`);
+  } catch (error) {
+    if (!/schedule_mode/i.test(error?.message ?? "")) throw error;
+    return fetchRows("assessment_components", base);
+  }
+}
+
+const semesterScheduleModule = {
+  id: "schedule_semester",
+  title: "Semester paper schedules",
+  templateName: "Semester_Paper_Schedule_Import_Template.xlsx",
+  description:
+    "Set the date, time and class-wise room for papers that a semester examination already created.",
+  identityLabel: "Paper schedule",
+  roles: SCHEDULE_ROLES,
   supportsUpdate: true,
   duplicateStrategies: ["update", "skip"],
   defaultStrategy: "update",
@@ -1722,81 +1939,62 @@ const examSubjectModule = {
       required: true,
       aliases: ["class", "class name", "group"],
       example: "CSE Semester 3, Section A",
+      help: "An existing Gradia class that already has its semester examination.",
     },
     {
       key: "exam",
-      label: "Exam",
-      required: true,
+      label: "Examination name",
+      required: false,
       aliases: ["exam", "exam name", "examination", "assessment"],
-      example: "Midterm 2026",
+      example: "Semester Examination 2026-27",
+      help: "Optional. Use it when the class has more than one semester examination.",
     },
     {
       key: "subject",
       label: "Subject",
       required: true,
-      aliases: ["subject", "subject code", "subject name", "paper"],
+      aliases: ["subject", "subject code", "subject name", "paper subject"],
       example: "CS201",
-      help: "The subject must already be part of the examination.",
+      help: "The subject must be part of the class semester examination and, for a teacher, assigned to you.",
+    },
+    {
+      key: "paper",
+      label: "Paper",
+      required: true,
+      aliases: ["paper", "paper code", "component", "component code", "assessment"],
+      example: "ESA",
+      help: "The paper code from Assessment Setup, for example ESA, IA1 or IA2. Quiz, assignment and project are classwork and are marked in Marks Entry.",
     },
     {
       key: "exam_date",
       label: "Paper date",
-      required: false,
+      required: true,
       aliases: ["paper date", "exam date", "date", "paper on"],
-      example: "2026-11-18",
-      help: "Must sit inside the examination date range.",
+      example: "2026-12-10",
+      help: "Must sit inside the examination date range when the examination has one.",
     },
     {
       key: "start_time",
       label: "Start time",
-      required: false,
+      required: true,
       aliases: ["start time", "starts at", "from", "time"],
-      example: "09:30",
+      example: "10:00 AM",
+      help: "24-hour HH:MM or 12-hour with AM or PM, for example 10:00 AM.",
     },
     {
       key: "end_time",
       label: "End time",
-      required: false,
+      required: true,
       aliases: ["end time", "ends at", "to", "until"],
-      example: "12:00",
-    },
-    {
-      key: "max_marks",
-      label: "Maximum marks",
-      required: false,
-      aliases: ["maximum marks", "max marks", "out of", "total marks"],
-      example: "100",
-      help: "Keeps the current maximum when left blank.",
-    },
-    {
-      key: "pass_marks",
-      label: "Passing marks",
-      required: false,
-      aliases: ["passing marks", "pass marks", "minimum marks", "pass"],
-      example: "40",
-      help: "Keeps the current passing mark when left blank.",
-    },
-    {
-      key: "teacher",
-      label: "Invigilator",
-      required: false,
-      aliases: ["invigilator", "teacher", "teacher name", "teacher id", "username"],
-      example: "",
-      help: "Optional. Use the teacher name, username, ID or email.",
+      example: "01:00 PM",
+      help: "Must be after the start time. Use 01:00 PM for an afternoon paper.",
     },
     {
       key: "room",
-      label: "Room",
+      label: "Room or lab",
       required: false,
-      aliases: ["room", "venue", "hall", "location"],
-      example: "Block A, room 12",
-    },
-    {
-      key: "instructions",
-      label: "Instructions",
-      required: false,
-      aliases: ["instructions", "notes", "guidance", "remarks"],
-      example: "Section A only",
+      aliases: ["room", "venue", "lab", "hall"],
+      example: "Hall A",
     },
     {
       key: "allow_overlap",
@@ -1804,28 +2002,69 @@ const examSubjectModule = {
       required: false,
       aliases: ["allow overlap", "overlap", "clash allowed"],
       example: "No",
-      help: "Yes or no. Overlapping papers for the same class are rejected unless this is yes.",
+      help: "Yes or no. Only set yes when this paper may run at the same time as another paper of the class.",
     },
   ],
-  exampleRows: [
-    ["CSE Semester 3, Section A", "Midterm 2026", "CS201", "2026-11-18", "09:30", "12:00", "100", "40", "", "Block A, room 12", "", "No"],
-    ["CSE Semester 3, Section A", "Midterm 2026", "CS202", "2026-11-20", "09:30", "12:00", "100", "40", "", "Block A, room 12", "", "No"],
-  ],
+  exampleRows(context = {}) {
+    const { items } = semesterScheduleIndex(context);
+    const formal = items.filter((item) => !isClassworkComponent(item.component));
+    const { klass, subject } = firstUsableClassSubject(context);
+    const preferred = formal.filter(
+      (item) =>
+        (!klass || item.exam.class_id === klass.id) &&
+        (!subject || item.subjectId === subject.id),
+    );
+    const chosen = (preferred.length > 0 ? preferred : formal)
+      .slice(0, 2)
+      .map((item, index) => scheduleSampleRow(item, context, index));
+    if (chosen.length > 0) {
+      return chosen.map((row) => [
+        row.class,
+        row.exam,
+        row.subject,
+        row.paper,
+        row.exam_date,
+        row.start_time,
+        row.end_time,
+        row.room,
+        row.allow_overlap,
+      ]);
+    }
+
+    const className = classSampleLabel(klass) || "CSE Semester 3, Section A";
+    const examName = klass?.academic_year
+      ? `Semester Examination ${klass.academic_year}`
+      : "Semester Examination 2026-27";
+    const subjectCode = subject?.code || subject?.name || "CS201";
+    return [
+      [className, examName, subjectCode, "ESA", futureDate(14), "10:00 AM", "01:00 PM", "Hall A", "No"],
+      [className, examName, subjectCode, "IA1", futureDate(7), "10:00 AM", "11:00 AM", "R-101", "No"],
+    ];
+  },
   async loadContext() {
+    const { data: auth } = await supabase.auth.getUser();
+    const userId = auth?.user?.id ?? null;
+    let role = null;
+    if (userId) {
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
+      role = profile?.role ?? null;
+    }
     return {
+      userId,
+      role,
       classes: await fetchRows("classes", "id,name,department,course_id,academic_year,semester,section"),
-      exams: await fetchRows("exams", "id,name,class_id,academic_year,exam_group_id"),
-      examGroups: await fetchRows("exam_groups", "id,name,scope,starts_on,ends_on"),
       subjects: await fetchRows("subjects", "id,name,code,max_marks"),
-      profiles: await fetchRows("profiles", "id,name,username,email,role"),
-      examSubjects: await fetchRows(
-        "exam_subjects",
-        "id,exam_id,subject_id,exam_date,start_time,end_time,max_marks,pass_marks,teacher_id,room,instructions,allow_overlap",
-      ),
+      classSubjects: await fetchRows("class_subjects", "id,class_id,subject_id"),
+      teacherAssignments: await fetchRows("teacher_assignments", "id,class_id,subject_id,teacher_id"),
+      examGroups: await fetchRows("exam_groups", "id,name,exam_type,academic_year,status"),
+      exams: await fetchRows("exams", "id,class_id,name,exam_group_id,exam_type,status,academic_year"),
+      examSubjects: await fetchRows("exam_subjects", "id,exam_id,subject_id"),
+      assessmentComponents: await fetchAssessmentComponents(),
     };
   },
   resolveRow(values, context) {
     const errors = [];
+
     const classHit = resolveOne(classLookup(context), values.class);
     if (!classHit.item) {
       roleError(
@@ -1836,173 +2075,213 @@ const examSubjectModule = {
     }
     const klass = classHit.item;
 
-    let exam = null;
-    const examValue = text(values.exam);
-    if (!examValue) {
-      roleError(errors, "Exam", "is required.");
-    } else if (klass) {
-      const matches = (context.exams ?? []).filter(
-        (row) => norm(row.name) === norm(examValue) && row.class_id === klass.id,
-      );
-      if (matches.length === 1) exam = matches[0];
-      else if (matches.length > 1) {
-        roleError(errors, "Exam", "matches more than one examination. Use the exact examination name.");
-      } else {
-        roleError(errors, "Exam", "was not found for this class. Import the examination first.");
-      }
-    }
-
     const subjectHit = resolveOne(subjectLookup(context), values.subject);
     if (!subjectHit.item) {
       roleError(
         errors,
         "Subject",
-        subjectHit.ambiguous
-          ? "matches more than one subject. Use the subject code."
-          : "was not found in the subject catalogue.",
+        subjectHit.ambiguous ? "matches more than one subject. Use the subject code." : "was not found.",
       );
     }
     const subject = subjectHit.item;
 
-    const schedule =
-      exam && subject
-        ? (context.examSubjects ?? []).find(
-            (row) => row.exam_id === exam.id && row.subject_id === subject.id,
-          ) ?? null
-        : null;
-    if (exam && subject && !schedule) {
-      roleError(errors, "Subject", "is not part of this examination. Import the examination first.");
+    if (klass && subject) {
+      const offered = (context.classSubjects ?? []).some(
+        (row) => row.class_id === klass.id && row.subject_id === subject.id,
+      );
+      if (!offered) roleError(errors, "Subject", "is not offered by this class.");
+      if (context.role === "teacher") {
+        const assigned = (context.teacherAssignments ?? []).some(
+          (row) =>
+            row.class_id === klass.id &&
+            row.subject_id === subject.id &&
+            row.teacher_id === context.userId,
+        );
+        if (!assigned) roleError(errors, "Subject", "is not assigned to you for this class.");
+      }
     }
 
-    const rawDate = values.exam_date;
-    const examDate = normaliseDate(rawDate);
-    if (Number.isNaN(examDate)) {
-      roleError(errors, "Paper date", "must be a valid date.");
-    }
-    const finalDate = examDate ?? schedule?.exam_date ?? null;
-    if (finalDate && exam) {
-      const { startsOn, endsOn } = groupWindowFor(context, exam);
-      if (startsOn && finalDate < startsOn) {
-        roleError(errors, "Paper date", `cannot be before the examination starts on ${startsOn}.`);
+    const examName = text(values.exam);
+    let scoped = semesterPapersFor(context, klass?.id, subject?.id);
+    if (examName && scoped.length > 0) {
+      const matching = scoped.filter(
+        (item) => norm(item.exam.name) === norm(examName) || norm(item.group?.name) === norm(examName),
+      );
+      if (matching.length > 0) scoped = matching;
+      else {
+        roleError(
+          errors,
+          "Examination name",
+          "was not found for this class. Create the semester examination first, or leave the column blank.",
+        );
       }
-      if (endsOn && finalDate > endsOn) {
-        roleError(errors, "Paper date", `cannot be after the examination ends on ${endsOn}.`);
+    }
+
+    let paper = null;
+    const paperText = text(values.paper);
+    if (!paperText) {
+      roleError(errors, "Paper", "is required, for example ESA or IA1.");
+    } else {
+      const key = norm(paperText);
+      const matches = scoped.filter(
+        (item) => norm(item.component.code) === key || norm(item.component.name) === key,
+      );
+      if (matches.length === 1) paper = matches[0];
+      else if (matches.length > 1) {
+        roleError(errors, "Paper", "matches more than one paper. Use the paper code.");
+      } else if (scoped.length === 0) {
+        roleError(errors, "Paper", "was not found. Create the class semester examination first.");
+      } else {
+        const available = [
+          ...new Set(
+            scoped
+              .filter((item) => !isClassworkComponent(item.component))
+              .map((item) => item.component.code || item.component.name),
+          ),
+        ];
+        roleError(
+          errors,
+          "Paper",
+          available.length > 0
+            ? `was not found. Use one of ${available.join(", ")}.`
+            : "was not found. This examination has no schedulable papers.",
+        );
       }
     }
+
+    if (paper && isClassworkComponent(paper.component)) {
+      roleError(
+        errors,
+        "Paper",
+        `${componentLabel(paper.component)} is classwork: it has no date or room. Mark it in Marks Entry.`,
+      );
+    }
+
+    const examDate = normaliseDate(values.exam_date);
+    if (Number.isNaN(examDate)) roleError(errors, "Paper date", "must be a valid date.");
+    if (!examDate) roleError(errors, "Paper date", "is required.");
 
     const startTime = normaliseTime(values.start_time);
-    if (Number.isNaN(startTime)) roleError(errors, "Start time", "must be a time such as 09:30.");
+    if (Number.isNaN(startTime)) roleError(errors, "Start time", "must be a time such as 09:30 or 10:00 AM.");
+    if (!startTime) roleError(errors, "Start time", "is required.");
+
     const endTime = normaliseTime(values.end_time);
-    if (Number.isNaN(endTime)) roleError(errors, "End time", "must be a time such as 12:00.");
-
-    const finalStart = startTime ?? (clockKey(schedule?.start_time) || null);
-    const finalEnd = endTime ?? (clockKey(schedule?.end_time) || null);
-    if (finalStart && finalEnd && finalEnd <= finalStart) {
-      roleError(errors, "End time", "must be after the start time.");
+    if (Number.isNaN(endTime)) roleError(errors, "End time", "must be a time such as 12:00 or 01:00 PM.");
+    if (!endTime) roleError(errors, "End time", "is required.");
+    if (startTime && endTime && endTime <= startTime) {
+      roleError(errors, "End time", "must be after the start time. Use 01:00 PM for an afternoon paper.");
     }
 
-    const rawMax = asNumber(values.max_marks);
-    if (Number.isNaN(rawMax)) roleError(errors, "Maximum marks", "must be a number.");
-    const maxMarks = rawMax ?? Number(schedule?.max_marks ?? subject?.max_marks ?? 100);
-    if (!Number.isNaN(rawMax) && maxMarks <= 0) {
-      roleError(errors, "Maximum marks", "must be greater than zero.");
-    }
+    const allowOverlap = asFlag(values.allow_overlap);
+    if (Number.isNaN(allowOverlap)) roleError(errors, "Allow overlap", "must be Yes or No.");
 
-    const rawPass = asNumber(values.pass_marks);
-    if (Number.isNaN(rawPass)) roleError(errors, "Passing marks", "must be a number.");
-    const passMarks =
-      rawPass ?? (schedule?.pass_marks != null ? Number(schedule.pass_marks) : null);
-    if (passMarks != null && (passMarks < 0 || passMarks > maxMarks)) {
-      roleError(errors, "Passing marks", "must sit between 0 and the maximum marks.");
-    }
-
-    let teacherId = schedule?.teacher_id ?? null;
-    const teacherValue = text(values.teacher);
-    if (teacherValue) {
-      const teacherHit = resolveOne(
-        personLookup((context.profiles ?? []).filter((row) => row.role === "teacher")),
-        teacherValue,
-      );
-      if (!teacherHit.item) {
-        roleError(errors, "Invigilator", "was not found. Use the teacher name, username, ID or email.");
-      } else {
-        teacherId = teacherHit.item.id;
-      }
-    }
-
-    const overlapValue = asFlag(values.allow_overlap);
-    if (Number.isNaN(overlapValue)) {
-      roleError(errors, "Allow overlap", "must be yes or no.");
-    }
-    const allowOverlap = overlapValue === null ? Boolean(schedule?.allow_overlap) : overlapValue;
-
-    if (finalDate && finalStart && finalEnd && !allowOverlap && klass && schedule) {
-      const classByExam = new Map((context.exams ?? []).map((row) => [row.id, row.class_id]));
-      const conflict = (context.examSubjects ?? []).find((row) => {
-        if (row.id === schedule.id) return false;
-        if (classByExam.get(row.exam_id) !== klass.id) return false;
-        if (row.exam_date !== finalDate) return false;
-        const otherStart = clockKey(row.start_time);
-        const otherEnd = clockKey(row.end_time);
-        if (!otherStart || !otherEnd || row.allow_overlap) return false;
-        return finalStart < otherEnd && finalEnd > otherStart;
-      });
-      if (conflict) {
-        roleError(errors, "Start time", "overlaps another paper for this class. Change the time or allow overlap.");
-      }
-    }
-
-    const room = text(values.room) || schedule?.room || null;
-    const instructions = text(values.instructions) || schedule?.instructions || "";
-    const identity = exam && subject ? token("exam_subjects", exam.id, subject.id)[0] : null;
+    const identity =
+      klass && subject && paper ? semesterPaperToken(klass.id, subject.id, paper.component) : null;
 
     return {
       data: {
-        exam_subject_id: schedule?.id ?? null,
-        exam_id: exam?.id ?? null,
+        component_id: paper?.component.id ?? null,
+        class_id: klass?.id ?? null,
         subject_id: subject?.id ?? null,
-        exam_date: finalDate,
-        start_time: finalStart || null,
-        end_time: finalEnd || null,
-        max_marks: Number.isNaN(rawMax) ? null : maxMarks,
-        pass_marks: Number.isNaN(rawPass) ? null : passMarks,
-        teacher_id: teacherId,
-        room,
-        instructions,
-        allow_overlap: allowOverlap,
+        exam_id: paper?.exam.id ?? null,
+        exam_date: examDate,
+        start_time: startTime,
+        end_time: endTime,
+        room: text(values.room) || null,
+        allow_overlap: allowOverlap === true,
       },
       errors,
       identity,
       altIdentities: identity ? [identity] : [],
-      label: exam && subject ? `${exam.name}, ${subject.code ?? subject.name}` : examValue,
+      label:
+        paper && subject
+          ? `${componentLabel(paper.component)}, ${subject.code ?? subject.name} (${klass?.name ?? ""})`
+          : "Paper schedule",
     };
   },
   async findExisting(_records, context) {
     const map = new Map();
-    for (const row of context.examSubjects ?? []) {
-      addExisting(map, token("exam_subjects", row.exam_id, row.subject_id)[0], row);
+    for (const item of semesterScheduleIndex(context).items) {
+      if (isClassworkComponent(item.component)) continue;
+      addExisting(map, semesterPaperToken(item.exam.class_id, item.subjectId, item.component), {
+        ...item.component,
+        class_id: item.exam.class_id,
+        subject_id: item.subjectId,
+      });
     }
     return map;
   },
-  async execute({ data }) {
-    if (!data.exam_subject_id) {
-      throw new Error("This subject is not part of the examination. Import the examination first.");
+  // Conflict preflight. The wizard marks these rows invalid before anything is
+  // written, so a clashing paper is never imported silently.
+  async preflight(records, context) {
+    const notes = new Map();
+    const subjectById = new Map((context.subjects ?? []).map((row) => [row.id, row]));
+    const scheduled = semesterScheduleIndex(context).items.filter(
+      (item) => item.component.is_conducted !== false && item.component.exam_date,
+    );
+
+    for (const record of records) {
+      const data = record.data ?? {};
+      if (!data.class_id || !data.exam_date || !data.start_time || !data.end_time) continue;
+      if (data.allow_overlap) continue;
+
+      const clash = scheduled.find((item) => {
+        if (item.exam.class_id !== data.class_id) return false;
+        if (item.component.id === data.component_id) return false;
+        if (item.component.allow_overlap) return false;
+        if (item.component.exam_date !== data.exam_date) return false;
+        const otherStart = clockKey(item.component.start_time);
+        const otherEnd = clockKey(item.component.end_time);
+        return otherStart && otherEnd && data.start_time < otherEnd && data.end_time > otherStart;
+      });
+      if (clash) {
+        const subjectCode = subjectById.get(clash.subjectId)?.code ?? "another subject";
+        notes.set(
+          record.rowNumber,
+          `Overlaps ${subjectCode} ${clash.component.code ?? clash.component.name}, already scheduled at ${clockKey(clash.component.start_time)} for this class.`,
+        );
+        continue;
+      }
+
+      const fileClash = records.find((other) => {
+        if (other === record) return false;
+        if (other.rowNumber > record.rowNumber) return false;
+        const value = other.data ?? {};
+        if (value.class_id !== data.class_id || value.exam_date !== data.exam_date) return false;
+        return value.start_time && value.end_time && data.start_time < value.end_time && data.end_time > value.start_time;
+      });
+      if (fileClash) {
+        notes.set(record.rowNumber, `Overlaps row ${fileClash.rowNumber} in this file for the same class.`);
+      }
     }
-    await callRpc("update_exam_subject_schedule", {
-      p_exam_subject_id: data.exam_subject_id,
-      p_exam_date: data.exam_date,
-      p_start_time: data.start_time,
-      p_end_time: data.end_time,
-      p_max_marks: data.max_marks,
-      p_pass_marks: data.pass_marks,
-      p_teacher_id: data.teacher_id,
-      p_instructions: data.instructions,
-      p_room: data.room,
-      p_allow_overlap: data.allow_overlap,
+    return notes;
+  },
+  async execute({ mode, data, existing }) {
+    const componentId = existing?.id ?? data.component_id;
+    if (!componentId) {
+      throw new Error(
+        "This paper is not part of the class semester examination yet. The examination is created automatically from assigned subjects; assign the subject and open the class first.",
+      );
+    }
+    await callRpc("update_assessment_component_schedule", {
+      p_component_id: componentId,
+      p_patch: {
+        is_conducted: true,
+        exam_date: data.exam_date,
+        start_time: data.start_time,
+        end_time: data.end_time,
+        room: data.room,
+        allow_overlap: Boolean(data.allow_overlap),
+      },
+      // The row names the class, so its room is written only for that class.
+      // Dates and times still propagate across the whole examination group.
+      p_room_class_id: data.class_id,
     });
-    return { status: "updated" };
+    return { status: mode === "update" || existing ? "updated" : "created" };
   },
 };
+
+const scheduleModules = { schedule_semester: semesterScheduleModule };
 
 const marksModule = {
   id: "marks",
@@ -2288,6 +2567,609 @@ const marksModule = {
   },
 };
 
+const ATTENDANCE_ROLES = ["admin", "teacher", "hod"];
+
+const attendanceModule = {
+  id: "attendance",
+  title: "Attendance",
+  templateName: "Attendance_Import_Template.xlsx",
+  description: "Import classes attended and classes conducted for students in your assigned classes and subjects.",
+  identityLabel: "Attendance record",
+  roles: ATTENDANCE_ROLES,
+  supportsUpdate: true,
+  duplicateStrategies: ["new", "skip", "update"],
+  defaultStrategy: "update",
+  concurrency: 4,
+  fields: [
+    {
+      key: "class",
+      label: "Class",
+      required: false,
+      aliases: ["class", "class name", "group"],
+      example: "BCS2A",
+      help: "Required when no class is selected on the Attendance screen.",
+    },
+    {
+      key: "subject",
+      label: "Subject",
+      required: false,
+      aliases: ["subject", "subject code", "subject name", "paper"],
+      example: "CS201",
+      help: "Required when no subject is selected on the Attendance screen.",
+    },
+    {
+      key: "academic_year",
+      label: "Academic year",
+      required: false,
+      aliases: ["academic year", "year", "session", "batch year"],
+      example: "2026-27",
+      help: "Defaults to the academic year of the selected class.",
+    },
+    {
+      key: "student",
+      label: "Student",
+      required: true,
+      aliases: ["student", "student name", "student id", "roll number", "roll no", "username", "email"],
+      example: "GRD2026001",
+      help: "Use the student ID, username, email or full name. Student ID or username is safest.",
+    },
+    {
+      key: "attended",
+      label: "Classes attended",
+      required: true,
+      aliases: ["attended", "classes attended", "attended classes", "present", "present classes"],
+      example: "18",
+      help: "A whole number of classes the student attended. It cannot exceed the total classes.",
+    },
+    {
+      key: "total",
+      label: "Total classes",
+      required: false,
+      aliases: ["total", "total classes", "total classes conducted", "classes conducted", "conducted"],
+      example: "22",
+      help: "Whole number of classes conducted for the subject. Defaults to the total entered on the Attendance screen.",
+    },
+    {
+      key: "teacher",
+      label: "Teacher",
+      required: false,
+      aliases: ["teacher", "teacher name", "faculty", "recorded by"],
+      example: "",
+      help: "Administrators only. Defaults to the teacher assigned to the class and subject.",
+    },
+    {
+      key: "notes",
+      label: "Notes",
+      required: false,
+      aliases: ["notes", "note", "remarks", "remark", "comment"],
+      example: "",
+    },
+  ],
+  exampleRows: [
+    ["BCS2A", "CS201", "2026-27", "GRD2026001", "18", "22", "", ""],
+    ["BCS2A", "CS201", "2026-27", "GRD2026002", "20", "22", "", "Medical leave"],
+  ],
+  async loadContext() {
+    const { data: auth } = await supabase.auth.getUser();
+    const userId = auth?.user?.id ?? null;
+    let callerRole = null;
+    if (userId) {
+      const { data: me } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .maybeSingle();
+      callerRole = me?.role ?? null;
+    }
+    return {
+      userId,
+      callerRole,
+      classes: await fetchRows("classes", "id,name,academic_year,semester,section,is_active"),
+      subjects: await fetchRows("subjects", "id,name,code,class_id"),
+      profiles: await fetchRows("profiles", "id,name,username,email,role,student_id,class_id,is_active"),
+      classSubjects: await fetchRows("class_subjects", "id,class_id,subject_id"),
+      enrollments: await fetchRows("student_enrollments", "student_id,class_id,status"),
+      teacherAssignments: await fetchRows("teacher_assignments", "id,class_id,subject_id,teacher_id"),
+    };
+  },
+  resolveRow(values, context, _rowNumber, defaults = {}) {
+    const errors = [];
+    let klass = null;
+    if (text(values.class)) {
+      const classHit = resolveOne(classLookup(context), values.class);
+      if (!classHit.item) {
+        roleError(
+          errors,
+          "Class",
+          classHit.ambiguous ? "matches more than one class. Use the exact class name." : "was not found.",
+        );
+      } else {
+        klass = classHit.item;
+      }
+    } else if (defaults.class_id) {
+      klass = (context.classes ?? []).find((row) => row.id === defaults.class_id) ?? null;
+    }
+    if (!klass) roleError(errors, "Class", "is required. Choose a class on the Attendance screen or add a Class column.");
+
+    const assignedIds = new Set(
+      (context.classSubjects ?? []).filter((row) => row.class_id === klass?.id).map((row) => row.subject_id),
+    );
+    let subject = null;
+    if (text(values.subject)) {
+      const key = norm(values.subject);
+      const candidates = (context.subjects ?? []).filter(
+        (row) => norm(row.code) === key || norm(row.name) === key,
+      );
+      const eligible = assignedIds.size
+        ? candidates.filter((row) => assignedIds.has(row.id) || row.class_id === klass?.id)
+        : candidates;
+      if (eligible.length === 1) subject = eligible[0];
+      else if (eligible.length > 1) roleError(errors, "Subject", "matches more than one subject. Use the subject code.");
+      else roleError(errors, "Subject", "was not found or is not assigned to this class.");
+    } else if (defaults.subject_id) {
+      subject = (context.subjects ?? []).find((row) => row.id === defaults.subject_id) ?? null;
+    }
+    if (!subject) roleError(errors, "Subject", "is required. Choose a subject on the Attendance screen or add a Subject column.");
+    else if (klass && !assignedIds.has(subject.id) && subject.class_id !== klass.id) {
+      roleError(errors, "Subject", "is not assigned to the selected class.");
+    }
+
+    const academicYear = text(values.academic_year) || text(defaults.academic_year) || text(klass?.academic_year);
+    if (!academicYear) {
+      roleError(errors, "Academic year", "is required. Add an Academic year column or set it on the class.");
+    } else if (klass?.academic_year && text(klass.academic_year) !== academicYear) {
+      roleError(errors, "Academic year", `must match the class academic year ${klass.academic_year}.`);
+    }
+
+    // The database forces a teacher or HOD to record under their own identity.
+    // An administrator records on behalf of a teacher assigned to the subject.
+    const callerRole = context.callerRole;
+    const assignedTeacherIds = new Set(
+      (context.teacherAssignments ?? [])
+        .filter((row) => row.class_id === klass?.id && row.subject_id === subject?.id)
+        .map((row) => row.teacher_id),
+    );
+    let teacherId = null;
+    if (callerRole === "teacher" || callerRole === "hod") {
+      teacherId = context.userId ?? null;
+      if (klass && subject && teacherId && !assignedTeacherIds.has(teacherId)) {
+        roleError(errors, "Class", "you are not assigned to this subject in this class.");
+      }
+    } else {
+      const teacherValue = text(values.teacher);
+      if (teacherValue) {
+        const key = norm(teacherValue);
+        const matches = (context.profiles ?? []).filter(
+          (row) =>
+            assignedTeacherIds.has(row.id) &&
+            (norm(row.name) === key || norm(row.username) === key || norm(row.email) === key),
+        );
+        if (matches.length === 1) teacherId = matches[0].id;
+        else if (matches.length > 1) {
+          roleError(errors, "Teacher", "matches more than one teacher. Use the username or email.");
+        } else {
+          roleError(errors, "Teacher", "was not found or is not assigned to this class and subject.");
+        }
+      } else if (defaults.teacher_id && assignedTeacherIds.has(defaults.teacher_id)) {
+        teacherId = defaults.teacher_id;
+      } else if (assignedTeacherIds.size === 1) {
+        teacherId = [...assignedTeacherIds][0];
+      }
+      if (!teacherId) {
+        roleError(
+          errors,
+          "Teacher",
+          "is required when more than one teacher is assigned. Choose one on the Attendance screen or add a Teacher column.",
+        );
+      }
+    }
+
+    const enrolledIds = new Set(
+      (context.enrollments ?? [])
+        .filter((row) => row.class_id === klass?.id && row.status === "active")
+        .map((row) => row.student_id),
+    );
+
+    const studentValue = text(values.student);
+    let student = null;
+    if (!studentValue) {
+      roleError(errors, "Student", "is required.");
+    } else if (klass) {
+      const key = norm(studentValue);
+      const matches = (context.profiles ?? []).filter(
+        (row) =>
+          row.role === "student" &&
+          row.is_active !== false &&
+          (row.class_id === klass.id || enrolledIds.has(row.id)) &&
+          (norm(row.student_id) === key ||
+            norm(row.username) === key ||
+            norm(row.email) === key ||
+            norm(row.name) === key),
+      );
+      if (matches.length === 1) student = matches[0];
+      else if (matches.length > 1) {
+        roleError(errors, "Student", "matches more than one student. Use the student ID or username.");
+      } else {
+        roleError(errors, "Student", "was not found in the selected class.");
+      }
+    }
+
+    const attended = asInt(values.attended);
+    if (attended === null) {
+      roleError(errors, "Classes attended", "is required.");
+    } else if (Number.isNaN(attended)) {
+      roleError(errors, "Classes attended", "must be a whole number.");
+    } else if (attended < 0) {
+      roleError(errors, "Classes attended", "cannot be negative.");
+    }
+
+    let total = asInt(values.total);
+    if (total === null) total = asInt(defaults.total_classes);
+    if (total === null) {
+      roleError(
+        errors,
+        "Total classes",
+        "is required. Enter the total classes conducted on the Attendance screen or add a Total classes column.",
+      );
+    } else if (Number.isNaN(total)) {
+      roleError(errors, "Total classes", "must be a whole number.");
+    } else if (total <= 0) {
+      roleError(errors, "Total classes", "must be greater than zero.");
+    } else if (attended !== null && !Number.isNaN(attended) && attended > total) {
+      roleError(errors, "Classes attended", "cannot be greater than total classes.");
+    }
+
+    const notes = optionalText(values.notes);
+    const identity =
+      student && klass && subject && academicYear
+        ? token("attendance", student.id, klass.id, subject.id, academicYear)[0]
+        : null;
+    return {
+      data: {
+        student_id: student?.id ?? null,
+        class_id: klass?.id ?? null,
+        subject_id: subject?.id ?? null,
+        academic_year: academicYear || null,
+        teacher_id: teacherId,
+        recorded_by: context.userId ?? null,
+        attended_classes: Number.isNaN(attended) ? null : attended,
+        total_classes: Number.isNaN(total) ? null : total,
+        notes,
+      },
+      errors,
+      identity,
+      altIdentities: identity ? [identity] : [],
+      label: student && subject ? `${student.name}, ${subject.code}` : studentValue,
+    };
+  },
+  async findExisting(records) {
+    const triples = new Map();
+    for (const record of records) {
+      if (record.errors?.length) continue;
+      const data = record.data;
+      if (!data?.class_id || !data?.subject_id || !data?.academic_year) continue;
+      triples.set(`${data.class_id}:${data.subject_id}:${data.academic_year}`, data);
+    }
+    const map = new Map();
+    for (const triple of triples.values()) {
+      const { data, error } = await supabase
+        .from("attendance")
+        .select("id,student_id,class_id,subject_id,academic_year,attended_classes,total_classes,notes")
+        .eq("class_id", triple.class_id)
+        .eq("subject_id", triple.subject_id)
+        .eq("academic_year", triple.academic_year);
+      if (error) throw new Error(`Could not check existing attendance: ${error.message}`);
+      for (const row of data ?? []) {
+        addExisting(
+          map,
+          token("attendance", row.student_id, row.class_id, row.subject_id, row.academic_year)[0],
+          row,
+        );
+      }
+    }
+    return map;
+  },
+  async execute({ mode, data, existing }) {
+    if (!data.student_id || !data.class_id || !data.subject_id) {
+      throw new Error("Student, class or subject was not found. Refresh the reference data and try again.");
+    }
+    if (mode === "update" || existing) {
+      const { error } = await supabase
+        .from("attendance")
+        .upsert(data, { onConflict: "student_id,class_id,subject_id,academic_year" });
+      throwDb(error, "An attendance record already exists for this student, subject and academic year.");
+      return { status: existing ? "updated" : "created" };
+    }
+    const { error } = await supabase.from("attendance").insert(data);
+    throwDb(error, "An attendance record already exists for this student, subject and academic year.");
+    return { status: "created" };
+  },
+};
+
+// ---------- classwork ----------
+// One row creates and publishes an assignment, quiz or project. It only carries
+// a deadline and submission details; assessment marks live in the semester exam.
+const CLASSWORK_IMPORT_ROLES = ["admin", "teacher", "exam_cell"];
+
+function normaliseClassworkDeadline(value) {
+  if (value === null || value === undefined || value === "") return null;
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return Number.NaN;
+    return `${value.getFullYear()}-${padClock(value.getMonth() + 1)}-${padClock(value.getDate())}` +
+      `T${padClock(value.getHours())}:${padClock(value.getMinutes())}:00`;
+  }
+  const raw = text(value);
+  if (!raw) return null;
+  const match = raw.match(/^(\d{4}-\d{2}-\d{2})(?:[ T](\d{1,2}):(\d{2}))?$/);
+  if (!match) {
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return Number.NaN;
+    return `${parsed.getFullYear()}-${padClock(parsed.getMonth() + 1)}-${padClock(parsed.getDate())}` +
+      `T${padClock(parsed.getHours())}:${padClock(parsed.getMinutes())}:00`;
+  }
+  const probe = new Date(`${match[1]}T00:00:00`);
+  const dateParts = match[1].split("-").map(Number);
+  if (
+    Number.isNaN(probe.getTime()) ||
+    probe.getFullYear() !== dateParts[0] ||
+    probe.getMonth() + 1 !== dateParts[1] ||
+    probe.getDate() !== dateParts[2]
+  ) {
+    return Number.NaN;
+  }
+  const hour = match[2] === undefined ? 23 : Number(match[2]);
+  const minute = match[3] === undefined ? 59 : Number(match[3]);
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return Number.NaN;
+  return `${match[1]}T${padClock(hour)}:${padClock(minute)}:00`;
+}
+
+function classworkIdentity(row) {
+  return token("classwork", row.class_id, row.subject_id, row.kind, row.title)[0] ?? null;
+}
+
+function classworkSubjectOffered(context, klass, subject) {
+  if (!klass || !subject) return false;
+  return (context.classSubjects ?? []).some(
+    (row) => row.class_id === klass.id && row.subject_id === subject.id,
+  );
+}
+
+function classworkAssignedToMe(context, klass, subject) {
+  if (!klass || !subject) return false;
+  return (context.teacherAssignments ?? []).some(
+    (row) =>
+      row.class_id === klass.id &&
+      row.subject_id === subject.id &&
+      row.teacher_id === context.userId,
+  );
+}
+
+const classworkModule = {
+  id: "classwork",
+  title: "Classwork",
+  templateName: "Classwork_Import_Template.xlsx",
+  description: "Publish assignments, quizzes and projects for your classes.",
+  identityLabel: "Classwork",
+  roles: CLASSWORK_IMPORT_ROLES,
+  supportsUpdate: false,
+  duplicateStrategies: ["new", "skip"],
+  defaultStrategy: "new",
+  concurrency: 3,
+  fields: [
+    {
+      key: "kind",
+      label: "Kind",
+      required: true,
+      aliases: ["kind", "type", "activity", "activity type"],
+      example: "assignment",
+      help: "Use assignment, quiz or project.",
+    },
+    {
+      key: "class",
+      label: "Class",
+      required: true,
+      aliases: ["class", "class name", "group"],
+      example: "CSE Semester 3, Section A",
+      help: "Use the exact class name shown in Gradia, including the section when it has one.",
+    },
+    {
+      key: "subject",
+      label: "Subject",
+      required: true,
+      aliases: ["subject", "subject code", "subject name", "paper"],
+      example: "CS201",
+      help: "The subject must already be offered by the class. Teachers can only import subjects assigned to them.",
+    },
+    {
+      key: "title",
+      label: "Title",
+      required: true,
+      aliases: ["title", "name", "classwork title", "assignment title", "quiz title", "project title"],
+      example: "Data structures lab report",
+    },
+    {
+      key: "description",
+      label: "Description",
+      required: false,
+      aliases: ["description", "brief", "details"],
+      example: "Write up the lab experiment.",
+    },
+    {
+      key: "instructions",
+      label: "Instructions",
+      required: false,
+      aliases: ["instructions", "submission instructions", "notes", "guidance"],
+      example: "Use your roll number as the file name.",
+    },
+    {
+      key: "deadline",
+      label: "Deadline",
+      required: false,
+      aliases: ["deadline", "due date", "due on", "due"],
+      example: "2026-12-10 23:59",
+      help: "YYYY-MM-DD or YYYY-MM-DD HH:MM. A date without a time uses 23:59 in your local time. Excel date cells are also read.",
+    },
+  ],
+  exampleRows(context) {
+    const { klass, subject } = firstUsableClassSubject(context);
+    const className = classSampleLabel(klass) || "CSE Semester 3, Section A";
+    const subjectCode = subject?.code || "CS201";
+    return [
+      [
+        "Assignment",
+        className,
+        subjectCode,
+        "Data structures lab report",
+        "Write up the lab experiment.",
+        "Upload a PDF.",
+        futureDate(14),
+      ],
+      [
+        "Quiz",
+        className,
+        subjectCode,
+        "Week 3 quiz",
+        "",
+        "Answer every question in the text box.",
+        futureDate(21),
+      ],
+      [
+        "Project",
+        className,
+        subjectCode,
+        "Mini project",
+        "Build and demonstrate the app.",
+        "Upload the source link.",
+        futureDate(28),
+      ],
+    ];
+  },
+  async loadContext() {
+    const { data: auth } = await supabase.auth.getUser();
+    const userId = auth?.user?.id ?? null;
+    let role = null;
+    if (userId) {
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
+      role = profile?.role ?? null;
+    }
+    return {
+      userId,
+      role,
+      classes: await fetchRows("classes", "id,name,academic_year,semester,section,course_id"),
+      subjects: await fetchRows("subjects", "id,name,code,max_marks"),
+      classSubjects: await fetchRows("class_subjects", "id,class_id,subject_id"),
+      teacherAssignments: await fetchRows("teacher_assignments", "id,class_id,subject_id,teacher_id"),
+    };
+  },
+  resolveRow(values, context) {
+    const errors = [];
+
+    const kindKeys = new Map();
+    for (const [id, label] of Object.entries(CLASSWORK_KIND_LABEL)) {
+      kindKeys.set(id, id);
+      kindKeys.set(norm(label), id);
+    }
+    kindKeys.set("class test", "quiz");
+    kindKeys.set("test", "quiz");
+    const kind = kindKeys.get(norm(values.kind)) ?? null;
+    if (!kind) {
+      roleError(errors, "Kind", "must be assignment, quiz or project.");
+    }
+
+    const classHit = resolveOne(classLookup(context), values.class);
+    if (!classHit.item) {
+      roleError(
+        errors,
+        "Class",
+        classHit.ambiguous ? "matches more than one class. Use the exact class name." : "was not found.",
+      );
+    }
+    const klass = classHit.item;
+
+    const subjectHit = resolveOne(subjectLookup(context), values.subject);
+    if (!subjectHit.item) {
+      roleError(
+        errors,
+        "Subject",
+        subjectHit.ambiguous ? "matches more than one subject. Use the subject code." : "was not found.",
+      );
+    }
+    const subject = subjectHit.item;
+    if (klass && subject) {
+      if (!classworkSubjectOffered(context, klass, subject)) {
+        roleError(errors, "Subject", "is not offered by the selected class.");
+      } else if (context.role === "teacher" && !classworkAssignedToMe(context, klass, subject)) {
+        roleError(errors, "Subject", "is not assigned to you for this class.");
+      }
+    }
+
+    const title = text(values.title);
+    if (!title) roleError(errors, "Title", "is required.");
+
+    const deadline = normaliseClassworkDeadline(values.deadline);
+    if (Number.isNaN(deadline)) {
+      roleError(errors, "Deadline", "must be YYYY-MM-DD or YYYY-MM-DD HH:MM.");
+    }
+    const deadlineIso = !deadline || Number.isNaN(deadline) ? null : new Date(deadline).toISOString();
+
+    const assignedTeacher =
+      klass && subject
+        ? (context.teacherAssignments ?? []).find(
+            (row) => row.class_id === klass.id && row.subject_id === subject.id,
+          ) ?? null
+        : null;
+    const teacherId =
+      context.role === "teacher" ? context.userId ?? null : assignedTeacher?.teacher_id ?? null;
+
+    const identity =
+      klass && subject && kind && title
+        ? token("classwork", klass.id, subject.id, kind, title)[0]
+        : null;
+
+    return {
+      data: {
+        kind,
+        class_id: klass?.id ?? null,
+        subject_id: subject?.id ?? null,
+        teacher_id: teacherId,
+        title,
+        description: text(values.description),
+        instructions: text(values.instructions),
+        deadline: deadlineIso,
+        created_by: context.userId ?? null,
+      },
+      errors,
+      identity,
+      altIdentities: identity ? [identity] : [],
+      label: title || values.title || "Classwork",
+    };
+  },
+  async findExisting() {
+    const map = new Map();
+    const rows = await fetchRows("classwork_items", "id,kind,class_id,subject_id,title,published");
+    for (const row of rows) {
+      addExisting(map, classworkIdentity(row), row);
+    }
+    return map;
+  },
+  async execute({ data }) {
+    const { data: item, error } = await supabase
+      .from("classwork_items")
+      .insert(data)
+      .select("id")
+      .single();
+    throwDb(error, "A classwork item with this title already exists for this class and subject.");
+    if (!item?.id) throw new Error("The classwork item was not created.");
+    try {
+      await callRpc("publish_classwork_item", { p_item_id: item.id });
+    } catch (publishError) {
+      await supabase.from("classwork_items").delete().eq("id", item.id);
+      throw new Error(`Classwork could not be published: ${publishError.message}`);
+    }
+    return { status: "created", message: "Published to the class." };
+  },
+};
+
 export const importModules = {
   departments: departmentModule,
   degrees: degreeModule,
@@ -2297,8 +3179,10 @@ export const importModules = {
   class_subjects: classSubjectModule,
   users: userModule,
   exams: examModule,
-  exam_subjects: examSubjectModule,
+  ...scheduleModules,
   marks: marksModule,
+  attendance: attendanceModule,
+  classwork: classworkModule,
 };
 
 export function getImportModule(id) {

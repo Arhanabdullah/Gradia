@@ -46,6 +46,59 @@ function templateInstructions(module) {
   if (module.id === "marks") {
     rows.push(["Marks", "Marks must be a number between 0 and the subject maximum marks."]);
   }
+  if (module.id === "classwork") {
+    rows.push(
+      [],
+      ["Classwork rules"],
+      ["Kind", "Use assignment, quiz or project."],
+      ["Class and subject", "The subject must already be offered by the class. A teacher can only import subjects assigned to them."],
+      ["Deadline", "YYYY-MM-DD or YYYY-MM-DD HH:MM. A date without a time uses 23:59 in your local time. Leave blank for no deadline."],
+      ["Publishing", "Each row is published when it is imported and notifies the class. No examination or room is created."],
+      ["Example rows", "The examples use a class and subject from your account. Replace them with your own rows before uploading."],
+    );
+  }
+  if (String(module.id).startsWith("schedule_")) {
+    rows.push(
+      [],
+      ["Paper scheduling rules"],
+      ["Class", "Use the exact class name shown in Gradia, or the name with its section. The semester examination is created automatically from the assigned subjects."],
+      ["Subject and paper", "The subject and paper must already exist in the class semester examination. This import never adds a subject or a paper."],
+      ["Room", "The room is written for the row's class. Classes in a department-wide group can share paper dates and times while using different rooms."],
+      ["Paper", "The paper code from Assessment Setup, for example ESA, IA1 or IA2. Quiz, assignment and project are classwork and are marked in Marks Entry."],
+      ["Paper date", "YYYY-MM-DD, for example 2026-12-10, inside the examination window when the examination has one."],
+      ["Start and end time", "24-hour HH:MM, for example 09:30 and 13:30, or 12-hour with AM or PM, for example 10:00 AM and 01:00 PM. A bare 01:00 is read as 1 AM."],
+      ["Clashes", "A paper that overlaps another paper of the same class is rejected unless Allow overlap is Yes."],
+      ["Example rows", "Where available, the examples use a class, subject and paper from your account. Replace them with your own rows before uploading."],
+    );
+  }
+  if (module.id === "exams") {
+    rows.push(
+      [],
+      ["Examination group rules"],
+      ["Class", "An existing Gradia class. The import adds every subject offered by the class, or only your assigned subjects for a teacher."],
+      ["Exam type", "IA1 when blank. Teachers can import IA1, Quiz, Project, Practical and Viva; IA2 and ESA are reserved for the Exam Cell."],
+      ["Starts on and ends on", "YYYY-MM-DD, for example 2026-12-01. The end must be on or after the start. Both can be blank."],
+      ["Academic year", "Uses the class academic year when blank. Example rows use the same year as the sample class."],
+      ["Example rows", "Where available, the examples use a class from your account. Replace them with your own rows before uploading."],
+    );
+  }
+  if (module.id === "class_subjects") {
+    rows.push(
+      [],
+      ["Teacher matching"],
+      ["Teacher ID", "Recommended. Use the Teacher ID shown in Manage users. It stays unique when teachers share a name."],
+      ["Teacher name", "Optional when Teacher ID is supplied. Name, username or email must match exactly one teacher; a duplicate name is rejected as ambiguous."],
+    );
+  }
+  if (module.id === "exam_subjects") {
+    rows.push(
+      [],
+      ["Subject schedule rules"],
+      ["Existing examination", "Import the examination group first. Each row updates a subject already scheduled on that examination."],
+      ["Paper date", "Must sit inside the examination date range. Leave blank to keep the current date."],
+      ["Example rows", "Where available, the examples use an existing examination from your account. Replace them with your own rows before uploading."],
+    );
+  }
   if (module.fields.some((field) => field.key === "degree")) {
     rows.push([
       "Degree matching",
@@ -70,9 +123,11 @@ function templateInstructions(module) {
   return rows;
 }
 
-export function buildTemplateSheets(module) {
+export function buildTemplateSheets(module, context = {}) {
   const headers = module.fields.map((field) => field.label);
-  const examples = (module.exampleRows ?? []).map((row) =>
+  const source =
+    typeof module.exampleRows === "function" ? module.exampleRows(context) : module.exampleRows;
+  const examples = (source ?? []).map((row) =>
     module.fields.map((_, index) => row[index] ?? ""),
   );
   return {
@@ -81,10 +136,10 @@ export function buildTemplateSheets(module) {
   };
 }
 
-export async function downloadImportTemplate(module) {
+export async function downloadImportTemplate(module, context = {}) {
   const XLSX = await loadXlsx();
   const workbook = XLSX.utils.book_new();
-  const sheets = buildTemplateSheets(module);
+  const sheets = buildTemplateSheets(module, context);
 
   const dataSheet = XLSX.utils.aoa_to_sheet(sheets.data);
   dataSheet["!cols"] = module.fields.map((field) => ({
@@ -170,8 +225,7 @@ function summaryRows(module, fileName, summary, results) {
   ];
 }
 
-export async function downloadImportReport({ module, fileName, summary, results, format = "csv" }) {
-  const base = `Gradia_${module.title.replace(/[^a-z0-9]+/gi, "_")}_Import_Report_${fileStamp()}`;
+export async function downloadImportReport({ module, fileName, summary, results, format = "csv" }) {  const base = `Gradia_${module.title.replace(/[^a-z0-9]+/gi, "_")}_Import_Report_${fileStamp()}`;
   if (format === "csv") {
     const blob = new Blob([buildReportCsv(module, results)], { type: "text/csv;charset=utf-8" });
     downloadBlob(blob, `${base}.csv`);
@@ -191,4 +245,47 @@ export async function downloadImportReport({ module, fileName, summary, results,
 
   const output = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
   downloadBlob(new Blob([output], { type: XLSX_MIME }), `${base}.xlsx`);
+}
+
+// Failed-row download. The data sheet keeps exactly the template headers, so the
+// corrected file can be uploaded again without remapping. A second sheet lists
+// the row numbers and the reason each one failed.
+export async function downloadFailedRows(module, results) {
+  const rows = (results ?? []).filter((result) => ["failed", "invalid"].includes(result.status));
+  if (rows.length === 0) return;
+
+  const XLSX = await loadXlsx();
+  const workbook = XLSX.utils.book_new();
+  const headers = module.fields.map((field) => field.label);
+  const dataRows = [
+    headers,
+    ...rows.map((result) =>
+      module.fields.map((field) => safeSpreadsheetCell(cellText(result.values?.[field.key]))),
+    ),
+  ];
+
+  const dataSheet = XLSX.utils.aoa_to_sheet(dataRows);
+  dataSheet["!cols"] = module.fields.map((field) => ({
+    wch: Math.max(16, Math.min(42, field.label.length + 6)),
+  }));
+  XLSX.utils.book_append_sheet(workbook, dataSheet, "Import data");
+
+  const reasonRows = [
+    ["Row", "Status", "Problem", ...headers],
+    ...rows.map((result) => [
+      result.rowNumber,
+      REPORT_STATUS_LABEL[result.status] ?? result.status,
+      result.message ?? "",
+      ...module.fields.map((field) => safeSpreadsheetCell(cellText(result.values?.[field.key]))),
+    ]),
+  ];
+  const reasonSheet = XLSX.utils.aoa_to_sheet(reasonRows);
+  reasonSheet["!cols"] = [{ wch: 8 }, { wch: 14 }, { wch: 56 }, ...headers.map(() => ({ wch: 22 }))];
+  XLSX.utils.book_append_sheet(workbook, reasonSheet, "Rows to fix");
+
+  const output = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  downloadBlob(
+    new Blob([output], { type: XLSX_MIME }),
+    `Gradia_${module.title.replace(/[^a-z0-9]+/gi, "_")}_Failed_Rows_${fileStamp()}.xlsx`,
+  );
 }

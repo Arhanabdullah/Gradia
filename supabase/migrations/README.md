@@ -136,6 +136,13 @@ to the `principal` role; only the intermediate approval stage was removed.
 | `202611180001_paper_schedule_mode.sql` | `schedule_mode` (`formal` / `classwork`) on `assessment_template_components` and `assessment_components`; classwork trigger clears scheduling fields; `update_assessment_component_schedule` accepts `duration_minutes`, rejects schedules on classwork and derives `end_time` |
 | `202611180002_retire_legacy_exam_groups.sql` | Destructive, guarded cleanup of the five empty legacy internal groups (`IA 1`, `IA 2`, `Quiz`, `Assignment`, `Project`) plus cancelled groups, after writing a full backup to `audit_logs` |
 | `202611190001_schedule_conflict_guards.sql` | Extends `validate_assessment_component_schedule` with cross-group room and invigilator collision checks; adds the `schedule_conflicts()` read RPC the class scheduler calls before saving |
+| `202611200001_classwork.sql` | `classwork_items` and `classwork_submissions` with RLS; `publish_classwork_item()` originally created an internal exam and `exam_subjects` row, now superseded by `202611200007`; `submit_classwork()`, `review_classwork_submission()` and `notify_classwork_deadlines()` |
+| `202611200002_semester_exam_cleanup.sql` | Removes legacy exam groups created before 2026-11-20 that have no marks, result sheets, submissions or classwork; copies every removed group into `exam_cleanup_backup_20261120`; adds `restore_exam_cleanup_20261120()` |
+| `202611200003_lab_direct_marks.sql` | `lab_direct_marks_eligible()` and a readiness exception so a practical subject with every paper off can carry one direct mark out of 100 in `marks` |
+| `202611200004_department_exam_rooms.sql` | Automatic semester structure: `create_exam_group` accepts a per-class subject map, `update_assessment_component_schedule` accepts `p_room_class_id` for a room per class in a department group, and invigilator writes are retired |
+| `202611200005_classwork_quiz_fixed_marks.sql` | Quiz joins assignment and project as a classwork kind; fixed marks of 8 for quiz, 8 for assignment and 6 for project are enforced by trigger, while historical rows keep their published marks |
+| `202611200006_classwork_exam_names.sql` | Made legacy Classwork exam names unique by kind and subject; superseded by `202611200007`, which stops Classwork from creating exams |
+| `202611200007_classwork_without_exams.sql` | Classwork publishing only notifies the class; backs up and deletes the 60 standalone Classwork exam shells so only the 2026-27 semester examinations remain |
 
 `202611160001` only reorders how the existing predicates are evaluated: the scoped
 helpers (`can_view_subject`, `can_view_profile`, `is_class_hod`, `teaches_class`) still
@@ -161,18 +168,59 @@ the central templates; the papers only add scheduling and a conducted switch.
   cannot be re-scheduled at all.
 - Practical subjects (`subjects.subject_type = 'lab'` or an `LS` code) are rejected from
   internal and theory examinations by both `create_exam_group` and `add_exam_subject`.
+- A practical subject whose papers are all switched off (Practical Record, Viva and
+  Practical Examination) is a **direct-marks** lab. Marks Entry then shows one entry out
+  of 100 per student, stored in `marks` with no component id. `lab_direct_marks_eligible()`
+  exempts it from the `missing_conducted` readiness error, while `missing_marks` still
+  requires a mark for every student. `recalculate_result_sheet` already grades a
+  component-free mark as a raw mark out of 100, so no snapshot or grade-card change is
+  needed. Switching papers off after marks exist is still rejected, so choose this mode
+  before marks entry.
 - `add_exam_subject` / `remove_exam_subject` and `update_assessment_component_schedule`
-  act group-wide, so every class in a department examination stays in step. Admin and
-  Exam Cell can change a subject list; a teacher can only re-schedule papers for subjects
-  they teach.
+  act group-wide for dates, times and the conducted flag, so every class in a department
+  examination stays in step. Admin and Exam Cell can change a subject list; a teacher can
+  only re-schedule papers for subjects they teach.
+- `create_exam_group` accepts an optional `p_class_subjects` map, so classes in one
+  department group can offer different subject sets while sharing the same paper dates.
+  Subject teachers are resolved from `teacher_assignments` for each class, never from the
+  scheduling payload.
+- With `p_room_class_id`, `update_assessment_component_schedule` writes the room only on
+  that class's copy of the paper. Invigilator writes are ignored; existing `teacher_id`
+  values stay as historical data.
+
+### Automatic semester structure and department rooms
+
+`202611200004` removes the manual "Create semester examination" step. The page creates the
+group from assigned classes and subjects as soon as a valid hierarchy is chosen:
+
+- **Per class** creates one semester group for the selected class.
+- **Department-wide** creates one group per course and academic year from the selected
+  classes, with one exam per selected class. Paper dates, times and durations are shared;
+  each class keeps its own room in the subject breakdown. The UI shows the union of
+  subjects assigned across the group, so a subject offered by only some classes is
+  scheduled once for those classes and is still visible to the rest of the group.
+- Removing a class from a department group deletes only that class's exam and suppresses
+  automatic recreation for the rest of the session.
+- Invigilator selection is retired from scheduling UI, import and RPC writes. The existing
+  invigilator conflict guard remains for historical rows, and no published result is
+  rewritten.
+
+### Classwork is not an examination
+
+`202611200005` adds `quiz` to `classwork_items.kind` alongside `assignment` and `project`. A before-insert/update trigger sets `max_marks` to 8 for a quiz, 8 for an assignment and 6 for a project on every new or changed row. A historical row with a non-fixed scale keeps its marks while its kind and marks stay unchanged. The value is now an internal database detail; the Classwork screen no longer shows fixed marks.
+
+`202611200006` briefly fixed the old exam-backed publish flow by adding kind and subject to generated exam names. `202611200007` supersedes it: `publish_classwork_item()` no longer inserts into `exams` or `exam_subjects`, and the Classwork screen has no Marks Entry link. Marks for quiz, assignment and project are entered against the matching classwork components of the semester examination, and Marks Entry lists only semester exam types.
+
+`202611200007` backed up all 60 standalone Classwork exam shells (including 40 legacy marks) into `classwork_exam_cleanup_backup_20261120`, cleared their links from `classwork_items` and deleted the exams. The four 2026-27 semester examinations inside exam groups were untouched. New imports never create an exam; a publish failure still deletes the unpublished Classwork row.
 
 ### Formal papers and classwork
 
 `202611180001` splits the papers of a subject into two kinds, configured once in the
 assessment structure and copied to every exam subject by `materialize_assessment_template`:
 
-- **formal** — an invigilated paper with a date, start time, duration, room and invigilator.
-  This covers IA1, IA2, ESA, the practical exam and the viva.
+- **formal** — a paper with a date, start time, duration and room. This covers IA1, IA2,
+  ESA, the practical exam and the viva. Invigilator selection is retired; historical
+  `teacher_id` values are preserved but never written by the scheduler.
 - **classwork** — a marked activity with no date, room or invigilator: quiz, assignment,
   project and the practical record. A trigger clears those columns on any classwork row,
   and `update_assessment_component_schedule` raises `check_violation` if a caller tries to
@@ -196,10 +244,28 @@ retries its `schedule_mode` selects without the column, and `isClassworkComponen
 back to the classwork component codes. Saving a formal paper still needs the migration,
 because the older RPC ignores `duration_minutes`.
 
+### Semester examination cleanup
+
+`202611200002` retires the standalone scheduling groups that the old IA1, IA2, ESA, Quiz,
+Practical and Viva screens created. It is destructive but reversible:
+
+- it only considers groups created before `2026-11-20 00:00 UTC`, so a semester
+  examination scheduled after this rollout is never touched;
+- a group is skipped when it has any marks, any result sheet (whatever the status), any
+  marks submission or any classwork item, so historical marks and published results
+  survive;
+- every removed group, its exams, subjects and components are copied into
+  `public.exam_cleanup_backup_20261120` before deletion;
+- rollback is `select public.restore_exam_cleanup_20261120();` as an administrator. It
+  re-inserts the backed-up rows and marks each backup row as restored.
+
+Back up the four examination tables before applying it to a database with real data.
+
 ### Schedule conflict guards
 
 `202611190001` keeps every paper inside one class free of clashes and stops two classes
-from sharing a room or an invigilator at the same time:
+from sharing a room at the same time. It still checks invigilator clashes for historical
+rows, although the scheduler no longer writes invigilators:
 
 - `validate_assessment_component_schedule` still rejects a class overlap inside the same
   examination group, then also rejects a formal paper in a **different** group that
@@ -282,6 +348,11 @@ select count(*) from public.assessment_components
 where schedule_mode = 'classwork'
   and (exam_date is not null or start_time is not null
        or room is not null or teacher_id is not null);
+
+-- fixed classwork marks (after 202611200005): 8, 8 and 6
+select public.classwork_fixed_marks('quiz') as quiz,
+       public.classwork_fixed_marks('assignment') as assignment,
+       public.classwork_fixed_marks('project') as project;
 ```
 
 Row-count sanity (should match the legacy counts):

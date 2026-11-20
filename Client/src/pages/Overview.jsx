@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { StatCard, Empty, Card, StatusChip } from "../components/ui";
 import AttendanceSummary from "../components/AttendanceSummary";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
+import ExamCalendarCard from "../components/dashboard/ExamCalendarCard";
 import { Link } from "react-router-dom";
 
 const ResultPipelineChart = lazy(() => import("../components/charts/ResultPipelineChart"));
@@ -285,6 +286,8 @@ const Overview = () => {
           Couldnâ€™t load some dashboard data. Check your connection and refresh the page.
         </p>
       ) : null}
+
+      <ExamCalendarCard className="mt-4" />
 
       {profile.role === "student" ? (
         <Card className="mt-4">
