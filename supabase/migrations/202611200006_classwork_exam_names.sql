@@ -134,6 +134,3 @@ begin
 end;
 $$;
 
-insert into supabase_migrations.schema_migrations (version, statements, name)
-values ('202611200006', null, '202611200006_classwork_exam_names.sql')
-on conflict (version) do nothing;

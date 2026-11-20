@@ -115,6 +115,3 @@ where ci.exam_id in (select id from pg_temp.cw_exam_cleanup_targets);
 delete from public.exams e
 where e.id in (select id from pg_temp.cw_exam_cleanup_targets);
 
-insert into supabase_migrations.schema_migrations (version, statements, name)
-values ('202611200007', null, '202611200007_classwork_without_exams.sql')
-on conflict (version) do nothing;

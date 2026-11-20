@@ -68,6 +68,3 @@ create trigger set_classwork_fixed_marks
   before insert or update of kind, max_marks on public.classwork_items
   for each row execute function public.set_classwork_fixed_marks();
 
-insert into supabase_migrations.schema_migrations (version, statements, name)
-values ('202611200005', null, '202611200005_classwork_quiz_fixed_marks.sql')
-on conflict (version) do nothing;
