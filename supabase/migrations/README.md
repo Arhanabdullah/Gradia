@@ -120,6 +120,14 @@ the attendance table itself does not reference degrees.
 | `202611110002_course_duration_decimal.sql` | `courses.duration_years` becomes `numeric(3,1)` so durations such as `5.5` are accepted |
 | `202611120001_exam_subject_visibility.sql` | `can_view_subject()` also allows a subject attached to an exam the caller can already view, so exam schedules no longer hide paper names behind RLS |
 | `202611120002_remove_principal_signoff.sql` | Removes the principal sign-off stage; `publish_result_sheet()` accepts `hod_approved` directly and `sign_off_result_sheet()` is disabled |
+| `202611130000_repair_user_role_enum.sql` | Idempotently adds `coordinator` and `exam_cell` to `user_role` for databases where the old duplicate `202611130001` timestamp recorded `demo_requests` instead of the roles migration |
+
+`202611130000` exists because the old repository had two migrations with the same
+`202611130001` timestamp. Supabase recorded only one of them, so some databases have the
+demo-request table but never added the new role values. This repair runs before
+`202611130002`, which is the first migration that casts those values to `user_role`.
+Because its timestamp is earlier than the last recorded migration, apply it with
+`npx supabase db push --include-all` (or run the file manually in the SQL Editor).
 
 `202611120002` keeps `principal_signed` publishable for sheets already in flight and leaves
 the enum value in place for backward compatibility. The publishing permission still belongs
