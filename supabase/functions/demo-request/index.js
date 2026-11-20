@@ -4,7 +4,7 @@
 // Security model:
 //   * Public endpoint (anon key) — inserts demo request into database
 //   * Creates in-app notification for all active admins
-//   * Optionally sends email via Supabase Auth admin invite or external provider
+//   * Sends admin email through Resend when RESEND_API_KEY is configured
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -89,12 +89,8 @@ Deno.serve(async (req) => {
         console.error("demo-request: notification insert failed", notifyError.message);
       }
 
-      // TODO: Send email notifications to admins
-      // Option 1: Use Supabase Auth admin invite (sends email with magic link)
-      // Option 2: Use external email service (Resend, SendGrid, etc.)
-      // Option 3: Supabase pg_notify + pg_cron for email queue
-      // For now, in-app notification is created above
-      await sendAdminEmails(admin, admins, { name, email, institution, role, message });
+      // Email is best-effort; the in-app admin notification already succeeded.
+      await sendAdminEmails(admins, { name, email, institution, role, message });
     }
 
     return json({ success: true, id: request?.id }, 200);
@@ -104,44 +100,66 @@ Deno.serve(async (req) => {
   }
 });
 
-async function sendAdminEmails(admin, admins, requestData) {
-  // Placeholder for email sending
-  // To enable email notifications, uncomment and configure one of:
+async function sendAdminEmails(admins, requestData) {
+  const apiKey = Deno.env.get("RESEND_API_KEY");
+  if (!apiKey) {
+    console.log("demo-request: RESEND_API_KEY is not set; email notifications skipped");
+    return;
+  }
 
-  // Option A: Use Supabase's built-in email (requires custom SMTP in project settings)
-  // for (const a of admins) {
-  //   await admin.auth.admin.inviteUserByEmail(a.email, {
-  //     data: { demo_request: requestData },
-  //     redirectTo: `${Deno.env.get("SITE_URL") || "http://localhost:5173"}/app/demo-requests`,
-  //   });
-  // }
+  const recipients = admins.map((a) => a.email).filter(Boolean);
+  if (!recipients.length) return;
 
-  // Option B: External email API (e.g., Resend)
-  // const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-  // if (RESEND_API_KEY) {
-  //   for (const a of admins) {
-  //     await fetch("https://api.resend.com/emails", {
-  //       method: "POST",
-  //       headers: {
-  //         "Authorization": `Bearer ${RESEND_API_KEY}`,
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({
-  //         from: "Gradia <demo@gradia.academy>",
-  //         to: a.email,
-  //         subject: `New demo request from ${requestData.institution}`,
-  //         html: `<p>${requestData.name} (${requestData.role}) from ${requestData.institution} requested a demo.</p>
-  //                <p>Email: ${requestData.email}</p>
-  //                <p>Message: ${requestData.message || "—"}</p>
-  //                <p><a href="${Deno.env.get("SITE_URL")}/app/demo-requests">View in dashboard</a></p>`,
-  //       }),
-  //     });
-  //   }
-  // }
+  const siteUrl = Deno.env.get("SITE_URL");
+  const from = Deno.env.get("RESEND_FROM") || "Gradia <demo@gradia.academy>";
+  const name = escapeHtml(requestData.name);
+  const email = escapeHtml(requestData.email);
+  const institution = escapeHtml(requestData.institution);
+  const role = escapeHtml(requestData.role);
+  const message = escapeHtml(requestData.message);
+  const dashboardLink = siteUrl
+    ? `<p><a href="${escapeHtml(siteUrl)}/app/demo-requests">View in dashboard</a></p>`
+    : "";
 
-  // Option C: Log for now (check Supabase logs)
-  console.log("Demo request received:", requestData);
-  console.log("Admins to notify:", admins.map(a => a.email).join(", "));
+  const html = `<div style="font-family:Arial,sans-serif;line-height:1.5;color:#172033">
+    <p><strong>${name}</strong> (${role}) from <strong>${institution}</strong> requested a demo.</p>
+    <p>Email: <a href="mailto:${email}">${email}</a></p>
+    ${message ? `<p>Message: ${message}</p>` : ""}
+    ${dashboardLink}
+  </div>`;
+
+  const deliveries = await Promise.allSettled(
+    recipients.map((to) =>
+      fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from,
+          to,
+          subject: `New demo request from ${requestData.institution}`,
+          html,
+        }),
+      })
+    ),
+  );
+
+  deliveries.forEach((delivery, index) => {
+    if (delivery.status === "rejected") {
+      console.error(`demo-request: email to ${recipients[index]} failed`, delivery.reason?.message);
+      return;
+    }
+    if (!delivery.value.ok) {
+      console.error(`demo-request: email to ${recipients[index]} returned ${delivery.value.status}`);
+    }
+  });
+}
+
+function escapeHtml(value) {
+  const entities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+  return String(value ?? "").replace(/[&<>"']/g, (character) => entities[character]);
 }
 
 function json(body, status) {

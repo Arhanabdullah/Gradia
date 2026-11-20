@@ -143,6 +143,7 @@ to the `principal` role; only the intermediate approval stage was removed.
 | `202611200005_classwork_quiz_fixed_marks.sql` | Quiz joins assignment and project as a classwork kind; fixed marks of 8 for quiz, 8 for assignment and 6 for project are enforced by trigger, while historical rows keep their published marks |
 | `202611200006_classwork_exam_names.sql` | Made legacy Classwork exam names unique by kind and subject; superseded by `202611200007`, which stops Classwork from creating exams |
 | `202611200007_classwork_without_exams.sql` | Classwork publishing only notifies the class; backs up and deletes the 60 standalone Classwork exam shells so only the 2026-27 semester examinations remain |
+| `202611200008_demo_requests.sql` | Public landing-page demo requests with admin-only read/update RLS; renamed from the colliding `202611130001_demo_requests.sql` |
 
 `202611160001` only reorders how the existing predicates are evaluated: the scoped
 helpers (`can_view_subject`, `can_view_profile`, `is_class_hod`, `teaches_class`) still
@@ -212,6 +213,10 @@ group from assigned classes and subjects as soon as a valid hierarchy is chosen:
 `202611200006` briefly fixed the old exam-backed publish flow by adding kind and subject to generated exam names. `202611200007` supersedes it: `publish_classwork_item()` no longer inserts into `exams` or `exam_subjects`, and the Classwork screen has no Marks Entry link. Marks for quiz, assignment and project are entered against the matching classwork components of the semester examination, and Marks Entry lists only semester exam types.
 
 `202611200007` backed up all 60 standalone Classwork exam shells (including 40 legacy marks) into `classwork_exam_cleanup_backup_20261120`, cleared their links from `classwork_items` and deleted the exams. The four 2026-27 semester examinations inside exam groups were untouched. New imports never create an exam; a publish failure still deletes the unpublished Classwork row.
+
+### Demo requests
+
+`202611200008` creates `public.demo_requests` for the public landing-page form. Anonymous users can insert only; admins can read and update requests through RLS. The `demo-request` Edge Function uses the service role to insert the request and create admin notifications, then sends best-effort email through Resend when `RESEND_API_KEY` is configured. The file was renamed from `202611130001_demo_requests.sql` because that timestamp already belonged to the coordinator/exam-cell roles migration; a repeated timestamp makes Supabase skip one file.
 
 ### Formal papers and classwork
 
@@ -309,8 +314,8 @@ npx supabase db push
 ```
 
 The linked project ref in `supabase/.temp/` must match the client `.env` project before
-pushing. See `Phase 2` notes in the project report; `config.toml` currently disagrees
-with the linked ref and must be reconciled first.
+pushing. `supabase/config.toml` and the linked ref are both set to that production
+project; verify with `npx supabase migration list --remote=<ref>` if either changes.
 
 ## Post-migration verification
 

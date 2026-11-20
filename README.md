@@ -40,7 +40,7 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
    npx supabase functions deploy set-user-active --project-ref <your-ref>
    npx supabase functions deploy demo-request --project-ref <your-ref>
    ```
-   `SUPABASE_SERVICE_ROLE_KEY` is injected automatically; it must never live in the client. The `demo-request` function also needs `RESEND_API_KEY` set as a function secret.
+   `SUPABASE_SERVICE_ROLE_KEY` is injected automatically; it must never live in the client. The `demo-request` function is public (`verify_jwt = false`) and needs `RESEND_API_KEY` as a function secret. `RESEND_FROM` and `SITE_URL` are optional function secrets for the sender address and dashboard link.
 
 5. **Apply academic migrations (Phase 2 first, then Phase 3, then Phase 4 and later):**
    Run each migration file in `supabase/migrations/` in order via the SQL Editor or `npx supabase db push`.
