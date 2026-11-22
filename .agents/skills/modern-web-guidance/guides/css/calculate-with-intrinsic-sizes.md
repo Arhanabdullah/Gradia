@@ -190,7 +190,7 @@ In browsers without support for `calc-size()` or `interpolate-size`, transitions
 - **Enhanced Experience**: Use `@supports` to apply complex layout logic or additional styling that only makes sense when smooth intrinsic animations are possible.
 - **Avoid JS-based measurements**: While you could use JavaScript to measure elements and manually animate their dimensions, this is often unnecessary and can lead to layout thrashing. Relying on the native "instant jump" is the recommended fallback for modern web applications.
 
-For animations, the fallback experience will be an instant jump to the final size. To detect support in CSS or JavaScript:
+For animations, the fallback experience will be an instant jump to the final size. To detect support in CSS or JavaScipt;
 
 ```css
 /* CSS Feature Detection */
