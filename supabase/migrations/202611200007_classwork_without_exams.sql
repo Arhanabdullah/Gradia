@@ -20,6 +20,14 @@ create table if not exists public.classwork_exam_cleanup_backup_20261120 (
   deleted_at    timestamptz not null default now()
 );
 
+alter table public.classwork_exam_cleanup_backup_20261120 enable row level security;
+
+drop policy if exists "classwork cleanup backup admin read" on public.classwork_exam_cleanup_backup_20261120;
+create policy "classwork cleanup backup admin read"
+  on public.classwork_exam_cleanup_backup_20261120
+  for select to authenticated
+  using (public.is_admin());
+
 drop table if exists pg_temp.cw_exam_cleanup_targets;
 
 create temp table cw_exam_cleanup_targets on commit drop as
