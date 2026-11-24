@@ -1,5 +1,5 @@
 # Gradia — Supabase local/deploy config
-project_id = "fuaxyzxdhaqazcowcypi"
+project_id = "vwhvyktegchnookegyhn"
 
 [functions.create-user]
 enabled = true
