@@ -135,6 +135,33 @@ body {
   outline-offset: 2px;
 }
 
+/* Native dialogs: contain overscroll inside the modal instead of letting the
+   page behind it scroll. Both rules are needed because ::backdrop is not a
+   scroll container by default. */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background: rgba(8, 12, 18, 0.56);
+}
+
+dialog.dialog-panel {
+  width: min(42rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--foreground);
+  box-shadow: 0 24px 80px rgba(8, 12, 18, 0.32);
+}
+
+dialog.dialog-panel[open] {
+  overflow-y: auto;
+}
+
 /* Programmatic focus handoff targets (skip-link destinations, 404 heading):
    focus lands here via .focus(), never via keyboard traversal, so the ring
    would only draw noise around non-interactive elements. */

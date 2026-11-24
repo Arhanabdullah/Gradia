@@ -11,6 +11,16 @@ enabled = true
 verify_jwt = true
 entrypoint = "functions/set-user-active/index.js"
 
+[functions.update-user]
+enabled = true
+verify_jwt = true
+entrypoint = "functions/update-user/index.js"
+
+[functions.delete-user]
+enabled = true
+verify_jwt = true
+entrypoint = "functions/delete-user/index.js"
+
 [functions.demo-request]
 enabled = true
 verify_jwt = false

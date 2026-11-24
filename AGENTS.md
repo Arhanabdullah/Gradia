@@ -17,8 +17,11 @@ Single npm package (`Client/`) + Supabase backend. All app code is plain JavaScr
 - `supabase/migrations/` — **the source of truth** for schema, RLS, helpers and workflow RPCs. Apply with `npx supabase db push --remote`. `supabase/schema.sql` is the original baseline and is now **stale** (it predates the Exam Cell, coordinator, grading engine and registration-number work); do not treat it as current. Bootstrap order lives in `supabase/migrations/README.md`.
 - `supabase/functions/` — the only server code (plain-JS Edge Functions):
   - `create-user/index.js` — admin-only account creation with validated role/scope.
+  - `update-user/index.js` — admin-only editing of identity, role, scope and optional password; syncs HOD/enrollment rows and updates Auth without exposing the service-role key.
+  - `delete-user/index.js` — admin-only permanent account deletion with self-delete and last-active-admin guards plus email confirmation.
   - `set-user-active/index.js` — toggle `is_active` + ban/unban the auth session.
   - `demo-request/index.js` — public landing-page demo form; emails the request through Resend (`RESEND_API_KEY` lives in function secrets, never in the client).
+- `/app/users` uses native `<dialog>` modals for user edit and delete, with delete requiring the target email to be typed. Activation always invokes `set-user-active`; profiles are never written directly from that screen for account state changes.
 - Accounts are **admin-created only** (no public signup). The trigger `handle_new_user` builds `profiles` from `user_metadata` (`name`, `username`, `role`, `department`, `class_id`, `registration_no`).
 - Students download published results as a print-to-PDF grade card: `src/lib/print.js` builds the Techno India style document (plain HTML, no Tailwind) and `src/pages/student/MyResults.jsx` opens it in a popup and calls `print()`.
 
@@ -47,6 +50,8 @@ Single npm package (`Client/`) + Supabase backend. All app code is plain JavaScr
 3. Deploy Edge Functions:
    ```bash
    npx supabase functions deploy create-user --project-ref <ref>
+   npx supabase functions deploy update-user --project-ref <ref>
+   npx supabase functions deploy delete-user --project-ref <ref>
    npx supabase functions deploy set-user-active --project-ref <ref>
    npx supabase functions deploy demo-request --project-ref <ref>
    ```

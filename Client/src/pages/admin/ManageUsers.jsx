@@ -95,10 +95,18 @@ const ManageUsers = () => {
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [showPassword, setShowPassword] = useState(false);
-  const [editHod, setEditHod] = useState(null);
+  const [editUser, setEditUser] = useState(null);
+  const [editForm, setEditForm] = useState(null);
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState("");
-  const editCardRef = useRef(null);
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [statusBusyId, setStatusBusyId] = useState("");
+  const editDialogRef = useRef(null);
+  const deleteDialogRef = useRef(null);
 
   const selectedCourses = useMemo(
     () =>
@@ -113,10 +121,19 @@ const ManageUsers = () => {
     () =>
       courses.filter(
         (course) =>
-          course.department_id === editHod?.department_id &&
-          (!editHod?.degree_id || !course.degree_id || course.degree_id === editHod.degree_id),
+          course.department_id === editForm?.department_id &&
+          (!editForm?.degree_id || !course.degree_id || course.degree_id === editForm.degree_id),
       ),
-    [courses, editHod?.department_id, editHod?.degree_id],
+    [courses, editForm?.department_id, editForm?.degree_id],
+  );
+  const editClasses = useMemo(
+    () =>
+      classes.filter(
+        (item) =>
+          (!editForm?.course_id || item.course_id === editForm.course_id) &&
+          (!editForm?.degree_id || !item.degree_id || item.degree_id === editForm.degree_id),
+      ),
+    [classes, editForm?.course_id, editForm?.degree_id],
   );
   const selectedClasses = useMemo(
     () =>
@@ -162,8 +179,12 @@ const ManageUsers = () => {
   useEffect(() => { load(); }, []);
 
   useEffect(() => {
-    if (editHod) editCardRef.current?.scrollIntoView({ block: "nearest" });
-  }, [editHod]);
+    if (editUser && !editDialogRef.current?.open) editDialogRef.current?.showModal();
+  }, [editUser]);
+
+  useEffect(() => {
+    if (deleteTarget && !deleteDialogRef.current?.open) deleteDialogRef.current?.showModal();
+  }, [deleteTarget]);
 
   const update = (key) => (event) => {
     const value = event.target.value;
@@ -280,34 +301,74 @@ const ManageUsers = () => {
   };
 
   const startEdit = (user) => {
-    setEditHod({
+    setEditUser(user);
+    setEditForm({
       id: user.id,
-      name: user.name,
+      name: user.name ?? "",
+      username: user.username ?? "",
+      email: user.email ?? "",
+      phone: user.phone ?? "",
+      password: "",
+      role: user.role ?? "student",
+      student_id: user.student_id ?? "",
+      registration_no: user.registration_no ?? "",
+      teacher_id: user.teacher_id ?? "",
       department_id: user.department_id ?? "",
       degree_id: user.degree_id ?? "",
       course_id: user.course_id ?? "",
+      class_id: user.class_id ?? "",
+      hod_type: user.hod_type ?? "department",
+      hod_subject_id: user.hod_subject_id ?? "",
     });
     setEditError("");
+    setShowEditPassword(false);
     setNotice("");
   };
 
-  const cancelEdit = () => {
-    setEditHod(null);
+  const closeEdit = () => {
+    if (editBusy) return;
+    editDialogRef.current?.close();
+  };
+
+  const handleEditDialogClose = () => {
+    setEditUser(null);
+    setEditForm(null);
+    setEditBusy(false);
     setEditError("");
+    setShowEditPassword(false);
   };
 
   const updateEdit = (key) => (event) => {
     const value = event.target.value;
-    setEditHod((current) => {
+    setEditForm((current) => {
       if (!current) return current;
       const next = { ...current, [key]: value };
+      if (key === "role") {
+        next.department_id = "";
+        next.degree_id = "";
+        next.course_id = "";
+        next.class_id = "";
+        next.hod_type = "department";
+        next.hod_subject_id = "";
+      }
       if (key === "department_id") {
         next.course_id = "";
+        next.class_id = "";
       }
-      if (key === "degree_id") next.course_id = "";
+      if (key === "degree_id") {
+        next.course_id = "";
+        next.class_id = "";
+      }
       if (key === "course_id") {
         const course = courses.find((item) => item.id === value);
         if (course?.degree_id) next.degree_id = course.degree_id;
+        next.class_id = "";
+      }
+      if (key === "hod_type") {
+        next.department_id = "";
+        next.degree_id = "";
+        next.course_id = "";
+        next.hod_subject_id = "";
       }
       return next;
     });
@@ -315,45 +376,125 @@ const ManageUsers = () => {
 
   const saveEdit = async (event) => {
     event.preventDefault();
-    if (!editHod) return;
-    if (!editHod.department_id) {
-      setEditError("Select the department this HOD belongs to.");
+    if (!editForm) return;
+    const needsDegree =
+      editForm.role === "student" || (editForm.role === "hod" && editForm.hod_type === "department");
+    if (!editForm.name.trim() || !editForm.email.trim()) {
+      setEditError("Full name and email are required.");
       return;
     }
-    if (!editHod.degree_id) {
-      setEditError("Select the degree this HOD belongs to.");
+    if (needsDegree && !editForm.department_id) {
+      setEditError("Select the department this account belongs to.");
       return;
     }
+    if (needsDegree && !editForm.degree_id) {
+      setEditError("Select the degree this account belongs to.");
+      return;
+    }
+    if (editForm.role === "student" && (!editForm.student_id.trim() || !editForm.course_id || !editForm.class_id)) {
+      setEditError("Students require Student ID, Course and Class.");
+      return;
+    }
+    if (editForm.role === "teacher" && !editForm.teacher_id.trim()) {
+      setEditError("Teacher ID is required.");
+      return;
+    }
+    if (editForm.role === "hod" && editForm.hod_type === "subject" && !editForm.hod_subject_id) {
+      setEditError("Select a subject for this HOD.");
+      return;
+    }
+
     setEditBusy(true);
     setEditError("");
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({
-        department_id: editHod.department_id,
-        degree_id: editHod.degree_id,
-        course_id: editHod.course_id || null,
-      })
-      .eq("id", editHod.id);
-    if (updateError) {
+    const payload = {
+      user_id: editForm.id,
+      email: editForm.email.trim(),
+      password: editForm.password,
+      name: editForm.name.trim(),
+      username: editForm.username.trim() || editForm.email.split("@")[0],
+      phone: editForm.phone.trim(),
+      role: editForm.role,
+      student_id: editForm.role === "student" ? editForm.student_id.trim() : "",
+      registration_no: editForm.role === "student" ? editForm.registration_no.trim() : "",
+      teacher_id: editForm.role === "teacher" ? editForm.teacher_id.trim() : "",
+      department_id: needsDegree ? editForm.department_id : "",
+      degree_id: needsDegree ? editForm.degree_id : "",
+      course_id: needsDegree ? editForm.course_id : "",
+      class_id: editForm.role === "student" ? editForm.class_id : "",
+      hod_type: editForm.role === "hod" ? editForm.hod_type : "",
+      hod_subject_id: editForm.role === "hod" && editForm.hod_type === "subject" ? editForm.hod_subject_id : "",
+    };
+
+    const { data, error: fnError } = await supabase.functions.invoke("update-user", { body: payload });
+    if (fnError || data?.error) {
       setEditBusy(false);
-      setEditError(updateError.message);
+      setEditError(data?.error || `Could not update the account. Check that the update-user Edge Function is deployed. (${fnError?.message || "Unknown error"})`);
       return;
     }
 
-    // Changing the department must also move the HOD's scope row, otherwise the
-    // old department stays visible to them. Missing tables are ignored.
-    const scopeWarning = await syncDepartmentHodAssignment(editHod.id, editHod.department_id);
-
     setEditBusy(false);
-    setEditHod(null);
-    setNotice(scopeWarning);
+    editDialogRef.current?.close();
+    setNotice("Account updated.");
+    await load();
+  };
+
+  const startDelete = (user) => {
+    setDeleteTarget(user);
+    setDeleteConfirm("");
+    setDeleteError("");
+    setNotice("");
+  };
+
+  const closeDelete = () => {
+    if (deleteBusy) return;
+    deleteDialogRef.current?.close();
+  };
+
+  const handleDeleteDialogClose = () => {
+    setDeleteTarget(null);
+    setDeleteConfirm("");
+    setDeleteBusy(false);
+    setDeleteError("");
+  };
+
+  const confirmDelete = async (event) => {
+    event.preventDefault();
+    if (!deleteTarget) return;
+    if (deleteConfirm.trim().toLowerCase() !== String(deleteTarget.email ?? "").toLowerCase()) {
+      setDeleteError("Type the account email exactly to confirm deletion.");
+      return;
+    }
+
+    setDeleteBusy(true);
+    setDeleteError("");
+    const { data, error: fnError } = await supabase.functions.invoke("delete-user", {
+      body: { user_id: deleteTarget.id, confirm_email: deleteConfirm.trim() },
+    });
+    if (fnError || data?.error) {
+      setDeleteBusy(false);
+      setDeleteError(data?.error || `Could not delete the account. Check that the delete-user Edge Function is deployed. (${fnError?.message || "Unknown error"})`);
+      return;
+    }
+
+    setDeleteBusy(false);
+    deleteDialogRef.current?.close();
+    setNotice("Account deleted.");
     await load();
   };
 
   const toggleActive = async (user) => {
-    const { error: updateError } = await supabase.from("profiles").update({ is_active: !user.is_active }).eq("id", user.id);
-    if (updateError) setLoadError(updateError.message);
-    else load();
+    setStatusBusyId(user.id);
+    setLoadError("");
+    const { data, error: fnError } = await supabase.functions.invoke("set-user-active", {
+      body: { user_id: user.id, active: !user.is_active },
+    });
+    if (fnError || data?.error) {
+      setLoadError(data?.error || `Could not change account status. Check that the set-user-active Edge Function is deployed. (${fnError?.message || "Unknown error"})`);
+    } else {
+      setNotice(user.is_active ? "Account deactivated." : "Account activated.");
+      await load();
+    }
+    setStatusBusyId("");
   };
 
   const departmentName = (id) => departments.find((item) => item.id === id)?.name || "";
@@ -506,46 +647,194 @@ const ManageUsers = () => {
         )}
       </Card>
 
-      {editHod ? (
-        <Card ref={editCardRef} className="mt-6">
-          <form onSubmit={saveEdit} className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <p className="text-sm font-semibold text-(--foreground)">Edit HOD assignment</p>
-              <p className="mt-0.5 text-xs text-(--muted-foreground)">{editHod.name}</p>
+      <dialog
+        ref={editDialogRef}
+        className="dialog-panel"
+        aria-labelledby="edit-user-title"
+        onClose={handleEditDialogClose}
+      >
+        {editForm ? (
+          <form onSubmit={saveEdit} className="grid gap-4 sm:grid-cols-2" aria-labelledby="edit-user-title">
+            <div className="flex items-start justify-between gap-3 sm:col-span-2">
+              <div>
+                <h1 id="edit-user-title" className="text-base font-semibold text-(--foreground)">Edit user</h1>
+                <p className="mt-0.5 text-xs text-(--muted-foreground)">{editUser?.email}</p>
+              </div>
+              <Button type="button" variant="subtle" onClick={closeEdit} disabled={editBusy}>Close</Button>
             </div>
-            <Field label="Department">
-              <Select value={editHod.department_id} onChange={updateEdit("department_id")} required>
-                <option value="">Select department</option>
-                {departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            <Field label="Full name">
+              <input className={inputClass} value={editForm.name} onChange={updateEdit("name")} autoComplete="name" required />
+            </Field>
+            <Field label="Username">
+              <input className={inputClass} value={editForm.username} onChange={updateEdit("username")} autoComplete="username" />
+            </Field>
+            <Field label="Email">
+              <input type="email" className={inputClass} value={editForm.email} onChange={updateEdit("email")} autoComplete="email" required />
+            </Field>
+            <Field label="Phone">
+              <input type="tel" className={inputClass} value={editForm.phone} onChange={updateEdit("phone")} autoComplete="tel" />
+            </Field>
+            <div>
+              <label htmlFor="edit-user-password" className="text-xs font-medium text-(--muted)">New password</label>
+              <div className="relative mt-1.5">
+                <input
+                  id="edit-user-password"
+                  type={showEditPassword ? "text" : "password"}
+                  className={`${inputClass} pr-11`}
+                  value={editForm.password}
+                  onChange={updateEdit("password")}
+                  autoComplete="new-password"
+                  minLength={6}
+                  placeholder="Leave blank to keep current password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEditPassword((value) => !value)}
+                  aria-label={showEditPassword ? "Hide new password" : "Show new password"}
+                  aria-pressed={showEditPassword}
+                  className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-(--muted-foreground) transition-colors hover:text-(--foreground)"
+                >
+                  {showEditPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                </button>
+              </div>
+            </div>
+            <Field label="Role">
+              <Select value={editForm.role} onChange={updateEdit("role")} required>
+                {ROLES.map((role) => <option key={role} value={role}>{ROLE_LABEL[role]}</option>)}
               </Select>
             </Field>
-            <Field label="Degree">
-              <Select value={editHod.degree_id} onChange={updateEdit("degree_id")} required disabled={degrees.length === 0}>
-                <option value="">{degrees.length === 0 ? "No degrees yet" : "Select degree"}</option>
-                {degrees.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </Select>
-            </Field>
-            <Field label="Course">
-              <Select
-                value={editHod.course_id}
-                onChange={updateEdit("course_id")}
-                disabled={!editHod.degree_id}
-              >
-                <option value="">{editHod.degree_id ? "Select course" : "Select a degree first"}</option>
-                {editCourses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </Select>
-              {editHod.degree_id && editCourses.length === 0 ? (
-                <span className="mt-1 block text-xs text-(--muted-foreground)">No courses are configured for this degree yet.</span>
-              ) : null}
-            </Field>
-            {editError ? <p className="sm:col-span-2 text-xs text-(--danger)">{editError}</p> : null}
+
+            {editForm.role === "student" && <>
+              <Field label="Student ID">
+                <input className={inputClass} value={editForm.student_id} onChange={updateEdit("student_id")} required />
+              </Field>
+              <Field label="Registration number">
+                <input className={inputClass} value={editForm.registration_no} onChange={updateEdit("registration_no")} />
+              </Field>
+              <Field label="Department">
+                <Select value={editForm.department_id} onChange={updateEdit("department_id")} required>
+                  <option value="">Select department</option>
+                  {departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </Select>
+              </Field>
+              <Field label="Degree">
+                <Select value={editForm.degree_id} onChange={updateEdit("degree_id")} required disabled={degrees.length === 0}>
+                  <option value="">{degrees.length === 0 ? "No degrees yet" : "Select degree"}</option>
+                  {degrees.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </Select>
+              </Field>
+              <Field label="Course">
+                <Select value={editForm.course_id} onChange={updateEdit("course_id")} required disabled={!editForm.degree_id}>
+                  <option value="">{editForm.degree_id ? "Select course" : "Select a degree first"}</option>
+                  {editCourses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </Select>
+              </Field>
+              <Field label="Class / Semester / Section">
+                <Select value={editForm.class_id} onChange={updateEdit("class_id")} required disabled={!editForm.course_id}>
+                  <option value="">Select class</option>
+                  {editClasses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </Select>
+              </Field>
+            </>}
+
+            {editForm.role === "teacher" && <Field label="Teacher ID">
+              <input className={inputClass} value={editForm.teacher_id} onChange={updateEdit("teacher_id")} required />
+            </Field>}
+
+            {editForm.role === "hod" && <>
+              <Field label="HOD category">
+                <Select value={editForm.hod_type} onChange={updateEdit("hod_type")}>
+                  <option value="department">Department HOD</option>
+                  <option value="subject">Subject HOD</option>
+                </Select>
+              </Field>
+              {editForm.hod_type === "department" ? (
+                <>
+                  <Field label="Department">
+                    <Select value={editForm.department_id} onChange={updateEdit("department_id")} required>
+                      <option value="">Select department</option>
+                      {departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    </Select>
+                  </Field>
+                  <Field label="Degree">
+                    <Select value={editForm.degree_id} onChange={updateEdit("degree_id")} required disabled={degrees.length === 0}>
+                      <option value="">{degrees.length === 0 ? "No degrees yet" : "Select degree"}</option>
+                      {degrees.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    </Select>
+                  </Field>
+                  <Field label="Course">
+                    <Select value={editForm.course_id} onChange={updateEdit("course_id")} disabled={!editForm.degree_id}>
+                      <option value="">{editForm.degree_id ? "Select course" : "Select a degree first"}</option>
+                      {editCourses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    </Select>
+                  </Field>
+                </>
+              ) : (
+                <Field label="Subject">
+                  <Select value={editForm.hod_subject_id} onChange={updateEdit("hod_subject_id")} required>
+                    <option value="">Select subject</option>
+                    {subjects.map((item) => <option key={item.id} value={item.id}>{item.code} – {item.name}</option>)}
+                  </Select>
+                </Field>
+              )}
+            </>}
+
+            {editError ? <p role="alert" className="sm:col-span-2 text-xs text-(--danger)">{editError}</p> : null}
             <div className="flex flex-wrap gap-2 sm:col-span-2">
-              <Button type="submit" disabled={editBusy}>{editBusy ? "Saving…" : "Save assignment"}</Button>
-              <Button type="button" variant="subtle" onClick={cancelEdit} disabled={editBusy}>Cancel</Button>
+              <Button type="submit" disabled={editBusy}>{editBusy ? "Saving…" : "Save changes"}</Button>
+              <Button type="button" variant="subtle" autoFocus onClick={closeEdit} disabled={editBusy}>Cancel</Button>
             </div>
           </form>
-        </Card>
-      ) : null}
+        ) : null}
+      </dialog>
+
+      <dialog
+        ref={deleteDialogRef}
+        className="dialog-panel"
+        aria-labelledby="delete-user-title"
+        aria-describedby="delete-user-hint delete-user-error"
+        onClose={handleDeleteDialogClose}
+      >
+        {deleteTarget ? (
+          <form onSubmit={confirmDelete}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h1 id="delete-user-title" className="text-base font-semibold text-(--foreground)">Delete user</h1>
+                <p className="mt-0.5 text-xs text-(--muted-foreground)">{deleteTarget.name}</p>
+              </div>
+              <Button type="button" variant="subtle" onClick={closeDelete} disabled={deleteBusy}>Close</Button>
+            </div>
+            <p className="mt-4 text-sm text-(--muted-foreground)">
+              This permanently removes the account and its academic records. This action cannot be undone.
+            </p>
+            <Field label="Confirm account email">
+              <input
+                id="delete-user-confirm"
+                className={inputClass}
+                value={deleteConfirm}
+                onChange={(event) => setDeleteConfirm(event.target.value)}
+                placeholder={deleteTarget.email}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck="false"
+                required
+              />
+            </Field>
+            <p id="delete-user-hint" className="mt-2 text-xs text-(--muted-foreground)">
+              Type {deleteTarget.email} to confirm.
+            </p>
+            <p id="delete-user-error" aria-live="polite" className="mt-2 text-xs text-(--danger)">
+              {deleteError}
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Button type="submit" variant="danger" disabled={deleteBusy}>
+                {deleteBusy ? "Deleting…" : "Delete account"}
+              </Button>
+              <Button type="button" variant="subtle" autoFocus onClick={closeDelete} disabled={deleteBusy}>Cancel</Button>
+            </div>
+          </form>
+        ) : null}
+      </dialog>
 
       <section className="mt-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -575,11 +864,18 @@ const ManageUsers = () => {
                   {!user.is_active ? " · Inactive" : ""}
                 </p>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
-                {user.role === "hod" && user.hod_type !== "subject" ? (
-                  <Button variant="subtle" onClick={() => startEdit(user)}>Edit</Button>
-                ) : null}
-                {user.role !== "admin" && <Button variant={user.is_active ? "danger" : "success"} onClick={() => toggleActive(user)}>{user.is_active ? "Deactivate" : "Activate"}</Button>}
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                <Button variant="subtle" onClick={() => startEdit(user)}>Edit</Button>
+                {user.role !== "admin" && (
+                  <Button
+                    variant={user.is_active ? "danger" : "success"}
+                    onClick={() => toggleActive(user)}
+                    disabled={statusBusyId === user.id}
+                  >
+                    {statusBusyId === user.id ? "Updating…" : user.is_active ? "Deactivate" : "Activate"}
+                  </Button>
+                )}
+                <Button variant="danger" onClick={() => startDelete(user)}>Delete</Button>
               </div>
             </div>
           ))}
