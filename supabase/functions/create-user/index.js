@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
     const password = String(body.password ?? "");
     const name = String(body.name ?? "").trim();
     const username = String(body.username ?? "").trim() || email.split("@")[0];
+    const phone = String(body.phone ?? "").trim();
     const role = String(body.role ?? "student").toLowerCase();
     const studentId = String(body.student_id ?? "").trim();
     const registrationNo = String(body.registration_no ?? "").trim();
@@ -85,6 +86,10 @@ Deno.serve(async (req) => {
     if (!name) return json({ error: "Full name is required" }, 400);
     if (!allowedRoles.has(role)) return json({ error: "Invalid account role" }, 400);
     if (!username) return json({ error: "Username is required" }, 400);
+    if (phone && !["student", "teacher"].includes(role)) {
+      return json({ error: "Phone number is only available for students and teachers" }, 400);
+    }
+    if (phone.length > 40) return json({ error: "Phone number must be 40 characters or fewer" }, 400);
 
     const scopeIds = { departmentId, degreeId, courseId, classId, hodSubjectId };
     for (const [key, value] of Object.entries(scopeIds)) {
@@ -203,6 +208,7 @@ Deno.serve(async (req) => {
 
     const patch = {
       name,
+      phone: role === "student" || role === "teacher" ? phone || null : null,
       role,
       student_id: role === "student" ? studentId : null,
       registration_no: role === "student" ? registrationNo || null : null,

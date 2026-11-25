@@ -16,7 +16,7 @@ const ROLE_LABEL = {
   exam_cell: "Exam Cell",
 };
 const EMPTY_FORM = {
-  name: "", username: "", email: "", password: "", role: "student",
+  name: "", username: "", email: "", password: "", phone: "", role: "student",
   student_id: "", registration_no: "", teacher_id: "", department_id: "", degree_id: "", course_id: "", class_id: "",
   hod_type: "department", hod_subject_id: "",
 };
@@ -240,6 +240,7 @@ const ManageUsers = () => {
       password: form.password,
       name: form.name.trim(),
       username: form.username.trim() || form.email.split("@")[0],
+      phone: form.role === "student" || form.role === "teacher" ? form.phone.trim() : "",
       role: form.role,
       student_id: form.role === "student" ? form.student_id.trim() : "",
       registration_no: form.role === "student" ? form.registration_no.trim() : "",
@@ -548,6 +549,20 @@ const ManageUsers = () => {
             </Select>
           </Field>
 
+          {(form.role === "student" || form.role === "teacher") && (
+            <Field label="Phone number">
+              <input
+                type="tel"
+                name="phone"
+                className={inputClass}
+                value={form.phone}
+                onChange={update("phone")}
+                autoComplete="tel"
+                placeholder="e.g. +91 98765 43210"
+              />
+            </Field>
+          )}
+
           {form.role === "student" && <>
             <Field label="Student ID">
               <input className={inputClass} value={form.student_id} onChange={update("student_id")} placeholder="e.g. GRD2026001" required />
@@ -671,9 +686,19 @@ const ManageUsers = () => {
             <Field label="Email">
               <input type="email" className={inputClass} value={editForm.email} onChange={updateEdit("email")} autoComplete="email" required />
             </Field>
-            <Field label="Phone">
-              <input type="tel" className={inputClass} value={editForm.phone} onChange={updateEdit("phone")} autoComplete="tel" />
-            </Field>
+            {(editForm.role === "student" || editForm.role === "teacher") && (
+              <Field label="Phone number">
+                <input
+                  type="tel"
+                  name="phone"
+                  className={inputClass}
+                  value={editForm.phone}
+                  onChange={updateEdit("phone")}
+                  autoComplete="tel"
+                  placeholder="e.g. +91 98765 43210"
+                />
+              </Field>
+            )}
             <div>
               <label htmlFor="edit-user-password" className="text-xs font-medium text-(--muted)">New password</label>
               <div className="relative mt-1.5">

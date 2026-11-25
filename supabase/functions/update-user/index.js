@@ -96,6 +96,10 @@ Deno.serve(async (req) => {
     if (!username) return json({ error: "Username is required" }, 400);
     if (password && password.length < 6) return json({ error: "Password must contain at least 6 characters" }, 400);
     if (!allowedRoles.has(role)) return json({ error: "Invalid account role" }, 400);
+    if (phone && !["student", "teacher"].includes(role)) {
+      return json({ error: "Phone number is only available for students and teachers" }, 400);
+    }
+    if (phone.length > 40) return json({ error: "Phone number must be 40 characters or fewer" }, 400);
 
     for (const [key, value] of Object.entries({ departmentId, degreeId, courseId, classId, hodSubjectId })) {
       if (value && !isUuid(value)) return json({ error: `Invalid ${key} identifier` }, 400);
@@ -211,7 +215,7 @@ Deno.serve(async (req) => {
       name,
       username,
       email,
-      phone: phone || null,
+      phone: role === "student" || role === "teacher" ? phone || null : null,
       role,
       student_id: role === "student" ? studentId : null,
       registration_no: role === "student" ? registrationNo || null : null,

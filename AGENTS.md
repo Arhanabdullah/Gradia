@@ -21,7 +21,7 @@ Single npm package (`Client/`) + Supabase backend. All app code is plain JavaScr
   - `delete-user/index.js` — admin-only permanent account deletion with self-delete and last-active-admin guards plus email confirmation.
   - `set-user-active/index.js` — toggle `is_active` + ban/unban the auth session.
   - `demo-request/index.js` — public landing-page demo form; emails the request through Resend (`RESEND_API_KEY` lives in function secrets, never in the client).
-- `/app/users` uses native `<dialog>` modals for user edit and delete, with delete requiring the target email to be typed. Activation always invokes `set-user-active`; profiles are never written directly from that screen for account state changes.
+- `/app/users` uses native `<dialog>` modals for user edit and delete, with delete requiring the target email to be typed. Activation always invokes `set-user-active`; profiles are never written directly from that screen for account state changes. Phone number is collected only for students and teachers.
 - Accounts are **admin-created only** (no public signup). The trigger `handle_new_user` builds `profiles` from `user_metadata` (`name`, `username`, `role`, `department`, `class_id`, `registration_no`).
 - Students download published results as a print-to-PDF grade card: `src/lib/print.js` builds the Techno India style document (plain HTML, no Tailwind) and `src/pages/student/MyResults.jsx` opens it in a popup and calls `print()`.
 
