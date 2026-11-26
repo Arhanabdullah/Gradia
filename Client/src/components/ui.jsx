@@ -84,3 +84,43 @@ export function StatusChip({ status }) {
     </span>
   );
 }
+
+export function Skeleton({ className = "", ...props }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`block animate-pulse rounded-lg bg-(--muted-foreground)/10 ${className}`}
+      {...props}
+    />
+  );
+}
+
+export function InlineError({ children, className = "" }) {
+  return (
+    <p role="alert" className={`text-xs text-(--danger) ${className}`}>
+      {children}
+    </p>
+  );
+}
+
+export function InlineSuccess({ children, className = "" }) {
+  return (
+    <p role="status" className={`text-xs text-(--success) ${className}`}>
+      {children}
+    </p>
+  );
+}
+
+export function LoadingButton({
+  loading = false,
+  loadingText = "Loading",
+  disabled = false,
+  children,
+  ...props
+}) {
+  return (
+    <Button disabled={disabled || loading} aria-busy={loading || undefined} {...props}>
+      {loading ? loadingText : children}
+    </Button>
+  );
+}
