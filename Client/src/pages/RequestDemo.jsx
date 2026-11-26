@@ -120,7 +120,7 @@ const RequestDemoPage = () => {
   ];
 
   return (
-    <div className="relative min-h-screen bg-(--background) text-(--foreground)">
+    <div className="theme-surface relative min-h-screen bg-(--background) text-(--foreground)">
       <Navbar theme={theme} setTheme={handleThemeChange} />
 
       <main id="main-content" tabIndex={-1} className="focus-target flex-1 pt-20">
@@ -170,7 +170,7 @@ const RequestDemoPage = () => {
                             autoComplete="name"
                             value={formData.name}
                             onChange={handleChange}
-                            className={`w-full h-11 rounded-lg border-2 px-4 text-base text-(--foreground) placeholder-(--muted-foreground) bg-(--background) transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-(--primary) ${
+                            className={`w-full h-11 rounded-lg border-2 px-4 text-base text-(--foreground) placeholder-(--muted-foreground) bg-(--background) transition-[color,background-color,border-color,box-shadow] duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-(--primary) ${
                               errors.name
                                 ? "border-(--danger) focus-visible:ring-(--danger)"
                                 : "border-(--muted) hover:border-(--primary)"
@@ -197,7 +197,7 @@ const RequestDemoPage = () => {
                             autoComplete="email"
                             value={formData.email}
                             onChange={handleChange}
-                            className={`w-full h-11 rounded-lg border-2 px-4 text-base text-(--foreground) placeholder-(--muted-foreground) bg-(--background) transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-(--primary) ${
+                            className={`w-full h-11 rounded-lg border-2 px-4 text-base text-(--foreground) placeholder-(--muted-foreground) bg-(--background) transition-[color,background-color,border-color,box-shadow] duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-(--primary) ${
                               errors.email
                                 ? "border-(--danger) focus-visible:ring-(--danger)"
                                 : "border-(--muted) hover:border-(--primary)"
@@ -225,7 +225,7 @@ const RequestDemoPage = () => {
                             value={formData.institution}
                             onChange={handleChange}
                             placeholder="e.g., Greenfield University"
-                            className={`w-full h-11 rounded-lg border-2 px-4 text-base text-(--foreground) placeholder-(--muted-foreground) bg-(--background) transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-(--primary) ${
+                            className={`w-full h-11 rounded-lg border-2 px-4 text-base text-(--foreground) placeholder-(--muted-foreground) bg-(--background) transition-[color,background-color,border-color,box-shadow] duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-(--primary) ${
                               errors.institution
                                 ? "border-(--danger) focus-visible:ring-(--danger)"
                                 : "border-(--muted) hover:border-(--primary)"
@@ -250,7 +250,7 @@ const RequestDemoPage = () => {
                             name="role"
                             value={formData.role}
                             onChange={handleChange}
-                            className={`w-full h-11 rounded-lg border-2 px-4 text-base text-(--foreground) bg-(--background) transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-(--primary) appearance-none bg-[url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238d939c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")] bg-no-repeat bg-[right_12px_center] pr-10 ${
+                            className={`w-full h-11 rounded-lg border-2 px-4 text-base text-(--foreground) bg-(--background) transition-[color,background-color,border-color,box-shadow] duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-(--primary) appearance-none bg-[url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238d939c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")] bg-no-repeat bg-[right_12px_center] pr-10 ${
                               errors.role
                                 ? "border-(--danger) focus-visible:ring-(--danger)"
                                 : "border-(--muted) hover:border-(--primary)"
@@ -284,7 +284,7 @@ const RequestDemoPage = () => {
                             value={formData.message}
                             onChange={handleChange}
                             placeholder="Any specific requirements, timelines, or questions?"
-                            className="w-full h-24 rounded-lg border-2 px-4 py-3 text-base text-(--foreground) placeholder-(--muted-foreground) bg-(--background) transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-(--primary) border-(--muted) hover:border-(--primary) resize-y"
+                            className="w-full h-24 rounded-lg border-2 px-4 py-3 text-base text-(--foreground) placeholder-(--muted-foreground) bg-(--background) transition-[color,background-color,border-color,box-shadow] duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-(--primary) border-(--muted) hover:border-(--primary) resize-y"
                             disabled={isSubmitting}
                           />
                         </div>

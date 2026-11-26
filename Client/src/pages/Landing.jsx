@@ -31,7 +31,7 @@ const Landing = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-(--background) text-(--foreground)">
+    <div className="theme-surface relative min-h-screen bg-(--background) text-(--foreground)">
       {/* Page content */}
       <div className="relative z-10 flex flex-col">
         <a

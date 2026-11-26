@@ -7,8 +7,8 @@
     <meta name="description" content="Gradia is a student result management system: enter marks, compile result sheets, route approvals, and publish results in one clean workflow." />
     <meta name="robots" content="index, follow" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f3f5f6" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#14171d" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f6f7" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#10141a" />
     <link rel="icon" type="image/svg+xml" href="/gradia.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -26,37 +26,37 @@
     <!-- Initial loading styles - inline to show immediately before React hydrates -->
     <style>
       :root {
-        --bg: #f3f5f6;
-        --fg: #1a1d23;
-        --muted: #8d939c;
-        --primary: #0e7490;
-        --surface: #f8f9fa;
-        --border: #dfe3e7;
+        --bg: #f4f6f7;
+        --fg: #151a20;
+        --muted: #5f6a76;
+        --primary: #0b7288;
+        --surface: #fbfcfc;
+        --border: #dce2e6;
         --glass-base: 255, 255, 255;
-        --glass-border: 226, 232, 240;
+        --glass-border: 220, 228, 234;
         --glass-floating-alpha: 0.8;
         --glass-panel-alpha: 0.6;
-        --ambient-primary: 14, 116, 144;
-        --ambient-primary-alpha: 0.08;
-        --ambient-secondary: 148, 158, 169;
-        --ambient-secondary-alpha: 0.06;
+        --ambient-primary: 11, 114, 136;
+        --ambient-primary-alpha: 0.07;
+        --ambient-secondary: 136, 148, 160;
+        --ambient-secondary-alpha: 0.05;
       }
       @media (prefers-color-scheme: dark) {
         :root {
-          --bg: #14171d;
-          --fg: #f4f6f8;
-          --muted: #767e8a;
+          --bg: #10141a;
+          --fg: #f2f6f8;
+          --muted: #8d99a6;
           --primary: #22d3ee;
-          --surface: #1b1f26;
-          --border: #2b313b;
-          --glass-base: 20, 23, 29;
-          --glass-border: 43, 49, 59;
+          --surface: #171c23;
+          --border: #2b333f;
+          --glass-base: 16, 20, 26;
+          --glass-border: 43, 51, 63;
           --glass-floating-alpha: 0.2;
           --glass-panel-alpha: 0.1;
           --ambient-primary: 34, 211, 238;
-          --ambient-primary-alpha: 0.04;
-          --ambient-secondary: 200, 210, 220;
-          --ambient-secondary-alpha: 0.02;
+          --ambient-primary-alpha: 0.045;
+          --ambient-secondary: 178, 188, 199;
+          --ambient-secondary-alpha: 0.025;
         }
       }
       *, *::before, *::after { box-sizing: border-box; }
@@ -65,7 +65,7 @@
         font-family: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", system-ui, sans-serif;
         background: var(--bg);
         color: var(--fg);
-        transition: background-color 300ms ease, color 300ms ease;
+        transition: background-color 300ms cubic-bezier(0.22, 1, 0.36, 1), color 300ms cubic-bezier(0.22, 1, 0.36, 1);
       }
       .init-load {
         display: grid;
@@ -88,7 +88,7 @@
         border: 1px solid transparent;
         background:
           linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.015) 45%, transparent 70%) padding-box,
-          rgba(24,27,33,0.5) padding-box,
+          rgba(16,20,26,0.5) padding-box,
           linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05) 55%, rgba(var(--ambient-primary),0.26)) border-box;
         backdrop-filter: blur(22px) saturate(180%);
         -webkit-backdrop-filter: blur(22px) saturate(180%);

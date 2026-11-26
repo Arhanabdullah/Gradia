@@ -38,7 +38,7 @@ const Login = () => {
   };
 
   return (
-    <div className="grid-background flex min-h-screen items-center justify-center bg-(--background) p-6 text-(--foreground)">
+    <div className="theme-surface grid-background flex min-h-screen items-center justify-center bg-(--background) p-6 text-(--foreground)">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}

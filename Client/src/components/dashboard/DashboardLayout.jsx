@@ -34,7 +34,7 @@ const DashboardLayout = () => {
 
   if (profile.is_active === false) {
     return (
-      <div className="grid-background flex min-h-screen items-center justify-center bg-(--background) p-6 text-(--foreground)">
+      <div className="theme-surface grid-background flex min-h-screen items-center justify-center bg-(--background) p-6 text-(--foreground)">
         <div className="glass-panel max-w-sm rounded-2xl p-8 text-center">
           <p className="text-sm font-semibold">Account deactivated</p>
           <p className="mt-2 text-xs text-(--muted-foreground)">
@@ -49,7 +49,7 @@ const DashboardLayout = () => {
   }
 
   return (
-    <div className="grid-background flex min-h-screen bg-(--background) text-(--foreground)">
+    <div className="theme-surface grid-background flex min-h-screen bg-(--background) text-(--foreground)">
       <a
         href="#main-content"
         className="sr-only rounded-xl bg-(--primary) px-4 py-2.5 text-sm font-semibold text-(--background) focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50"
@@ -67,19 +67,21 @@ const DashboardLayout = () => {
           className="focus-target relative z-10"
         >
           <div className="mx-auto max-w-5xl px-6 py-6">
-            <ErrorBoundary key={location.pathname}>
-              <Suspense
-                fallback={
-                  <div className="mt-6 space-y-3" aria-hidden="true">
-                    {[0, 1, 2].map((key) => (
-                      <div key={key} className="glass-inner h-40 motion-safe:animate-pulse rounded-xl" />
-                    ))}
-                  </div>
-                }
-              >
-                <Outlet />
-              </Suspense>
-            </ErrorBoundary>
+            <div key={location.pathname} className="page-enter">
+              <ErrorBoundary>
+                <Suspense
+                  fallback={
+                    <div className="mt-6 space-y-3" aria-hidden="true">
+                      {[0, 1, 2].map((key) => (
+                        <div key={key} className="glass-inner h-40 motion-safe:animate-pulse rounded-xl" />
+                      ))}
+                    </div>
+                  }
+                >
+                  <Outlet />
+                </Suspense>
+              </ErrorBoundary>
+            </div>
           </div>
         </main>
       </div>

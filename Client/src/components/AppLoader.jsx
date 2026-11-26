@@ -18,7 +18,7 @@ const AppLoader = ({ label = "Loading Gradia" }) => {
 
   return (
     <div
-      className="grid-background flex min-h-screen items-center justify-center bg-(--background) p-6"
+      className="theme-surface grid-background flex min-h-screen items-center justify-center bg-(--background) p-6"
       role="status"
       aria-live="polite"
       aria-busy="true"

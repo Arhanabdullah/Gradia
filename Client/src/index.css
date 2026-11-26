@@ -22,27 +22,29 @@
 }
 
 :root {
-  /* Light · Gunpowder & Cyan: pale base, gunpowder ink, cyan accent, white-shade secondary */
-  --background: #f3f5f6;
-  --surface: #f8f9fa;
-  --surface-secondary: #e9ecee;
+  /* Light · Gunpowder & Cyan: neutral pale base, gunpowder ink, teal accent */
+  color-scheme: light;
 
-  --border: #dfe3e7;
-  --border-subtle: #eceef1;
+  --background: #f4f6f7;
+  --surface: #fbfcfc;
+  --surface-secondary: #eceff1;
 
-  --foreground: #1a1d23;
-  --muted: #5b6370;
-  --muted-foreground: #8d939c;
+  --border: #dce2e6;
+  --border-subtle: #eaedf0;
 
-  --primary: #0e7490;
-  --primary-deep: #155e75;
-  --primary-hover: #155e75;
-  --tertiary: #5d6570;
+  --foreground: #151a20;
+  --muted: #4f5966;
+  --muted-foreground: #5f6a76;
+
+  --primary: #0b7288;
+  --primary-deep: #075c70;
+  --primary-hover: #075c70;
+  --tertiary: #55606d;
   --tooltip-bg: #ffffff;
-  --grid: rgba(14, 116, 144, 0.05);
+  --grid: rgba(11, 114, 136, 0.055);
 
   --glass-base: 255, 255, 255;
-  --glass-border: 226, 232, 240;
+  --glass-border: 220, 228, 234;
   --glass-highlight: 255, 255, 255;
   --glass-floating-alpha: 0.8;
   --glass-panel-alpha: 0.6;
@@ -50,51 +52,59 @@
   --glass-border-alpha: 0.8;
   --glass-highlight-alpha: 0.9;
 
-  --ambient-primary: 14, 116, 144;
-  --ambient-secondary: 148, 158, 169;
-  --ambient-primary-alpha: 0.08;
-  --ambient-secondary-alpha: 0.06;
+  --ambient-primary: 11, 114, 136;
+  --ambient-secondary: 136, 148, 160;
+  --ambient-primary-alpha: 0.07;
+  --ambient-secondary-alpha: 0.05;
 
-  --danger: #ef4444;
-  --danger-subtle: rgba(239, 68, 68, 0.1);
-  --success: #10b981;
-  --success-subtle: rgba(16, 185, 129, 0.1);
-  --sidebar-hover: rgba(14, 116, 144, 0.12);
-  --sidebar-active: rgba(14, 116, 144, 0.18);
+  --danger: #d92d20;
+  --danger-subtle: rgba(217, 45, 32, 0.1);
+  --success: #0a7a57;
+  --success-subtle: rgba(10, 122, 87, 0.1);
+  --sidebar-hover: rgba(11, 114, 136, 0.1);
+  --sidebar-active: rgba(11, 114, 136, 0.16);
+
+  /* Scoped motion: fast for controls, measured for surfaces and theme swaps */
+  --motion-fast: 160ms;
+  --motion-normal: 260ms;
+  --motion-theme: 300ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .dark {
-  /* Dark · Gunpowder & Cyan: charcoal base, white-shade text, bright cyan accent */
-  --background: #14171d;
-  --surface: #1b1f26;
-  --surface-secondary: #262b34;
-  --border: #2b313b;
-  --border-subtle: #1e222a;
-  --foreground: #f4f6f8;
-  --muted: #a8aeb8;
-  --muted-foreground: #767e8a;
+  /* Dark · Gunpowder & Cyan: deeper charcoal base, soft silver text, cyan accent */
+  color-scheme: dark;
+
+  --background: #10141a;
+  --surface: #171c23;
+  --surface-secondary: #212831;
+  --border: #2b333f;
+  --border-subtle: #1d232c;
+  --foreground: #f2f6f8;
+  --muted: #b2bcc7;
+  --muted-foreground: #8d99a6;
   --primary: #22d3ee;
-  --primary-deep: #0e7490;
+  --primary-deep: #5dd9ec;
   --primary-hover: #67e8f9;
   --tertiary: #e7eaee;
-  --tooltip-bg: #242a33;
-  --grid: rgba(34, 211, 238, 0.05);
-  --glass-base: 20, 23, 29;
+  --tooltip-bg: #202630;
+  --grid: rgba(34, 211, 238, 0.045);
+  --glass-base: 16, 20, 26;
   --glass-highlight: 255, 255, 255;
-  --glass-border: 43, 49, 59;
+  --glass-border: 43, 51, 63;
   --glass-floating-alpha: 0.2;
   --glass-panel-alpha: 0.1;
   --glass-inner-alpha: 0.05;
   --glass-border-alpha: 0.05;
   --glass-highlight-alpha: 0.02;
   --ambient-primary: 34, 211, 238;
-  --ambient-secondary: 200, 210, 220;
-  --ambient-primary-alpha: 0.04;
-  --ambient-secondary-alpha: 0.02;
-  --sidebar-hover: rgba(255, 255, 255, 0.08);
-  --sidebar-active: rgba(255, 255, 255, 0.15);
-  --danger: #f87171;
-  --danger-subtle: rgba(248, 113, 113, 0.1);
+  --ambient-secondary: 178, 188, 199;
+  --ambient-primary-alpha: 0.045;
+  --ambient-secondary-alpha: 0.025;
+  --sidebar-hover: rgba(255, 255, 255, 0.07);
+  --sidebar-active: rgba(255, 255, 255, 0.14);
+  --danger: #fb7185;
+  --danger-subtle: rgba(251, 113, 133, 0.1);
   --success: #34d399;
   --success-subtle: rgba(52, 211, 153, 0.1);
 }
@@ -133,6 +143,29 @@ body {
 :focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+/* Hallmark · Theme motion: token swaps ease on the large surfaces while
+   controls keep their faster, scoped transitions in the shared primitives. */
+body,
+.theme-surface,
+dialog.dialog-panel {
+  transition:
+    background-color var(--motion-theme) var(--ease-out),
+    border-color var(--motion-theme) var(--ease-out),
+    color var(--motion-theme) var(--ease-out),
+    box-shadow var(--motion-theme) var(--ease-out);
+}
+
+.glass-floating,
+.glass-panel,
+.glass-inner,
+.nav-glass {
+  transition:
+    background var(--motion-theme) var(--ease-out),
+    border-color var(--motion-theme) var(--ease-out),
+    color var(--motion-theme) var(--ease-out),
+    box-shadow var(--motion-theme) var(--ease-out);
 }
 
 /* Native dialogs: contain overscroll inside the modal instead of letting the
@@ -185,9 +218,52 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", system-ui, sans-serif;
-  transition:
-    background-color 300ms ease,
-    color 300ms ease;
+}
+
+/* One restrained reveal per route: opacity and transform only. */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes dialog-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .page-enter {
+    animation: page-enter var(--motion-normal) var(--ease-out) both;
+  }
+
+  dialog.dialog-panel[open] {
+    animation: dialog-enter var(--motion-normal) var(--ease-out) both;
+  }
+
+  dialog.dialog-panel[open]::backdrop {
+    animation: backdrop-enter var(--motion-fast) ease-out both;
+  }
 }
 
 .grid-background {
@@ -382,7 +458,7 @@ body {
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: content-box;
-  transition: background 120ms ease;
+  transition: background var(--motion-fast) var(--ease-out);
 }
 
 *::-webkit-scrollbar-thumb:hover {

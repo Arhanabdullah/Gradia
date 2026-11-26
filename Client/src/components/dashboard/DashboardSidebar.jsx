@@ -72,7 +72,7 @@ const PREVIEW_ITEMS = [
 
 const SidebarItem = ({ item, isActive, collapsed = false }) => {
   const Icon = item.icon;
-  const baseClass = `flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${collapsed ? "justify-center" : ""}`;
+  const baseClass = `flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150 ease-out ${collapsed ? "justify-center" : ""}`;
   const activeClass = `${baseClass} bg-(--sidebar-active) text-(--foreground)`;
   const idleClass = `${baseClass} text-(--muted) hover:bg-(--sidebar-hover) hover:text-(--foreground) focus-visible:outline-2 focus-visible:outline-(--primary)`;
 
@@ -144,7 +144,7 @@ export default function DashboardSidebar({
           <button
             type="button"
             onClick={onToggleCollapse}
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-(--muted) hover:text-(--foreground) hover:bg-(--surface-secondary) transition-colors ${collapsed ? "rotate-180" : ""}`}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-(--muted) hover:text-(--foreground) hover:bg-(--surface-secondary) transition-colors duration-150 ease-out ${collapsed ? "rotate-180" : ""}`}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-expanded={!collapsed}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -181,7 +181,7 @@ export default function DashboardSidebar({
             {!collapsed && (
               <button
                 onClick={signOut}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-(--muted) hover:text-(--danger) hover:bg-(--danger-subtle) transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-(--muted) hover:text-(--danger) hover:bg-(--danger-subtle) transition-colors duration-150 ease-out"
                 aria-label="Sign out"
               >
                 <LogOut className="h-4 w-4" strokeWidth={2} />

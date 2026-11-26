@@ -24,7 +24,7 @@ const NotFound = () => {
     <main
       id="main-content"
       tabIndex={-1}
-      className="grid-background flex min-h-screen items-center justify-center bg-(--background) p-6 text-(--foreground)"
+      className="theme-surface grid-background flex min-h-screen items-center justify-center bg-(--background) p-6 text-(--foreground)"
     >
       <motion.div
         className="rounded-2xl p-8 text-center sm:p-10 bg-(--surface) border border-(--muted) w-full max-w-md"
