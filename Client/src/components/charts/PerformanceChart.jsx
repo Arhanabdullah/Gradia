@@ -9,6 +9,7 @@ import {
 } from "recharts";
 
 import { chartAxis, chartTooltip } from "./ChartsConfig";
+import { useChartMotion } from "./useChartMotion";
 
 const data = [
     { month: "Jan", score: 68 },
@@ -20,6 +21,7 @@ const data = [
 ];
 
 const PerformanceChart = () => {
+    const chartMotion = useChartMotion();
     return (
         <div className="h-55 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -62,6 +64,7 @@ const PerformanceChart = () => {
                         stroke="var(--primary)"
                         strokeWidth={2}
                         dot={false}
+                        {...chartMotion}
                         activeDot={{
                             r: 4,
                             fill: "var(--primary)",

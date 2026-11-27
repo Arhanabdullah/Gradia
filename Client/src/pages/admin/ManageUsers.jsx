@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { Button, Card, Empty, Field, Select, inputClass } from "../../components/ui";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
 import ImportButton from "../../components/import/ImportButton";
+import { closeDialog } from "../../lib/dialog";
 
 const ROLES = ["student", "teacher", "hod", "principal", "admin", "coordinator", "exam_cell"];
 const ROLE_LABEL = {
@@ -328,7 +329,7 @@ const ManageUsers = () => {
 
   const closeEdit = () => {
     if (editBusy) return;
-    editDialogRef.current?.close();
+    void closeDialog(editDialogRef.current);
   };
 
   const handleEditDialogClose = () => {
@@ -434,7 +435,7 @@ const ManageUsers = () => {
     }
 
     setEditBusy(false);
-    editDialogRef.current?.close();
+    void closeDialog(editDialogRef.current);
     setNotice("Account updated.");
     await load();
   };
@@ -448,7 +449,7 @@ const ManageUsers = () => {
 
   const closeDelete = () => {
     if (deleteBusy) return;
-    deleteDialogRef.current?.close();
+    void closeDialog(deleteDialogRef.current);
   };
 
   const handleDeleteDialogClose = () => {
@@ -478,7 +479,7 @@ const ManageUsers = () => {
     }
 
     setDeleteBusy(false);
-    deleteDialogRef.current?.close();
+    void closeDialog(deleteDialogRef.current);
     setNotice("Account deleted.");
     await load();
   };
@@ -667,6 +668,7 @@ const ManageUsers = () => {
         className="dialog-panel"
         aria-labelledby="edit-user-title"
         onClose={handleEditDialogClose}
+        onCancel={(event) => { event.preventDefault(); closeEdit(); }}
       >
         {editForm ? (
           <form onSubmit={saveEdit} className="grid gap-4 sm:grid-cols-2" aria-labelledby="edit-user-title">
@@ -819,6 +821,7 @@ const ManageUsers = () => {
         aria-labelledby="delete-user-title"
         aria-describedby="delete-user-hint delete-user-error"
         onClose={handleDeleteDialogClose}
+        onCancel={(event) => { event.preventDefault(); closeDelete(); }}
       >
         {deleteTarget ? (
           <form onSubmit={confirmDelete}>

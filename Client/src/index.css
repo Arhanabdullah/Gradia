@@ -67,8 +67,12 @@
   /* Scoped motion: fast for controls, measured for surfaces and theme swaps */
   --motion-fast: 160ms;
   --motion-normal: 260ms;
+  --motion-slow: 420ms;
   --motion-theme: 300ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  /* Gentle spring for press/lift feedback; never used for layout-critical motion */
+  --ease-spring: cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
 .dark {
@@ -179,6 +183,11 @@ dialog::backdrop {
   overflow: hidden;
   overscroll-behavior: contain;
   background: rgba(8, 12, 18, 0.56);
+  /* Keep backdrop in top layer while it fades out; animate opacity only. */
+  transition-property: background-color, display, overlay;
+  transition-duration: var(--motion-normal);
+  transition-timing-function: var(--ease-out);
+  transition-behavior: allow-discrete;
 }
 
 dialog.dialog-panel {
@@ -189,10 +198,66 @@ dialog.dialog-panel {
   background: var(--surface);
   color: var(--foreground);
   box-shadow: 0 24px 80px rgba(8, 12, 18, 0.32);
+  /* Smooth enter/exit for native top-layer dialogs (see animate-to-from-top-layer).
+     display + overlay are discrete; allow-discrete keeps the panel rendered
+     through its exit transition. Never applied in shorthand for older browsers. */
+  opacity: 0;
+  transition-property: opacity, transform, background-color, border-color, color, box-shadow, display, overlay;
+  transition-duration: var(--motion-normal);
+  transition-timing-function: var(--ease-out);
+  transition-behavior: allow-discrete;
 }
 
 dialog.dialog-panel[open] {
   overflow-y: auto;
+  opacity: 1;
+}
+
+dialog.dialog-panel[data-closing] {
+  opacity: 0;
+}
+
+/* Entry starting point (transitions FROM these values on open).
+   Scale/slide only for users without reduced-motion; reduced-motion gets a
+   short opacity fade via the global duration floor. */
+@media (prefers-reduced-motion: no-preference) {
+  dialog.dialog-panel {
+    transform: translateY(10px) scale(0.985);
+  }
+
+  dialog.dialog-panel[open] {
+    transform: none;
+  }
+
+  dialog.dialog-panel[data-closing] {
+    transform: translateY(10px) scale(0.985);
+  }
+}
+
+@starting-style {
+  dialog.dialog-panel[open] {
+    opacity: 0;
+  }
+
+  dialog.dialog-panel[open]::backdrop {
+    background-color: rgba(8, 12, 18, 0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @starting-style {
+    dialog.dialog-panel[open] {
+      transform: translateY(10px) scale(0.985);
+    }
+  }
+}
+
+dialog.dialog-panel[open]::backdrop {
+  background-color: rgba(8, 12, 18, 0.56);
+}
+
+dialog.dialog-panel[data-closing]::backdrop {
+  background-color: rgba(8, 12, 18, 0);
 }
 
 /* Programmatic focus handoff targets (skip-link destinations, 404 heading):
@@ -232,37 +297,9 @@ body {
   }
 }
 
-@keyframes dialog-enter {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 10px, 0) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes backdrop-enter {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 @media (prefers-reduced-motion: no-preference) {
   .page-enter {
     animation: page-enter var(--motion-normal) var(--ease-out) both;
-  }
-
-  dialog.dialog-panel[open] {
-    animation: dialog-enter var(--motion-normal) var(--ease-out) both;
-  }
-
-  dialog.dialog-panel[open]::backdrop {
-    animation: backdrop-enter var(--motion-fast) ease-out both;
   }
 }
 
@@ -486,4 +523,87 @@ body {
 
 .dark *::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--muted-foreground) 40%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+ * Interaction polish (Hallmark): no new colours; motion tokens only.
+ * All spatial movement is gated behind prefers-reduced-motion: no-preference;
+ * the global reduced-motion floor above also shortens durations.
+ * ------------------------------------------------------------------------- */
+
+/* Subtle card lift + depth on hover. Resting appearance is unchanged. */
+.card-hover {
+  transition-property: transform, box-shadow, border-color, background, color;
+  transition-duration: var(--motion-normal);
+  transition-timing-function: var(--ease-out);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .glass-inner.card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 12px 40px rgba(23, 27, 33, 0.1),
+      0 2px 8px rgba(23, 27, 33, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  }
+
+  .dark .glass-inner.card-hover:hover {
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.26),
+      0 2px 8px rgba(0, 0, 0, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.11);
+  }
+}
+
+/* Skeleton loading shimmer (kept inside motion preference). */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--foreground) 8%, transparent),
+      transparent
+    );
+    animation: skeleton-shimmer 1.4s var(--ease-in-out) infinite;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Table polish: smooth row hover, stable column alignment. Newly inserted rows (filtering/sorting) ease in. */
+table tbody tr {
+  transition: background-color var(--motion-fast) var(--ease-out), opacity var(--motion-fast) var(--ease-out);
+}
+
+@starting-style {
+  table tbody tr {
+    opacity: 0;
+  }
+}
+
+table tbody tr:hover {
+  background-color: color-mix(in srgb, var(--muted-foreground) 5%, transparent);
+}
+
+/* Inputs: ease border/background/focus changes. */
+input,
+textarea,
+select {
+  transition-property: border-color, background-color, box-shadow, color;
+  transition-duration: var(--motion-fast);
+  transition-timing-function: var(--ease-out);
 }

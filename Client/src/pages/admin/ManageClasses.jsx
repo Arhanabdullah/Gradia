@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 import { Button, Card, Empty, Field, SearchField, Select, inputClass } from "../../components/ui";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
@@ -581,15 +582,34 @@ export default function ManageClasses() {
               aria-selected={selected}
               aria-controls={`academics-panel-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
-              className={`rounded-lg px-3.5 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-(--primary) focus-visible:outline-offset-2 ${selected ? "bg-(--primary-deep) text-white" : "text-(--muted-foreground) hover:bg-(--primary)/5 hover:text-(--foreground)"}`}
+              className={`relative rounded-lg px-3.5 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-(--primary) focus-visible:outline-offset-2 ${selected ? "text-white" : "text-(--muted-foreground) hover:bg-(--primary)/5 hover:text-(--foreground)"}`}
             >
-              {tab.label}
+              {selected ? (
+                <motion.span
+                  layoutId="academics-tab-pill"
+                  aria-hidden="true"
+                  className="absolute inset-0 rounded-lg bg-(--primary-deep)"
+                  transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                />
+              ) : null}
+              <span className="relative z-10">{tab.label}</span>
             </button>
           );
         })}
       </div>
 
-      <div role="tabpanel" id={`academics-panel-${activeTab}`} aria-labelledby={`academics-tab-${activeTab}`} className="mt-6">
+      <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={activeTab}
+        role="tabpanel"
+        id={`academics-panel-${activeTab}`}
+        aria-labelledby={`academics-tab-${activeTab}`}
+        className="mt-6"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -4 }}
+        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+      >
         {activeTab === "classes" && (
           <>
             <section>
@@ -734,7 +754,8 @@ export default function ManageClasses() {
             onReload={load}
           />
         )}
-      </div>
+      </motion.div>
+      </AnimatePresence>
     </>
   );
 }

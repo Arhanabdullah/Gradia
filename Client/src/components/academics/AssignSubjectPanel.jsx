@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button, Card, Empty, Field, SearchField, Select, inputClass } from "../ui";
 import ImportButton from "../import/ImportButton";
 
@@ -66,33 +67,42 @@ function TeacherPicker({ teachers, selectedIds, onToggle, disabled = false }) {
               setOpen(true);
             }}
           />
-          {open ? (
-            <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-(--border) bg-(--surface) p-1 shadow-lg">
-              {matches.length === 0 ? (
-                <p className="px-2 py-2 text-xs text-(--muted-foreground)">
-                  {query.trim()
-                    ? `No teachers match "${query.trim()}".`
-                    : "All available teachers are already selected."}
-                </p>
-              ) : (
-                matches.map((teacher) => (
-                  <button
-                    key={teacher.id}
-                    type="button"
-                    onClick={() => {
-                      onToggle(teacher.id);
-                      setQuery("");
-                      setOpen(true);
-                    }}
-                    className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs text-(--foreground) transition-colors hover:bg-(--primary)/10 focus-visible:outline-2 focus-visible:outline-(--primary) focus-visible:outline-offset-2"
-                  >
-                    <span>{teacherLabel(teacher)}</span>
-                    <span className="text-(--muted-foreground)">Add</span>
-                  </button>
-                ))
-              )}
-            </div>
-          ) : null}
+          <AnimatePresence>
+            {open ? (
+              <motion.div
+                className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-(--border) bg-(--surface) p-1 shadow-lg"
+                initial={{ opacity: 0, y: -4, scaleY: 0.98 }}
+                animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                exit={{ opacity: 0, y: -4, scaleY: 0.98 }}
+                transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
+                style={{ transformOrigin: "top" }}
+              >
+                {matches.length === 0 ? (
+                  <p className="px-2 py-2 text-xs text-(--muted-foreground)">
+                    {query.trim()
+                      ? `No teachers match "${query.trim()}".`
+                      : "All available teachers are already selected."}
+                  </p>
+                ) : (
+                  matches.map((teacher) => (
+                    <button
+                      key={teacher.id}
+                      type="button"
+                      onClick={() => {
+                        onToggle(teacher.id);
+                        setQuery("");
+                        setOpen(true);
+                      }}
+                      className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs text-(--foreground) transition-colors hover:bg-(--primary)/10 focus-visible:outline-2 focus-visible:outline-(--primary) focus-visible:outline-offset-2"
+                    >
+                      <span>{teacherLabel(teacher)}</span>
+                      <span className="text-(--muted-foreground)">Add</span>
+                    </button>
+                  ))
+                )}
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
         </>
       )}
 
@@ -339,8 +349,16 @@ export default function AssignSubjectPanel({
                           <Button type="button" variant="danger" onClick={() => onRemoveAssignment(row)} disabled={saving}>Remove</Button>
                         </div>
                       </div>
+                      <AnimatePresence initial={false}>
                       {editing ? (
-                        <div className="mt-3 border-t border-(--border) pt-3">
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                          style={{ overflow: "hidden" }}
+                        >
+                          <div className="mt-3 border-t border-(--border) pt-3">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-xs font-semibold text-(--foreground)">Select one or more teachers</p>
                             <span className={`text-xs ${draft.length ? "text-(--muted-foreground)" : "text-(--danger)"}`}>
@@ -359,8 +377,10 @@ export default function AssignSubjectPanel({
                             </Button>
                             <Button type="button" variant="subtle" onClick={onCancelEditTeachers} disabled={saving}>Cancel</Button>
                           </div>
-                        </div>
+                          </div>
+                        </motion.div>
                       ) : null}
+                      </AnimatePresence>
                     </div>
                   );
                 })}

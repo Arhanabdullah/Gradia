@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
-import { StatCard, Empty, Card, StatusChip } from "../components/ui";
+import { StatCard, Empty, Card, StatusChip, Skeleton } from "../components/ui";
 import AttendanceSummary from "../components/AttendanceSummary";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
 import ExamCalendarCard from "../components/dashboard/ExamCalendarCard";
@@ -278,12 +278,19 @@ const Overview = () => {
       />
       <div className="mt-7 grid gap-3 sm:grid-cols-3">
         {(stats ?? Array.from({ length: 3 })).map((stat, i) =>
-          stat ? <StatCard key={i} label={stat.label} value={stat.value} /> : <StatCard key={i} label="â€¦" value="" />,
+          stat ? (
+            <StatCard key={i} label={stat.label} value={stat.value} />
+          ) : (
+            <div key={i} className="glass-inner rounded-xl p-5" aria-hidden="true">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="mt-3 h-6 w-16" />
+            </div>
+          ),
         )}
       </div>
       {loadError ? (
         <p className="mt-3 text-xs text-(--danger)">
-          Couldnâ€™t load some dashboard data. Check your connection and refresh the page.
+          Couldn't load some dashboard data. Check your connection and refresh the page.
         </p>
       ) : null}
 

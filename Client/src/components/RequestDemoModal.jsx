@@ -44,10 +44,9 @@ const RequestDemoModal = ({ isOpen, onClose }) => {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  if (!isOpen) return null;
-
   return (
     <AnimatePresence>
+      {isOpen && (
       <motion.div
         className="fixed inset-0 z-50 flex items-center justify-center p-4"
         initial={{ opacity: 0 }}
@@ -310,6 +309,7 @@ const RequestDemoModal = ({ isOpen, onClose }) => {
           </AnimatePresence>
         </motion.div>
       </motion.div>
+      )}
     </AnimatePresence>
   );
 };

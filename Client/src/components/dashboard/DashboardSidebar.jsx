@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, LayoutGroup } from "framer-motion";
 import { LayoutDashboard, Users, GraduationCap, FileText, BarChart2, CheckCircle2, Send, Award, Bell, LogOut, Menu, X, ChevronLeft, CalendarCheck, Archive, SlidersHorizontal, ClipboardList, BookOpen } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { microTransition } from "../../animations/variants";
@@ -70,10 +70,19 @@ const PREVIEW_ITEMS = [
   { label: "Reports", icon: BarChart2 },
 ];
 
-const SidebarItem = ({ item, isActive, collapsed = false }) => {
+const ActivePill = ({ layoutId }) => (
+  <motion.span
+    aria-hidden="true"
+    layoutId={layoutId}
+    className="absolute inset-0 rounded-lg bg-(--sidebar-active)"
+    transition={microTransition}
+  />
+);
+
+const SidebarItem = ({ item, isActive, collapsed = false, layoutId = "sidebar-active" }) => {
   const Icon = item.icon;
-  const baseClass = `flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150 ease-out ${collapsed ? "justify-center" : ""}`;
-  const activeClass = `${baseClass} bg-(--sidebar-active) text-(--foreground)`;
+  const baseClass = `relative flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150 ease-out ${collapsed ? "justify-center" : ""}`;
+  const activeClass = `${baseClass} text-(--foreground)`;
   const idleClass = `${baseClass} text-(--muted) hover:bg-(--sidebar-hover) hover:text-(--foreground) focus-visible:outline-2 focus-visible:outline-(--primary)`;
 
   if (!item.to) {
@@ -84,8 +93,9 @@ const SidebarItem = ({ item, isActive, collapsed = false }) => {
         transition={microTransition}
         title={collapsed ? item.label : undefined}
       >
-        <Icon className="h-4 w-4 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
-        {collapsed ? null : item.label}
+        {isActive ? <ActivePill layoutId={layoutId} /> : null}
+        <Icon className="relative z-10 h-4 w-4 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
+        {collapsed ? null : <span className="relative z-10">{item.label}</span>}
       </motion.div>
     );
   }
@@ -103,8 +113,9 @@ const SidebarItem = ({ item, isActive, collapsed = false }) => {
           whileHover={active ? undefined : { x: 2 }}
           transition={microTransition}
         >
-          <Icon className="h-4 w-4 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
-          {collapsed ? null : item.label}
+          {active ? <ActivePill layoutId={layoutId} /> : null}
+          <Icon className="relative z-10 h-4 w-4 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
+          {collapsed ? null : <span className="relative z-10">{item.label}</span>}
         </motion.div>
       )}
     </NavLink>
@@ -123,7 +134,7 @@ export default function DashboardSidebar({
 
   return (
     <aside
-      className={`glass-floating flex shrink-0 flex-col transition-[width] duration-300 ease-out ${
+      className={`glass-floating flex shrink-0 flex-col transition-[width,background,border-color,color,box-shadow] duration-300 ease-out ${
         fluid ? "w-full md:w-64" : collapsed ? "w-16" : "w-64"
       }`}
       aria-label="Main navigation"
@@ -144,7 +155,7 @@ export default function DashboardSidebar({
           <button
             type="button"
             onClick={onToggleCollapse}
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-(--muted) hover:text-(--foreground) hover:bg-(--surface-secondary) transition-colors duration-150 ease-out ${collapsed ? "rotate-180" : ""}`}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-(--muted) hover:text-(--foreground) hover:bg-(--surface-secondary) transition-[color,background-color,transform] duration-200 ease-out ${collapsed ? "rotate-180" : ""}`}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-expanded={!collapsed}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -156,14 +167,16 @@ export default function DashboardSidebar({
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 p-3 overflow-y-auto" aria-label={isPreview ? "Preview sections" : "Dashboard"}>
-        {navItems.map((item) => (
-          <SidebarItem
-            key={item.to ?? item.label}
-            item={item}
-            isActive={item.active}
-            collapsed={collapsed && !fluid}
-          />
-        ))}
+        <LayoutGroup id={`sidebar-${isPreview ? "preview" : "nav"}`}>
+          {navItems.map((item) => (
+            <SidebarItem
+              key={item.to ?? item.label}
+              item={item}
+              isActive={item.active}
+              collapsed={collapsed && !fluid}
+            />
+          ))}
+        </LayoutGroup>
       </nav>
 
       {/* Account section - only for authenticated users */}

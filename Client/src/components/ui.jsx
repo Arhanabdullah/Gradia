@@ -8,13 +8,13 @@ export const inputClass =
   "w-full rounded-lg border border-(--muted) bg-(--surface-secondary) px-3.5 py-2.5 text-sm text-(--foreground) placeholder:text-(--muted-foreground)/60 outline-none transition-[color,background-color,border-color,box-shadow] duration-150 ease-out focus:border-(--primary) focus-visible:outline-2 focus-visible:outline-(--primary) focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40";
 
 const buttonBase =
-  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-medium transition-[color,background-color,border-color,transform,box-shadow] duration-150 ease-out active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-(--primary) focus-visible:outline-offset-2";
+  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-medium transition-[color,background-color,border-color,transform,box-shadow] duration-150 ease-out active:translate-y-px motion-safe:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none disabled:active:scale-100 focus-visible:outline-2 focus-visible:outline-(--primary) focus-visible:outline-offset-2";
 
 const variants = {
-  primary: `${buttonBase} bg-(--primary) text-(--background) hover:bg-(--primary-hover)`,
-  subtle: `${buttonBase} border border-(--border) text-(--foreground) hover:border-(--primary) hover:bg-(--primary)/5`,
-  danger: `${buttonBase} border border-(--danger)/40 text-(--danger) hover:bg-(--danger-subtle)`,
-  success: `${buttonBase} border border-(--success)/40 text-(--success) hover:bg-(--success-subtle)`,
+  primary: `${buttonBase} bg-(--primary) text-(--background) hover:bg-(--primary-hover) motion-safe:hover:-translate-y-0.5 hover:shadow-[0_4px_14px_color-mix(in_srgb,var(--primary)_25%,transparent)]`,
+  subtle: `${buttonBase} border border-(--border) text-(--foreground) hover:border-(--primary) hover:bg-(--primary)/5 motion-safe:hover:-translate-y-0.5`,
+  danger: `${buttonBase} border border-(--danger)/40 text-(--danger) hover:bg-(--danger-subtle) motion-safe:hover:-translate-y-0.5`,
+  success: `${buttonBase} border border-(--success)/40 text-(--success) hover:bg-(--success-subtle) motion-safe:hover:-translate-y-0.5`,
 };
 
 export function Button({ variant = "primary", className = "", ...props }) {
@@ -52,7 +52,7 @@ export function SearchField({ value, onChange, label = "Search", placeholder = "
 
 export function Card({ className = "", children, ...props }) {
   return (
-    <div className={`glass-inner rounded-xl p-5 ${className}`} {...props}>
+    <div className={`glass-inner card-hover rounded-xl p-5 ${className}`} {...props}>
       {children}
     </div>
   );
@@ -89,7 +89,7 @@ export function Skeleton({ className = "", ...props }) {
   return (
     <span
       aria-hidden="true"
-      className={`block animate-pulse rounded-lg bg-(--muted-foreground)/10 ${className}`}
+      className={`skeleton block rounded-lg bg-(--muted-foreground)/10 ${className}`}
       {...props}
     />
   );

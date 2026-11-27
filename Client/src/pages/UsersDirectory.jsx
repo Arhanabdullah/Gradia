@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { Button, Card, Empty, Field, Select, StatusChip, inputClass } from "../components/ui";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
@@ -841,14 +842,21 @@ const UsersDirectory = () => {
             <Empty>No accounts match the selected role and filters.</Empty>
           ) : null}
           {!loading
-            ? filtered.map((user) => {
+            ? (
+            <AnimatePresence mode="popLayout" initial={false}>
+            {filtered.map((user) => {
                 const department = firstEmbed(user.departments)?.name;
                 const degree = firstEmbed(user.degrees)?.name;
                 const course = firstEmbed(user.courses)?.name;
                 const klass = firstEmbed(user.classes);
                 return (
-                  <div
+                  <motion.div
                     key={user.id}
+                    layout
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                     className="glass-inner flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm"
                   >
                     <div className="min-w-0">
@@ -870,9 +878,12 @@ const UsersDirectory = () => {
                     <Button variant="subtle" onClick={() => openProfile(user)}>
                       View profile
                     </Button>
-                  </div>
+                  </motion.div>
                 );
               })
+            }
+            </AnimatePresence>
+            )
             : null}
         </div>
       </section>

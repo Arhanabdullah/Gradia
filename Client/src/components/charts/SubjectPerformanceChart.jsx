@@ -8,6 +8,7 @@ import {
     ResponsiveContainer,
 } from "recharts";
 import { chartAxis, chartTooltip } from "./ChartsConfig";
+import { useChartMotion } from "./useChartMotion";
 const subjectData = [
     { subject: "DSA", score: 86 },
     { subject: "DBMS", score: 78 },
@@ -17,6 +18,7 @@ const subjectData = [
 ];
 
 const SubjectPerformanceChart = () => {
+    const chartMotion = useChartMotion();
     return (
         <div className="h-55 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -57,6 +59,7 @@ const SubjectPerformanceChart = () => {
                         fill="var(--primary)"
                         radius={[4, 4, 0, 0]}
                         barSize={16}
+                        {...chartMotion}
                     />
                 </BarChart>
             </ResponsiveContainer>

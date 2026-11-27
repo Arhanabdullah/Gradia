@@ -242,7 +242,7 @@ const MyResults = () => {
       )}
 
       <section className="mt-8 space-y-4">
-        {sheets.length === 0 && <Empty>No published results yet. Youâ€™ll be notified when results go live.</Empty>}
+        {sheets.length === 0 && <Empty>No published results yet. You'll be notified when results go live.</Empty>}
         {sheets.map((sheet) => {
           const mine = items.filter((i) => i.sheet_id === sheet.id);
           const summary = summaryBySheet.get(sheet.id) ?? null;

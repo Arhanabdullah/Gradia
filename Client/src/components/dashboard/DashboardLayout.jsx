@@ -71,10 +71,16 @@ const DashboardLayout = () => {
               <ErrorBoundary>
                 <Suspense
                   fallback={
-                    <div className="mt-6 space-y-3" aria-hidden="true">
-                      {[0, 1, 2].map((key) => (
-                        <div key={key} className="glass-inner h-40 motion-safe:animate-pulse rounded-xl" />
-                      ))}
+                    <div className="mt-6 space-y-4" aria-hidden="true" role="status" aria-label="Loading">
+                      {/* Structural skeleton matching typical page rhythm */}
+                      <div className="skeleton h-8 w-48 rounded-lg bg-(--muted-foreground)/10 motion-safe:animate-pulse" />
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        {[0, 1, 2].map((key) => (
+                          <div key={key} className="glass-inner skeleton h-24 rounded-xl motion-safe:animate-pulse" />
+                        ))}
+                      </div>
+                      <div className="glass-inner skeleton h-40 rounded-xl motion-safe:animate-pulse" />
+                      <div className="glass-inner skeleton h-40 rounded-xl motion-safe:animate-pulse" />
                     </div>
                   }
                 >
