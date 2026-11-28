@@ -4,6 +4,7 @@ import { LogOut, Moon, Sun } from "lucide-react";
 import { microTransition } from "../../animations/variants";
 import { useAuth } from "../../context/AuthContext";
 import { setTheme, getTheme } from "../../lib/theme";
+import NotificationCenter from "./NotificationCenter";
 
 const DashboardHeader = ({ title, subtitle }) => {
   const { profile, signOut } = useAuth();
@@ -26,6 +27,7 @@ const DashboardHeader = ({ title, subtitle }) => {
       </div>
       {profile ? (
         <div className="flex items-center gap-2">
+          <NotificationCenter />
           <motion.button
             onClick={toggleTheme}
             className="hidden rounded-lg border border-(--border) bg-(--surface-secondary) p-2.5 text-(--muted) sm:block"

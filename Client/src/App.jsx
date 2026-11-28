@@ -165,7 +165,7 @@ const App = () => {
           <Route
             path="notifications"
             element={
-              <RequireRole role="student">
+              <RequireRole roles={["admin", "teacher", "hod", "principal", "student", "coordinator", "exam_cell"]}>
                 <Suspense fallback={<AppLoader label="Loading notifications…" />}>
                   <Notifications />
                 </Suspense>
